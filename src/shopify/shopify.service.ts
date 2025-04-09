@@ -1,13 +1,20 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { shopifyApi, ApiVersion, Shopify } from '@shopify/shopify-api';
-import { AppConfigService } from 'src/config/config.service';
+import {
+  shopifyApi,
+  ApiVersion,
+  Shopify,
+  LogSeverity,
+} from '@shopify/shopify-api';
+import { AppConfigService } from '../config/config.service';
 import '@shopify/shopify-api/adapters/node';
 import axios from 'axios';
-import crypto from 'node:crypto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ShopifyService {
   private shopify: Shopify;
+  private SHOPIFY_CLIENT_ID: string;
+  private SHOPIFY_CLIENT_SECRET: string;
 
   constructor(
     private config: AppConfigService,
@@ -15,21 +22,16 @@ export class ShopifyService {
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
-      future: {
-        lineItemBilling: true,
-      },
       apiSecretKey: this.config.get('SHOPIFY_CLIENT_SECRET'),
       scopes: ['read_products', 'read_orders'],
       hostName: 'ngrok-tunnel-address',
       isEmbeddedApp: false,
       apiVersion: ApiVersion.January25,
       isCustomStoreApp: false,
+      logger: { level: LogSeverity.Error },
     });
-  }
-
-  getOauthUrl() {
-    // const client = new shopify.clients.Graphql({ session });
-    // const response = await client.query({ data: '{your_query}' });
+    this.SHOPIFY_CLIENT_ID = this.config.get('SHOPIFY_CLIENT_ID');
+    this.SHOPIFY_CLIENT_SECRET = this.config.get('SHOPIFY_CLIENT_SECRET');
   }
 
   handleOauthCallback() {}
@@ -39,73 +41,60 @@ export class ShopifyService {
     accessToken: string;
     scope: string;
   }) {
-    //   curl -X POST \
-    // https://{shop}.myshopify.com/admin/api/2025-04/graphql.json \
-    // -H 'Content-Type: application/json' \
-    // -H 'X-Shopify-Access-Token: {access_token}' \
-    // -d '{
-    //   "query": "{
-    //     products(first: 5) {
-    //       edges {
-    //         node {
-    //           id
-    //           handle
-    //         }
-    //       }
-    //       pageInfo {
-    //         hasNextPage
-    //       }
-    //     }
-    //   }"
-    // }'
-    // https://{store_name}.myshopify.com/admin/api/2025-01/graphql.json
     const { shop, accessToken, scope } = params;
-    const queryString = `{
-      products (first: 3) {
-        edges {
-          node {
-            id
-            title
-          }
-        }
-      }
-    }`;
     //shop = 'akinola.myshopify.com',
     const client = this.createShopifyClientSession({
       shop,
       accessToken,
       scope,
     });
-    const products = await client.query({
-      data: queryString,
-    });
-    const responseExample = {
+    const response = await client.query({
       data: {
-        products: {
-          edges: [
-            {
-              node: {
-                title: 'Hiking backpack',
-              },
-            },
-          ],
+        query: `#graphql
+          query GetProducts($first: Int!) {
+            shop {
+              currencyCode
+            }
+            products (first: $first) {
+              edges {
+                node {
+                  id
+                  title
+                  description
+                  variants(first: 10) {
+                    edges {
+                      node {
+                        id,
+                        displayName,
+                        title,
+                        price,
+                        image {
+                          id,
+                          url,
+                        }
+                      }
+                    }
+                    pageInfo {
+                      hasNextPage
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }`,
+        variables: {
+          first: 3,
         },
       },
-      extensions: {
-        cost: {
-          requestedQueryCost: 3,
-          actualQueryCost: 3,
-          throttleStatus: {
-            maximumAvailable: 1000.0,
-            currentlyAvailable: 997,
-            restoreRate: 50.0,
-          },
-        },
-      },
-    };
-    console.log({ responseExample });
-    console.log({ products });
-    return products;
+    });
+
+    // console.log(JSON.stringify(responseExample));
+    // console.log(JSON.stringify(response));
+    // console.log(response.body);
+    return response;
   }
 
   private createShopifyClientSession(params: {
@@ -122,17 +111,14 @@ export class ShopifyService {
   }
 
   private async getAccessToken(shop: string, code: string) {
+    const shopString = shop.split('.')[0];
     try {
       //POST https://{shop}.myshopify.com/admin/oauth/access_token?client_id={client_id}&client_secret={client_secret}&code={authorization_code}
-      const shopifyTokenUrl = `https://${shop}.myshopify.com/admin/oauth/access_token`;
+      const shopifyTokenUrl = `https://${shopString}.myshopify.com/admin/oauth/access_token?client_id=${this.SHOPIFY_CLIENT_ID}&client_secret=${this.SHOPIFY_CLIENT_SECRET}&code=${code}`;
       const response = await axios.post<{
         access_token: string;
         scope: string;
-      }>(shopifyTokenUrl, {
-        client_id: process.env.SHOPIFY_CLIENT_ID,
-        client_secret: process.env.SHOPIFY_CLIENT_SECRET,
-        code,
-      });
+      }>(shopifyTokenUrl);
       return response.data;
     } catch (e) {
       console.log({ e });
@@ -140,7 +126,7 @@ export class ShopifyService {
     }
   }
 
-  getShopifyAuthUrl(shop: string) {
+  getShopifyOAuthUrl(shop: string) {
     const state = this.generateState(shop);
     const clientId = this.config.get('SHOPIFY_CLIENT_ID');
     const redirectUri = 'http://localhost:3334/api/shopify/auth/callback';
@@ -150,13 +136,7 @@ export class ShopifyService {
     return shopifyAuthUrl;
   }
 
-  async callBackHandler(params: {
-    state: string;
-    code: string;
-    shop: string;
-    timestamp: string;
-    hmac: string;
-  }) {
+  async callbackHandler(params: any) {
     /*
     Your app should redirect the user through the authorization code flow if your app has verified the authenticity of the request and any of the following is true:
 
@@ -165,26 +145,27 @@ export class ShopifyService {
     Your app has a token for that shop, but it was created before you rotated the app's secret.
     Your app has a token for that shop, but your app now requires scopes that differ from the scopes granted with that token.
     */
+    // {
+    //   state: string;
+    //   code: string;
+    //   host: string;
+    //   shop: string;
+    //   timestamp: string;
+    //   hmac: string;
+    // }
+    const { state, code, shop } = params;
 
-    //https:example.org/some/redirect/uri?code={authorization_code}&hmac=da9d83c171400a41f8db91a950508985&host={base64_encoded_hostname}&shop={shop_origin}&state={nonce}&timestamp=1409617544
-    const { state, code, timestamp, hmac, shop } = params;
-    console.log({ params });
     const isValidShop = this.isValidShop(shop);
 
     if (!isValidShop) {
       throw new UnauthorizedException('Invalid Shop string');
     }
 
-    // code=0907a61c0c8d55e99db179b68161bc00&shop={shop}.myshopify.com&state=0.6784241404160823&timestamp=1337178173"
-    const stitchedHmacString = `code=${code}&shop=${shop}&state=${state}&timestamp=${timestamp}`;
-
-    const isValidHmac = this.verifyHmacForInstallation(
-      stitchedHmacString,
-      hmac,
-    );
+    const isValidHmac = this.verifyHmac(params);
     if (!isValidHmac) {
       throw new UnauthorizedException('Invalid Hmac');
     }
+
     // verify state was created by me
     const isValidState = this.verifyState(state);
     if (!isValidState) {
@@ -205,27 +186,37 @@ export class ShopifyService {
     return true;
   }
 
-  private verifyHmacForInstallation(message: string, hmac: string) {
-    // const message ='code=0907a61c0c8d55e99db179b68161bc00&shop={shop}.myshopify.com&state=0.6784241404160823&timestamp=1337178173';
+  public verifyHmac(params: any) {
+    const { hmac, ...rest } = params;
 
-    const secret = this.config.get('SHOPIFY_CLIENT_SECRET');
-
-    // Generate HMAC-SHA256 digest
-    const digest = crypto
-      .createHmac('sha256', secret)
-      .update(message)
-      .digest('hex');
-
-    // Securely compare digests
-    function secureCompare(a: string, b: string): boolean {
-      return crypto.timingSafeEqual(
-        Buffer.from(a, 'hex'),
-        Buffer.from(b, 'hex'),
-      );
+    if (!hmac) {
+      return false;
     }
 
+    // const stitchedHmacString = `code=${code}&host=${host}&shop=${shop}&state=${state}&timestamp=${timestamp}`;
+
+    const keys = Object.keys(rest);
+    keys.sort();
+
+    let stitchedHmacString = '';
+    for (const k of keys) {
+      stitchedHmacString = stitchedHmacString + `&${k}=${rest[k]}`;
+    }
+    // remove first &
+    stitchedHmacString = stitchedHmacString.slice(1);
+
+    const secret = this.SHOPIFY_CLIENT_SECRET;
+
+    const digest = crypto
+      .createHmac('sha256', secret)
+      .update(stitchedHmacString)
+      .digest('hex');
+
     // Compare hashes
-    const isValid = secureCompare(digest, hmac);
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(digest, 'hex'),
+      Buffer.from(hmac, 'hex'),
+    );
 
     return isValid;
   }

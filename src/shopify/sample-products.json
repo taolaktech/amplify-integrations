@@ -1,0 +1,102 @@
+{
+  "products": {
+    "body": {
+      "data": {
+        "shop": { "currencyCode": "NGN" },
+        "products": {
+          "edges": [
+            {
+              "node": {
+                "id": "gid://shopify/Product/10075213496614",
+                "title": "Spiderman Icon",
+                "description": "Just a picture you can buy. Think NFT",
+                "variants": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": "gid://shopify/ProductVariant/50347030970662",
+                        "displayName": "Spiderman Icon - 1024x1024",
+                        "title": "1024x1024",
+                        "price": "3000.00",
+                        "image": null
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": "gid://shopify/ProductVariant/50347031003430",
+                        "displayName": "Spiderman Icon - regular",
+                        "title": "regular",
+                        "price": "1000.00",
+                        "image": null
+                      }
+                    }
+                  ],
+                  "pageInfo": { "hasNextPage": false }
+                }
+              }
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      },
+      "extensions": {
+        "cost": {
+          "requestedQueryCost": 25,
+          "actualQueryCost": 8,
+          "throttleStatus": {
+            "maximumAvailable": 2000,
+            "currentlyAvailable": 1992,
+            "restoreRate": 100
+          }
+        }
+      },
+      "headers": {
+        "Alt-Svc": ["h3=\":443\"; ma=86400"],
+        "Cf-Cache-Status": ["DYNAMIC"],
+        "Cf-Ray": ["92dd001609385351-LOS"],
+        "Connection": ["keep-alive"],
+        "Content-Encoding": ["gzip"],
+        "Content-Language": ["en"],
+        "Content-Security-Policy": [
+          "default-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval' https://* shopify-pos://*; block-all-mixed-content; child-src 'self' https://* shopify-pos://*; connect-src 'self' wss://* https://*; frame-ancestors 'none'; img-src 'self' data: blob: https:; script-src https://cdn.shopify.com https://cdn.shopifycdn.net https://checkout.pci.shopifyinc.com https://checkout.pci.shopifyinc.com/build/75a428d/card_fields.js https://api.stripe.com https://mpsnare.iesnare.com https://appcenter.intuit.com https://www.paypal.com https://js.braintreegateway.com https://c.paypal.com https://maps.googleapis.com https://www.google-analytics.com https://v.shopify.com 'self' 'unsafe-inline' 'unsafe-eval'; upgrade-insecure-requests; report-uri /csp-report?source%5Baction%5D=query&source%5Bapp%5D=Shopify&source%5Bcontroller%5D=admin%2Fgraphql&source%5Bsection%5D=admin_api&source%5Buuid%5D=addf5606-6ebd-456d-8dfe-12d9c6ce08e7-1744233122; report-to shopify-csp"
+        ],
+        "Content-Type": ["application/json; charset=utf-8"],
+        "Date": ["Wed, 09 Apr 2025 21:12:02 GMT"],
+        "Nel": [
+          "{\"success_fraction\":0.01,\"report_to\":\"cf-nel\",\"max_age\":604800}"
+        ],
+        "Referrer-Policy": ["origin-when-cross-origin"],
+        "Report-To": [
+          "{\"endpoints\":[{\"url\":\"https:\\/\\/a.nel.cloudflare.com\\/report\\/v4?s=xWliRB3i2AgLzh0m7DsFH4t%2FJ8GUvb6nrAFotWSE5%2FN73EtejstiLL97tdbFzG6ygf%2BRReqW3frjZ6NqOzU7gV23nM24MRIjIzOK2z08gxl%2FbsBR5qL82feTnrGckC4bMBBY%2FcbZ2EcBqyP0\"}],\"group\":\"cf-nel\",\"max_age\":604800}"
+        ],
+        "Reporting-Endpoints": [
+          "shopify-csp=\"/csp-report?source%5Baction%5D=query&source%5Bapp%5D=Shopify&source%5Bcontroller%5D=admin%2Fgraphql&source%5Bsection%5D=admin_api&source%5Buuid%5D=addf5606-6ebd-456d-8dfe-12d9c6ce08e7-1744233122\""
+        ],
+        "Server": ["cloudflare"],
+        "Server-Timing": [
+          "processing;dur=61, graphql;desc=\"admin/query/other\", cfRequestDuration;dur=299.999952"
+        ],
+        "Shopify-Edge-Ip": ["23.227.38.74"],
+        "Strict-Transport-Security": ["max-age=7889238"],
+        "Transfer-Encoding": ["chunked"],
+        "Vary": ["Accept-Encoding"],
+        "X-Content-Type-Options": ["nosniff"],
+        "X-Dc": ["gcp-europe-west3,gcp-us-east1,gcp-us-east1"],
+        "X-Download-Options": ["noopen"],
+        "X-Frame-Options": ["DENY"],
+        "X-Permitted-Cross-Domain-Policies": ["none"],
+        "X-Request-Id": ["addf5606-6ebd-456d-8dfe-12d9c6ce08e7-1744233122"],
+        "X-Shardid": ["293"],
+        "X-Shopid": ["94191157542"],
+        "X-Shopify-Api-Version": ["2025-01"],
+        "X-Sorting-Hat-Podid": ["293"],
+        "X-Sorting-Hat-Shopid": ["94191157542"],
+        "X-Stats-Apiclientid": ["237752713217"],
+        "X-Stats-Apipermissionid": ["842425663782"],
+        "X-Stats-Userid": [""],
+        "X-Xss-Protection": ["1; mode=block"]
+      }
+    },
+    "headers": {}
+  }
+}
