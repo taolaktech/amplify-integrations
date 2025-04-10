@@ -33,12 +33,13 @@ describe('ShopifyService', () => {
   });
 
   it('should get products', async () => {
-    // const products = await service.getProducts({
-    //   shop: 'akinola-stor.myshopify.com',
-    //   scope: 'read_products',
-    // });
-    // console.log(JSON.stringify({ products }));
-    // expect(products).toBeDefined();
+    const products = await service.getProducts({
+      shop: process.env.STORE_NAME || '',
+      accessToken: process.env.STORE_ACCESS_TOKEN || '',
+      scope: process.env.STORE_SCOPES || '',
+    });
+    console.log(JSON.stringify({ products }));
+    expect(products).toBeDefined();
   });
 
   it('the hmac verification should be true', () => {

@@ -91,9 +91,6 @@ export class ShopifyService {
       },
     });
 
-    // console.log(JSON.stringify(responseExample));
-    // console.log(JSON.stringify(response));
-    // console.log(response.body);
     return response;
   }
 
@@ -113,7 +110,6 @@ export class ShopifyService {
   private async getAccessToken(shop: string, code: string) {
     const shopString = shop.split('.')[0];
     try {
-      //POST https://{shop}.myshopify.com/admin/oauth/access_token?client_id={client_id}&client_secret={client_secret}&code={authorization_code}
       const shopifyTokenUrl = `https://${shopString}.myshopify.com/admin/oauth/access_token?client_id=${this.SHOPIFY_CLIENT_ID}&client_secret=${this.SHOPIFY_CLIENT_SECRET}&code=${code}`;
       const response = await axios.post<{
         access_token: string;
@@ -137,22 +133,6 @@ export class ShopifyService {
   }
 
   async callbackHandler(params: any) {
-    /*
-    Your app should redirect the user through the authorization code flow if your app has verified the authenticity of the request and any of the following is true:
-
-    Your app doesn't have a token for that shop.
-    Your app uses online tokens and the token for that shop has expired.
-    Your app has a token for that shop, but it was created before you rotated the app's secret.
-    Your app has a token for that shop, but your app now requires scopes that differ from the scopes granted with that token.
-    */
-    // {
-    //   state: string;
-    //   code: string;
-    //   host: string;
-    //   shop: string;
-    //   timestamp: string;
-    //   hmac: string;
-    // }
     const { state, code, shop } = params;
 
     const isValidShop = this.isValidShop(shop);
@@ -193,8 +173,6 @@ export class ShopifyService {
       return false;
     }
 
-    // const stitchedHmacString = `code=${code}&host=${host}&shop=${shop}&state=${state}&timestamp=${timestamp}`;
-
     const keys = Object.keys(rest);
     keys.sort();
 
@@ -222,6 +200,7 @@ export class ShopifyService {
   }
 
   private generateState(shop: string) {
+    // sign jwt with the customerId
     return `asignedjwtstring-${shop}`;
   }
 
