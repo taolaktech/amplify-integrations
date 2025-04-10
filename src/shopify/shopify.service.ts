@@ -9,6 +9,10 @@ import { AppConfigService } from '../config/config.service';
 import '@shopify/shopify-api/adapters/node';
 import axios from 'axios';
 import * as crypto from 'crypto';
+import {
+  GetAllProductsResponseBody,
+  GetProductByIdResponseBody,
+} from './types';
 
 @Injectable()
 export class ShopifyService {
@@ -35,64 +39,6 @@ export class ShopifyService {
   }
 
   handleOauthCallback() {}
-
-  async getProducts(params: {
-    shop: string;
-    accessToken: string;
-    scope: string;
-  }) {
-    const { shop, accessToken, scope } = params;
-    //shop = 'akinola.myshopify.com',
-    const client = this.createShopifyClientSession({
-      shop,
-      accessToken,
-      scope,
-    });
-    const response = await client.query({
-      data: {
-        query: `#graphql
-          query GetProducts($first: Int!) {
-            shop {
-              currencyCode
-            }
-            products (first: $first) {
-              edges {
-                node {
-                  id
-                  title
-                  description
-                  variants(first: 10) {
-                    edges {
-                      node {
-                        id,
-                        displayName,
-                        title,
-                        price,
-                        image {
-                          id,
-                          url,
-                        }
-                      }
-                    }
-                    pageInfo {
-                      hasNextPage
-                    }
-                  }
-                }
-              }
-              pageInfo {
-                hasNextPage
-              }
-            }
-          }`,
-        variables: {
-          first: 3,
-        },
-      },
-    });
-
-    return response;
-  }
 
   private createShopifyClientSession(params: {
     shop: string;
@@ -218,5 +164,161 @@ export class ShopifyService {
 
     const isValid = regex.test(shop) || regex2.test(shop);
     return isValid;
+  }
+
+  async getProducts(params: {
+    shop: string;
+    accessToken: string;
+    scope: string;
+  }) {
+    const { shop, accessToken, scope } = params;
+    //shop = 'akinola.myshopify.com',
+    const client = this.createShopifyClientSession({
+      shop,
+      accessToken,
+      scope,
+    });
+    const response = await client.query<GetAllProductsResponseBody>({
+      data: {
+        query: `#graphql
+          query GetProducts($first: Int!) {
+            shop {
+              currencyCode
+            }
+            products (first: $first) {
+              edges {
+                node {
+                  id
+                  title
+                  description
+                  priceRangeV2 {
+                    maxVariantPrice {
+                      amount
+                      currencyCode
+                    }
+                    minVariantPrice {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  media(first: 2) {
+                    edges {
+                      node {
+                        id
+                        mediaContentType
+                        preview {
+                          image {
+                            url
+                            altText
+                          }
+                        }
+                      }
+                    }
+                  }
+                  variants(first: 10) {
+                    edges {
+                      node {
+                        id,
+                        displayName,
+                        title,
+                        price,
+                      }
+                    }
+                    pageInfo {
+                      hasNextPage
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }`,
+        variables: {
+          first: 3,
+        },
+      },
+    });
+
+    return response.body;
+  }
+
+  async getProductById(params: {
+    shop: string;
+    productId: string;
+    accessToken: string;
+    scope: string;
+  }) {
+    const { shop, accessToken, scope, productId } = params;
+    //shop = 'akinola.myshopify.com',
+    const client = this.createShopifyClientSession({
+      shop,
+      accessToken,
+      scope,
+    });
+    const response = await client.query<GetProductByIdResponseBody>({
+      data: {
+        query: `#graphql
+          query getProductById($identifier: ProductIdentifierInput!) {
+            shop {
+              currencyCode
+            }
+            productByIdentifier (identifier: $identifier) {
+              id
+              title
+              description
+              priceRangeV2 {
+                maxVariantPrice {
+                  amount
+                  currencyCode
+                }
+                minVariantPrice {
+                  amount
+                  currencyCode
+                }
+              }
+              media(first: 2) {
+                edges {
+                  node {
+                    id
+                    mediaContentType
+                    preview {
+                      image {
+                        url
+                        altText
+                      }
+                    }
+                  }
+                }
+              }
+              variants(first: 10) {
+                edges {
+                  node {
+                    id,
+                    displayName,
+                    title,
+                    price,
+                    image {
+                      id,
+                      url,
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                }
+              }
+            }
+          }`,
+        variables: {
+          identifier: {
+            id: productId,
+          },
+        },
+      },
+    });
+
+    return response.body;
   }
 }
