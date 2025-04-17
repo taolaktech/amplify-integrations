@@ -13,6 +13,7 @@ import {
   GetAllProductsResponseBody,
   GetProductByIdResponseBody,
 } from './types';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class ShopifyService {
@@ -22,7 +23,7 @@ export class ShopifyService {
 
   constructor(
     private config: AppConfigService,
-    // @Inject('SHOPIFY_API') private readonly shopify: Shopify,
+    private jwtService: JwtService,
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
@@ -38,40 +39,12 @@ export class ShopifyService {
     this.SHOPIFY_CLIENT_SECRET = this.config.get('SHOPIFY_CLIENT_SECRET');
   }
 
-  handleOauthCallback() {}
-
-  private createShopifyClientSession(params: {
-    shop: string;
-    accessToken: string;
-    scope: string;
-  }) {
-    const session = this.shopify.session.customAppSession(params.shop);
-    session.accessToken = params.accessToken;
-    session.scope = params.scope;
-
-    const client = new this.shopify.clients.Graphql({ session });
-    return client;
-  }
-
-  private async getAccessToken(shop: string, code: string) {
-    const shopString = shop.split('.')[0];
-    try {
-      const shopifyTokenUrl = `https://${shopString}.myshopify.com/admin/oauth/access_token?client_id=${this.SHOPIFY_CLIENT_ID}&client_secret=${this.SHOPIFY_CLIENT_SECRET}&code=${code}`;
-      const response = await axios.post<{
-        access_token: string;
-        scope: string;
-      }>(shopifyTokenUrl);
-      return response.data;
-    } catch (e) {
-      console.log({ e });
-      throw new UnauthorizedException('Error Granting Permission');
-    }
-  }
-
-  getShopifyOAuthUrl(shop: string) {
-    const state = this.generateState(shop);
+  getShopifyOAuthUrl(params: { shop: string; userId: string }) {
+    const { shop, userId } = params;
+    const state = this.generateState(userId);
     const clientId = this.config.get('SHOPIFY_CLIENT_ID');
-    const redirectUri = 'http://localhost:3334/api/shopify/auth/callback';
+    const API_URL = this.config.get('API_URL');
+    const redirectUri = `${API_URL}/api/shopify/auth/callback`;
     const scopes = 'read_products,read_orders';
     //https://{shop}.myshopify.com/admin/oauth/authorize?client_id={client_id}&scope={scopes}&redirect_uri={redirect_uri}&state={nonce}&grant_options[]={access_mode}
     const shopifyAuthUrl = `https://${shop}.myshopify.com/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}`;
@@ -93,8 +66,8 @@ export class ShopifyService {
     }
 
     // verify state was created by me
-    const isValidState = this.verifyState(state);
-    if (!isValidState) {
+    const stateBody = this.verifyState(state);
+    if (!stateBody) {
       throw new UnauthorizedException('Invalid State');
     }
 
@@ -103,11 +76,12 @@ export class ShopifyService {
       shop,
       code,
     );
-    // save scope and access token in user's database
 
-    console.log({ accessToken, scope });
+    console.log({ accessToken, scope, userId: stateBody.userId });
 
-    // redirect to app
+    // send request to manager to save these values ??
+
+    // redirect client
 
     return true;
   }
@@ -145,14 +119,27 @@ export class ShopifyService {
     return isValid;
   }
 
-  private generateState(shop: string) {
+  private generateState(userId: string) {
     // sign jwt with the customerId
-    return `asignedjwtstring-${shop}`;
+    const token = this.jwtService.sign(
+      { userId },
+      {
+        secret: this.config.get('JWT_SECRET'),
+      },
+    );
+    return token;
   }
 
   private verifyState(state: string) {
-    // decode jwt
-    return !!state;
+    try {
+      const decoded = this.jwtService.verify<{ userId: string }>(state, {
+        secret: this.config.get('JWT_SECRET'),
+      });
+
+      return decoded;
+    } catch {
+      return null;
+    }
   }
 
   private isValidShop(shop: string) {
@@ -164,6 +151,33 @@ export class ShopifyService {
 
     const isValid = regex.test(shop) || regex2.test(shop);
     return isValid;
+  }
+
+  private createShopifyClientSession(params: {
+    shop: string;
+    accessToken: string;
+    scope: string;
+  }) {
+    const session = this.shopify.session.customAppSession(params.shop);
+    session.accessToken = params.accessToken;
+    session.scope = params.scope;
+
+    const client = new this.shopify.clients.Graphql({ session });
+    return client;
+  }
+
+  private async getAccessToken(shop: string, code: string) {
+    const shopString = shop.split('.')[0];
+    try {
+      const shopifyTokenUrl = `https://${shopString}.myshopify.com/admin/oauth/access_token?client_id=${this.SHOPIFY_CLIENT_ID}&client_secret=${this.SHOPIFY_CLIENT_SECRET}&code=${code}`;
+      const response = await axios.post<{
+        access_token: string;
+        scope: string;
+      }>(shopifyTokenUrl);
+      return response.data;
+    } catch {
+      throw new UnauthorizedException('Error Granting Permission');
+    }
   }
 
   async getProducts(params: {

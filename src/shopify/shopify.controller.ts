@@ -1,27 +1,44 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ShopifyService } from './shopify.service';
+import { Public } from 'src/auth/decorators';
+import {
+  GetProductByIdDto,
+  GetProductsDto,
+  GetShopifyOAuthUrlDto,
+} from './dto';
+import { ApiSecurity } from '@nestjs/swagger';
 
+@ApiSecurity('x-api-key')
 @Controller('api/shopify')
 export class ShopifyController {
   constructor(private shopifyService: ShopifyService) {}
 
-  @Get('/auth/url/:shop')
-  shopifyOauthUrl(@Param('shop') shop: string) {
-    const url = this.shopifyService.getShopifyOAuthUrl(shop);
+  @Public()
+  @Get('/auth/callback')
+  async shopifyOauthCallback(@Query() query: any) {
+    return await this.shopifyService.callbackHandler(query);
+  }
+
+  @Post('/auth/url')
+  shopifyOauthUrl(@Body() dto: GetShopifyOAuthUrlDto) {
+    const url = this.shopifyService.getShopifyOAuthUrl(dto);
     return { url };
   }
 
-  @Get('/auth/callback')
-  async shopifyOauthCallback(@Query() query: any) {
-    // Implement the logic for redirecting the user to the Shopify OAuth page
-    console.log({ query });
-    return await this.shopifyService.callbackHandler({
-      state: query.state,
-      host: query.host,
-      code: query.code,
-      shop: query.shop,
-      hmac: query.hmac,
-      timestamp: query.timestamp,
+  @Post('/products')
+  async getAllProducts(@Body() dto: GetProductsDto) {
+    const products = await this.shopifyService.getProducts(dto);
+    return products;
+  }
+  @Post('/products/:productId')
+  async getProductById(
+    @Body() dto: GetProductByIdDto,
+    @Param('productId') productId: string,
+  ) {
+    const products = await this.shopifyService.getProductById({
+      ...dto,
+      productId,
     });
+    return products;
   }
 }
