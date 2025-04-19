@@ -45,4 +45,9 @@ export class GetProductByIdDto {
   @IsString()
   @IsNotEmpty()
   scope: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  productId: string;
 }

@@ -13,6 +13,10 @@ export const configSchema = z.object({
   SHOPIFY_CLIENT_SECRET: z.string(),
 
   JWT_SECRET: z.string(),
+
+  MANAGER_URL: z.string().url(),
+
+  CLIENT_URL: z.string().url(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

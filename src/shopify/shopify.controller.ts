@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  ParseIntPipe,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ShopifyService } from './shopify.service';
 import { Public } from 'src/auth/decorators';
 import {
@@ -6,7 +15,8 @@ import {
   GetProductsDto,
   GetShopifyOAuthUrlDto,
 } from './dto';
-import { ApiSecurity } from '@nestjs/swagger';
+import { ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import { Response } from 'express';
 
 @ApiSecurity('x-api-key')
 @Controller('api/shopify')
@@ -15,8 +25,8 @@ export class ShopifyController {
 
   @Public()
   @Get('/auth/callback')
-  async shopifyOauthCallback(@Query() query: any) {
-    return await this.shopifyService.callbackHandler(query);
+  async shopifyOauthCallback(@Query() query: any, @Res() response: Response) {
+    return await this.shopifyService.callbackHandler(query, response);
   }
 
   @Post('/auth/url')
@@ -25,19 +35,25 @@ export class ShopifyController {
     return { url };
   }
 
+  @ApiQuery({ name: 'first', required: false, type: Number })
+  @ApiQuery({ name: 'after', required: false, type: String })
   @Post('/products')
-  async getAllProducts(@Body() dto: GetProductsDto) {
-    const products = await this.shopifyService.getProducts(dto);
+  async getAllProducts(
+    @Body() dto: GetProductsDto,
+    @Query('first', new DefaultValuePipe(10), ParseIntPipe) first: number,
+    @Query('after') after?: string,
+  ) {
+    const products = await this.shopifyService.getProducts(dto, {
+      first,
+      after,
+    });
     return products;
   }
-  @Post('/products/:productId')
-  async getProductById(
-    @Body() dto: GetProductByIdDto,
-    @Param('productId') productId: string,
-  ) {
+
+  @Post('/products/product-by-id')
+  async getProductById(@Body() dto: GetProductByIdDto) {
     const products = await this.shopifyService.getProductById({
       ...dto,
-      productId,
     });
     return products;
   }

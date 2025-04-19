@@ -1,101 +1,82 @@
 export interface GetAllProductsResponseBody {
-  data: Data;
+  data: {
+    shop: Shop;
+    products: Products;
+  };
   extensions: Extensions;
   headers: { [key: string]: string[] };
 }
 
-interface Data {
-  shop: Shop;
-  products: Products;
-}
-
-interface Products {
+type Products = {
   edges: ProductsEdge[];
   pageInfo: PageInfo;
-}
+};
 
-interface ProductsEdge {
+type ProductsEdge = {
   node: PurpleNode;
-}
+};
 
-interface PurpleNode {
+type PurpleNode = {
   id: string;
   title: string;
   description: string;
   priceRangeV2: PriceRangeV2;
   media: Media;
-  variants: Variants;
-}
+};
 
-interface Media {
+type Media = {
   edges: MediaEdge[];
-}
+};
 
-interface MediaEdge {
+type MediaEdge = {
   node: FluffyNode;
-}
+};
 
-interface FluffyNode {
+type FluffyNode = {
   id: string;
   mediaContentType: string;
   preview: Preview;
-}
+};
 
-interface Preview {
+type Preview = {
   image: Image;
-}
+};
 
-interface Image {
+type Image = {
   url: string;
   altText: string;
-}
+};
 
-interface PriceRangeV2 {
+type PriceRangeV2 = {
   maxVariantPrice: VariantPrice;
   minVariantPrice: VariantPrice;
-}
+};
 
-interface VariantPrice {
+type VariantPrice = {
   amount: string;
   currencyCode: string;
-}
+};
 
-interface Variants {
-  edges: VariantsEdge[];
-  pageInfo: PageInfo;
-}
-
-interface VariantsEdge {
-  node: TentacledNode;
-}
-
-interface TentacledNode {
-  id: string;
-  displayName: string;
-  title: string;
-  price: string;
-}
-
-interface PageInfo {
+type PageInfo = {
   hasNextPage: boolean;
-}
+};
 
-interface Shop {
+type Shop = {
   currencyCode: string;
-}
+};
 
-interface Extensions {
+type Extensions = {
   cost: Cost;
-}
+};
 
-interface Cost {
+type Cost = {
   requestedQueryCost: number;
   actualQueryCost: number;
   throttleStatus: ThrottleStatus;
-}
+};
 
-interface ThrottleStatus {
+type ThrottleStatus = {
   maximumAvailable: number;
   currentlyAvailable: number;
   restoreRate: number;
-}
+};
