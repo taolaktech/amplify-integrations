@@ -14,9 +14,11 @@ export const configSchema = z.object({
 
   JWT_SECRET: z.string(),
 
-  MANAGER_URL: z.string().url(),
-
   CLIENT_URL: z.string().url(),
+
+  //DB
+  MONGO_URI: z.string(),
+  DB_NAME: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

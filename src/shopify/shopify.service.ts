@@ -13,7 +13,7 @@ import {
 } from '@shopify/shopify-api';
 import { AppConfigService } from '../config/config.service';
 import '@shopify/shopify-api/adapters/node';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import * as crypto from 'crypto';
 import {
   GetAllProductsResponseBody,
@@ -21,6 +21,11 @@ import {
 } from './types';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { ShopifyAccountDoc } from 'src/database/schema';
+import { ShopifyAccountStatus } from 'src/enums/shopify-account-status';
+import { getProductsByIdQuery, getProductsQuery } from './shopify.queries';
 
 @Injectable()
 export class ShopifyService {
@@ -31,6 +36,8 @@ export class ShopifyService {
   constructor(
     private config: AppConfigService,
     private jwtService: JwtService,
+    @InjectModel('shopify-accounts')
+    private shopifyAccountModel: Model<ShopifyAccountDoc>,
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
@@ -111,19 +118,14 @@ export class ShopifyService {
   }) {
     // send request to manager to save account values
     try {
-      await axios.post(
-        `${this.config.get('MANAGER_URL')}/api/shopify/save-account`,
-        params,
-        {
-          headers: {
-            'x-api-key': `${this.config.get('API_KEY')}`,
-          },
-        },
-      );
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        console.log(error.response?.data);
-      }
+      await this.shopifyAccountModel.create({
+        shop: params.shop,
+        accessToken: params.accessToken,
+        scope: params.scope,
+        belongsTo: params.userId,
+        accountStatus: ShopifyAccountStatus.CONNECTED,
+      });
+    } catch {
       throw new InternalServerErrorException('Error saving account values');
     }
   }
@@ -273,55 +275,7 @@ export class ShopifyService {
       });
       const response = await client.query<GetAllProductsResponseBody>({
         data: {
-          query: `#graphql
-          query GetProducts(${paramsDefinition}) {
-            shop {
-              name
-              url
-              currencyCode
-            }
-            products (${qParams}) {
-              edges {
-                node {
-                  id
-                  title
-                  description
-                  hasOnlyDefaultVariant
-                  priceRangeV2 {
-                    maxVariantPrice {
-                      amount
-                      currencyCode
-                    }
-                    minVariantPrice {
-                      amount
-                      currencyCode
-                    }
-                  }
-                  media(first: 2) {
-                    edges {
-                      node {
-                        id
-                        mediaContentType
-                        preview {
-                          image {
-                            url
-                            height
-                            width
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              pageInfo {
-                hasPreviousPage
-                hasNextPage
-                startCursor
-                endCursor
-              }
-            }
-          }`,
+          query: getProductsQuery(paramsDefinition, qParams),
           variables,
         },
       });
@@ -350,61 +304,7 @@ export class ShopifyService {
       });
       const response = await client.query<GetProductByIdResponseBody>({
         data: {
-          query: `#graphql
-          query getProductById($identifier: ProductIdentifierInput!) {
-            shop {
-              name
-              url
-              currencyCode
-            }
-            productByIdentifier (identifier: $identifier) {
-              id
-              title
-              description
-              hasOnlyDefaultVariant
-              priceRangeV2 {
-                maxVariantPrice {
-                  amount
-                  currencyCode
-                }
-                minVariantPrice {
-                  amount
-                  currencyCode
-                }
-              }
-              media(first: 2) {
-                edges {
-                  node {
-                    id
-                    mediaContentType
-                    preview {
-                      image {
-                        url
-                        height
-                        width
-                      }
-                    }
-                  }
-                }
-              }
-              variants(first: 2) {
-                edges {
-                  node {
-                    id,
-                    displayName,
-                    title,
-                    price,
-                  }
-                }
-                pageInfo {
-                  hasPreviousPage
-                  hasNextPage
-                  startCursor
-                  endCursor
-                }
-              }
-            }
-          }`,
+          query: getProductsByIdQuery(),
           variables: {
             identifier: {
               id: productId,
