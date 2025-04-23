@@ -291,12 +291,17 @@ export class ShopifyService {
 
   async getProductById(params: {
     shop: string;
-    productId: string;
     accessToken: string;
     scope: string;
+    productId?: string;
+    handle?: string;
   }) {
     try {
-      const { shop, accessToken, scope, productId } = params;
+      const { shop, accessToken, scope, productId, handle } = params;
+      if (!productId && !handle) {
+        throw new BadRequestException('ProductId or Handle is required');
+      }
+      const identifier = productId ? { id: productId } : { handle };
       const client = this.createShopifyClientSession({
         shop: this.parseShopStrToLongName(shop),
         accessToken,
@@ -306,9 +311,7 @@ export class ShopifyService {
         data: {
           query: getProductsByIdQuery(),
           variables: {
-            identifier: {
-              id: productId,
-            },
+            identifier,
           },
         },
       });
@@ -318,7 +321,7 @@ export class ShopifyService {
       if (error instanceof GraphqlQueryError) {
         throw new BadRequestException(error.message);
       }
-      throw new InternalServerErrorException('Something Went Wrong');
+      throw error;
     }
   }
 }

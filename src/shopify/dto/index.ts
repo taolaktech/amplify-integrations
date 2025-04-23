@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class GetShopifyOAuthUrlDto {
@@ -48,6 +48,11 @@ export class GetProductByIdDto {
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  productId: string;
+  @IsOptional()
+  productId?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  handle?: string;
 }

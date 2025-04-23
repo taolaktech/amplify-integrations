@@ -8,10 +8,14 @@ query GetProducts(${paramsDefinition}) {
     url
     currencyCode
   }
+  productsCount {
+    count
+  }
   products (${qParams}) {
     edges {
       node {
         id
+        handle
         title
         description
         hasOnlyDefaultVariant
@@ -60,6 +64,7 @@ query getProductById($identifier: ProductIdentifierInput!) {
   }
   productByIdentifier (identifier: $identifier) {
     id
+    handle
     title
     description
     hasOnlyDefaultVariant
