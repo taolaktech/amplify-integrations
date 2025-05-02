@@ -18,14 +18,19 @@ import * as crypto from 'crypto';
 import {
   GetAllProductsResponseBody,
   GetProductByIdResponseBody,
+  GetShopResponseBody,
 } from './types';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { ShopifyAccountDoc } from 'src/database/schema';
-import { ShopifyAccountStatus } from 'src/enums/shopify-account-status';
-import { getProductsByIdQuery, getProductsQuery } from './shopify.queries';
+import { Model, Types } from 'mongoose';
+import { ShopifyAccountDoc, UserDoc } from 'src/database/schema';
+import { ShopifyAccountStatus } from '../enums';
+import {
+  getProductsByIdQuery,
+  getProductsQuery,
+  getShopQuery,
+} from './shopify.queries';
 
 @Injectable()
 export class ShopifyService {
@@ -38,6 +43,8 @@ export class ShopifyService {
     private jwtService: JwtService,
     @InjectModel('shopify-accounts')
     private shopifyAccountModel: Model<ShopifyAccountDoc>,
+    @InjectModel('users')
+    private usersModel: Model<UserDoc>,
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
@@ -72,18 +79,18 @@ export class ShopifyService {
       const isValidShop = this.isValidShop(shop);
 
       if (!isValidShop) {
-        throw new UnauthorizedException('Invalid Shop string');
+        throw new UnauthorizedException('E_INVALID_SHOP');
       }
 
       const isValidHmac = this.verifyHmac(params);
       if (!isValidHmac) {
-        throw new UnauthorizedException('Invalid Hmac');
+        throw new UnauthorizedException('E_INVALID_REQUEST');
       }
 
       // verify state was created by me
       const stateBody = this.verifyState(state);
       if (!stateBody) {
-        throw new UnauthorizedException('Invalid State');
+        throw new UnauthorizedException('E_INVALID_REQUEST');
       }
 
       // store the access token in the user's database
@@ -92,25 +99,47 @@ export class ShopifyService {
         code,
       );
 
+      const { shop: shopDetails } = await this.getShop({
+        shop,
+        accessToken,
+        scope,
+      });
+
+      if (
+        shopDetails.currencyCode !== 'USD' &&
+        shopDetails.currencyCode !== 'CAD'
+      ) {
+        throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
+      }
+
       // send request to manager to save these values
-      await this.sendSaveRequestToManager({
+      await this.saveAccountInfo({
         accessToken,
         userId: stateBody.userId,
         shop,
         scope,
       });
+
       return res.redirect(
         `${this.config.get('CLIENT_URL')}/shopify/auth/success`,
       );
     } catch (error) {
-      console.log({ error });
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        return res.redirect(
+          `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=${error.message}`,
+        );
+      }
+      console.log(error);
       return res.redirect(
-        `${this.config.get('CLIENT_URL')}/shopify/auth/failed`,
+        `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=E_INTERNAL_SERVER_ERROR`,
       );
     }
   }
 
-  private async sendSaveRequestToManager(params: {
+  private async saveAccountInfo(params: {
     accessToken: string;
     userId: string;
     shop: string;
@@ -118,14 +147,31 @@ export class ShopifyService {
   }) {
     // send request to manager to save account values
     try {
-      await this.shopifyAccountModel.create({
-        shop: params.shop,
-        accessToken: params.accessToken,
-        scope: params.scope,
-        belongsTo: params.userId,
-        accountStatus: ShopifyAccountStatus.CONNECTED,
-      });
-    } catch {
+      await this.shopifyAccountModel.findOneAndUpdate(
+        {
+          shop: params.shop,
+          belongsTo: new Types.ObjectId(params.userId),
+        },
+        {
+          shop: params.shop,
+          belongsTo: new Types.ObjectId(params.userId),
+          accessToken: params.accessToken,
+          scope: params.scope,
+          accountStatus: ShopifyAccountStatus.CONNECTED,
+        },
+        { upsert: true },
+      );
+
+      await this.usersModel.findOneAndUpdate(
+        {
+          _id: params.userId,
+        },
+        {
+          shopifyAccountConnected: true,
+        },
+      );
+    } catch (c: any) {
+      console.log(c);
       throw new InternalServerErrorException('Error saving account values');
     }
   }
@@ -313,6 +359,29 @@ export class ShopifyService {
           variables: {
             identifier,
           },
+        },
+      });
+
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof GraphqlQueryError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  async getShop(params: { shop: string; accessToken: string; scope: string }) {
+    try {
+      const { shop, accessToken, scope } = params;
+      const client = this.createShopifyClientSession({
+        shop: this.parseShopStrToLongName(shop),
+        accessToken,
+        scope,
+      });
+      const response = await client.query<GetShopResponseBody>({
+        data: {
+          query: getShopQuery(),
         },
       });
 

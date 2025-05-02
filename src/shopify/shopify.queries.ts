@@ -111,3 +111,13 @@ query getProductById($identifier: ProductIdentifierInput!) {
     }
   }
 }`;
+
+export const getShopQuery = () => `#graphql
+  query GetShop {
+    shop {
+      name
+      url
+      currencyCode
+    }
+  }
+`;
