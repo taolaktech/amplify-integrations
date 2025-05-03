@@ -19,6 +19,10 @@ export const configSchema = z.object({
   //DB
   MONGO_URI: z.string(),
   DB_NAME: z.string(),
+
+  // facebook ads
+  FACEBOOK_AD_ACCOUNT_ID: z.string(),
+  FACEBOOK_AD_ACCOUNT_ACCESS_TOKEN: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
