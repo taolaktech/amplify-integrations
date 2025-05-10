@@ -118,6 +118,12 @@ export const getShopQuery = () => `#graphql
       name
       url
       currencyCode
+      description
+      myshopifyDomain
+      id
+      primaryDomain {
+        host
+      }
     }
   }
 `;

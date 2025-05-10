@@ -26,6 +26,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ShopifyAccountDoc, UserDoc } from 'src/database/schema';
 import { ShopifyAccountStatus } from '../enums';
+import { BusinessDetailsDoc } from 'src/database/schema';
 import {
   getProductsByIdQuery,
   getProductsQuery,
@@ -39,12 +40,14 @@ export class ShopifyService {
   private SHOPIFY_CLIENT_SECRET: string;
 
   constructor(
-    private config: AppConfigService,
-    private jwtService: JwtService,
     @InjectModel('shopify-accounts')
     private shopifyAccountModel: Model<ShopifyAccountDoc>,
     @InjectModel('users')
     private usersModel: Model<UserDoc>,
+    @InjectModel('business-details')
+    private businessDetailsModel: Model<BusinessDetailsDoc>,
+    private config: AppConfigService,
+    private jwtService: JwtService,
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
@@ -117,11 +120,12 @@ export class ShopifyService {
         accessToken,
         userId: stateBody.userId,
         shop,
+        shopDetails,
         scope,
       });
 
       return res.redirect(
-        `${this.config.get('CLIENT_URL')}/shopify/auth/success`,
+        `${this.config.get('CLIENT_URL')}/setup?linked_store=true`,
       );
     } catch (error) {
       if (
@@ -143,18 +147,20 @@ export class ShopifyService {
     accessToken: string;
     userId: string;
     shop: string;
+    shopDetails: GetShopResponseBody['data']['shop'];
     scope: string;
   }) {
     // send request to manager to save account values
     try {
       await this.shopifyAccountModel.findOneAndUpdate(
         {
-          shop: params.shop,
+          shopId: params.shopDetails.id,
           belongsTo: new Types.ObjectId(params.userId),
         },
         {
-          shop: params.shop,
+          shopId: params.shopDetails.id,
           belongsTo: new Types.ObjectId(params.userId),
+          shop: params.shop,
           accessToken: params.accessToken,
           scope: params.scope,
           accountStatus: ShopifyAccountStatus.CONNECTED,
@@ -162,16 +168,29 @@ export class ShopifyService {
         { upsert: true },
       );
 
-      await this.usersModel.findOneAndUpdate(
+      const user = await this.usersModel.findById(params.userId);
+      if (!user) {
+        throw new InternalServerErrorException('User not found');
+      }
+
+      user.onboarding = {
+        ...user.onboarding,
+        shopifyAccountConnected: true,
+      };
+      await user.save();
+
+      await this.businessDetailsModel.findOneAndUpdate(
+        { userId: new Types.ObjectId(params.userId) },
         {
-          _id: params.userId,
+          userId: new Types.ObjectId(params.userId),
+          description: params.shopDetails.description ?? undefined,
+          companyName: params.shopDetails.name,
+          website: params.shopDetails.url,
         },
-        {
-          shopifyAccountConnected: true,
-        },
+        { new: true, upsert: true },
       );
-    } catch (c: any) {
-      console.log(c);
+    } catch (e: any) {
+      console.log(e);
       throw new InternalServerErrorException('Error saving account values');
     }
   }
