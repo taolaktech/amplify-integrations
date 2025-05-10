@@ -179,16 +179,18 @@ export class ShopifyService {
       };
       await user.save();
 
-      await this.businessDetailsModel.findOneAndUpdate(
-        { userId: new Types.ObjectId(params.userId) },
-        {
-          userId: new Types.ObjectId(params.userId),
-          description: params.shopDetails.description ?? undefined,
-          companyName: params.shopDetails.name,
-          website: params.shopDetails.url,
-        },
-        { new: true, upsert: true },
-      );
+      if (!user.onboarding.isBusinessDetailsSet) {
+        await this.businessDetailsModel.findOneAndUpdate(
+          { userId: new Types.ObjectId(params.userId) },
+          {
+            userId: new Types.ObjectId(params.userId),
+            description: params.shopDetails.description ?? undefined,
+            companyName: params.shopDetails.name,
+            website: params.shopDetails.url,
+          },
+          { upsert: true },
+        );
+      }
     } catch (e: any) {
       console.log(e);
       throw new InternalServerErrorException('Error saving account values');
