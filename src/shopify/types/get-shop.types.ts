@@ -10,6 +10,12 @@ type Shop = {
   name: string;
   url: string;
   currencyCode: string;
+  description: string | null;
+  myshopifyDomain: string;
+  id: string;
+  primaryDomain: {
+    host: string;
+  };
 };
 
 type Extensions = {

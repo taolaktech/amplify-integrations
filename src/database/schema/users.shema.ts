@@ -3,6 +3,21 @@ import { HydratedDocument } from 'mongoose';
 
 export type UserDoc = HydratedDocument<User>;
 
+@Schema({ _id: false })
+class Onboarding {
+  @Prop({ default: false })
+  isBusinessDetailsSet: boolean;
+
+  @Prop({ default: false })
+  isShippingDetailsSet: boolean;
+
+  @Prop({ default: false })
+  isBusinessGoalsSet: boolean;
+
+  @Prop({ default: false })
+  shopifyAccountConnected: boolean;
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ unique: true })
@@ -35,8 +50,24 @@ export class User {
   @Prop()
   passwordChangedAt?: Date;
 
+  @Prop()
+  onboarding: Onboarding;
+
+  // Added Stripe-related fields
+  @Prop({ unique: true, sparse: true })
+  stripeCustomerId?: string;
+
+  @Prop()
+  defaultPaymentMethod?: string;
+
   @Prop({ default: false })
-  shopifyAccountConnected: boolean;
+  hasActiveSubscription?: boolean;
+
+  @Prop({ type: Date })
+  lastStripeSync?: Date;
+
+  @Prop({ enum: ['active', 'past_due', 'canceled', 'none'], default: 'none' })
+  paymentStatus?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
