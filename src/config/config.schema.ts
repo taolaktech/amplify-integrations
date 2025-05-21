@@ -19,6 +19,17 @@ export const configSchema = z.object({
   //DB
   MONGO_URI: z.string(),
   DB_NAME: z.string(),
+
+  // Google
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string(),
+
+  // google ads
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string(),
+  GOOGLE_ADS_ACCESS_TOKEN: z.string(),
+  GOOGLE_ADS_REFRESH_TOKEN: z.string(),
+  // GOOGLE_REFRESH_TOKEN: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
