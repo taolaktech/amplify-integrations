@@ -25,11 +25,11 @@ export const configSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string(),
 
   // google ads
-  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
   GOOGLE_ADS_DEVELOPER_TOKEN: z.string(),
-  GOOGLE_ADS_ACCESS_TOKEN: z.string(),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
   GOOGLE_ADS_REFRESH_TOKEN: z.string(),
-  // GOOGLE_REFRESH_TOKEN: z.string(),
+  GOOGLE_ADS_US_CUSTOMER_ID: z.string(),
+  GOOGLE_ADS_CA_CUSTOMER_ID: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
