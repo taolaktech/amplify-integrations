@@ -4,13 +4,20 @@
 */
 import {
   GoogleAdsAdGroupAdAdStrength,
+  GoogleAdsAdGroupAdPrimaryStatus,
+  GoogleAdsAdGroupAdPrimaryStatusReason,
   GoogleAdsAdGroupAdStatus,
+  GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
   GoogleAdsAdGroupType,
   GoogleAdsAdType,
   GoogleAdsAdvertisingChannelType,
+  GoogleAdsAssetSource,
+  GoogleAdsAssetType,
   GoogleAdsCampaignStatus,
+  GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
+  GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
 
 export type GoogleAdsResource =
@@ -18,7 +25,9 @@ export type GoogleAdsResource =
   | 'campaigns'
   | 'adGroups'
   | 'adGroupAds'
-  | 'ads';
+  | 'ads'
+  | 'adGroupCriteria'
+  | 'assets';
 
 export interface ResourceCreationResponse {
   results: Result[];
@@ -68,16 +77,20 @@ export interface GoogleAdsCampaign {
   status: GoogleAdsCampaignStatus;
   campaignBudget: string;
   advertisingChannelType: GoogleAdsAdvertisingChannelType;
-  networkSettings: Partial<NetworkSettings>;
-}
-
-export interface NetworkSettings {
-  targetGoogleSearch: boolean;
-  targetSearchNetwork: boolean;
-  targetContentNetwork: boolean;
-  targetPartnerSearchNetwork: boolean;
-  targetYoutube: boolean;
-  targetGoogleTvNetwork: boolean;
+  networkSettings: Partial<{
+    targetGoogleSearch: boolean;
+    targetSearchNetwork: boolean;
+    targetContentNetwork: boolean;
+    targetPartnerSearchNetwork: boolean;
+    targetYoutube: boolean;
+    targetGoogleTvNetwork: boolean;
+  }>;
+  baseCampaign: string;
+  campaignGroup: string;
+  finalUrlSuffix: string;
+  optimizationScore: number;
+  urlExpansionOptOut: boolean;
+  brandGuidelinesEnabled: boolean;
 }
 
 export interface GoogleAdsAdGroup {
@@ -92,7 +105,9 @@ export interface GoogleAdsAdGroup {
 export interface GoogleAdsAdGroupAd {
   resourceName: string;
   status: GoogleAdsAdGroupAdStatus;
-  ad: GoogleAdsAd;
+  primaryStatus: GoogleAdsAdGroupAdPrimaryStatus;
+  primaryStatusReason: GoogleAdsAdGroupAdPrimaryStatusReason;
+  ad: Partial<GoogleAdsAd>;
   adStrength: GoogleAdsAdGroupAdAdStrength;
   actionItems: [string];
   labels: [string];
@@ -102,4 +117,55 @@ export interface GoogleAdsAdGroupAd {
 export interface GoogleAdsAd {
   resourceName: string;
   type: GoogleAdsAdType;
+  finalUrls: [string];
+  id: string;
+  trackingUrlTemplate: string;
+  finalUrlSuffix: string;
+  displayUrl: string;
+  addedByGoogleAds: boolean;
+  name: string;
+  responsiveSearchAd: Partial<{
+    headlines: [GoogleAdsAdTextAsset];
+    descriptions: [GoogleAdsAdTextAsset];
+    path1: string;
+    path2: string;
+  }>;
+  textAd: {
+    headline: string;
+    description1: string;
+    description2: string;
+  };
+}
+
+export interface GoogleAdsAssets {
+  resourceName: string;
+  type: GoogleAdsAssetType;
+  finalUrls: [string];
+  finalMobileUrls: [string];
+  textAsset: {
+    text: string;
+  };
+  id: string;
+  name: string;
+  trackingUrlTemplate: string;
+  finalUrlSuffix: string;
+  source: GoogleAdsAssetSource;
+}
+
+export interface GoogleAdsAdTextAsset {
+  text: string;
+  pinnedField?: GoogleAdsServedAssetFieldType;
+  // "assetPerformanceLabel": enum (AssetPerformanceLabel),
+}
+
+export interface GoogleAdsAdGroupCriterion {
+  id: string;
+  resourceName: string;
+  displayName: string;
+  adGroup: string;
+  status: GoogleAdsAdGroupCriterionStatus;
+  keyword: {
+    matchType: GoogleAdsKeywordMatchType;
+    text: string;
+  };
 }

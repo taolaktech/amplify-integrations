@@ -12,19 +12,25 @@ import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
 import {
   GoogleAdsAccount,
+  GoogleAdsAdGroupAdStatus,
+  GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
   GoogleAdsAdGroupType,
   GoogleAdsAdvertisingChannelType,
   GoogleAdsCampaignStatus,
+  GoogleAdsKeywordMatchType,
+  GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
 import {
   GoogleAdsAdGroup,
+  GoogleAdsAdGroupAd,
   GoogleAdsBudget,
   GoogleAdsCampaign,
   GoogleAdsOperation,
   GoogleAdsResource,
   GoogleAdsRestBody,
   ResourceCreationResponse,
+  GoogleAdsAdGroupCriterion,
 } from './google-ads.types';
 
 type GoogleTokensResult = {
@@ -44,6 +50,34 @@ type CreateCampaignBody = {
 type CreateAdGroupBody = {
   campaignResourceName: string;
   adGroupName: string;
+};
+
+type CreateAdGroupAdBody = {
+  adGroupResourceName: string;
+  adGroupAdName: string;
+  finalUrls: [string];
+  headlines: [
+    {
+      text: string;
+      pinnedField?: GoogleAdsServedAssetFieldType;
+    },
+  ];
+  descriptions: [
+    {
+      text: string;
+      pinnedField?: GoogleAdsServedAssetFieldType;
+    },
+  ];
+  path1?: string;
+  path2?: string;
+};
+
+type AddKeywordsBody = {
+  adGroupResourceName: string;
+  keywords: {
+    text: string;
+    matchType: GoogleAdsKeywordMatchType;
+  }[];
 };
 
 @Injectable()
@@ -91,10 +125,10 @@ export class GoogleAdsApi {
 
   getGoogleAuthUrl(): string {
     const scopes = [
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'openid',
-      'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/adwords',
+      // 'https://www.googleapis.com/auth/userinfo.profile',
+      // 'openid',
+      // 'https://www.googleapis.com/auth/userinfo.email',
     ];
 
     // Generate a url that asks permissions for the Drive activity scope
@@ -309,6 +343,31 @@ export class GoogleAdsApi {
     );
   }
 
+  private async adGroupsAdsMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsAdGroupAd>[],
+  ) {
+    const resource = 'adGroupAds';
+    // customers/{customerId}/adGroupAds/{adGroupId}~{ad_id}
+    return await this.mutateResourceOperation<GoogleAdsAdGroupAd>(
+      resource,
+      customerId,
+      operations,
+    );
+  }
+
+  private async adGroupCriteriaMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[],
+  ) {
+    const resource = 'adGroupCriteria';
+    return await this.mutateResourceOperation<GoogleAdsAdGroupCriterion>(
+      resource,
+      customerId,
+      operations,
+    );
+  }
+
   async createBudget(
     account: GoogleAdsAccount,
     body: { name: string; amountMicros: number },
@@ -361,7 +420,10 @@ export class GoogleAdsApi {
 
       const res = await this.campaignMutateOperation(customerId, operations);
 
-      return { resourceName: res.results[0], campaign };
+      const resourceName = res.results[0].resourceName;
+      campaign.resourceName = resourceName;
+
+      return { result: res.results[0], campaign };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -387,12 +449,108 @@ export class GoogleAdsApi {
 
       const res = await this.adGroupsMutateOperation(customerId, operations);
 
-      return { resourceName: res.results[0], adGroup };
+      const resourceName = res.results[0].resourceName;
+      adGroup.resourceName = resourceName;
+
+      return { result: res.results[0], adGroup };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
       throw new InternalServerErrorException('Cannot create adGroup');
+    }
+  }
+
+  async createAdGroupAd(body: CreateAdGroupAdBody) {
+    const { finalUrls, headlines, descriptions, path1, path2 } = body;
+    if (
+      finalUrls.length < 1 ||
+      headlines.length < 3 ||
+      descriptions.length < 3
+    ) {
+      throw new BadRequestException(
+        'finalUrls > 0, headlines >= 3, descriptions >=3. One of the conditions not met',
+      );
+    }
+
+    try {
+      const customerId = this.extractCustomerIdFromResourceName(
+        body.adGroupResourceName,
+      );
+
+      const adGroupAd: Partial<GoogleAdsAdGroupAd> = {
+        status: GoogleAdsAdGroupAdStatus.PAUSED,
+        adGroup: `${body.adGroupResourceName}`,
+        ad: {
+          finalUrls,
+          responsiveSearchAd: {
+            headlines,
+            descriptions,
+            path1,
+            path2,
+          },
+        },
+      };
+
+      const operations = [{ create: adGroupAd }];
+
+      const res = await this.adGroupsAdsMutateOperation(customerId, operations);
+
+      const resourceName = res.results[0].resourceName;
+      adGroupAd.resourceName = resourceName;
+
+      return { result: res.results[0], adGroupAd };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create adGroupAd');
+    }
+  }
+
+  async addKeywords(body: AddKeywordsBody) {
+    try {
+      const customerId = this.extractCustomerIdFromResourceName(
+        body.adGroupResourceName,
+      );
+
+      const operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[] = [];
+
+      const criteria: Partial<GoogleAdsAdGroupCriterion>[] = [];
+
+      body.keywords.forEach((keyword) => {
+        criteria.push({
+          adGroup: `${body.adGroupResourceName}`,
+          status: GoogleAdsAdGroupCriterionStatus.ENABLED,
+          keyword: {
+            text: keyword.text,
+            matchType: keyword.matchType,
+          },
+        });
+      });
+
+      criteria.forEach((criterion) => {
+        operations.push({
+          create: criterion,
+        });
+      });
+
+      const res = await this.adGroupCriteriaMutateOperation(
+        customerId,
+        operations,
+      );
+
+      // append resourceNames
+      criteria.forEach((criterion, index) => {
+        criterion.resourceName = res.results[index].resourceName;
+      });
+
+      return { results: res.results, criteria };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot add keywords');
     }
   }
 }
