@@ -18,8 +18,6 @@ import {
   GoogleAdsAdGroupType,
   GoogleAdsAdvertisingChannelType,
   GoogleAdsCampaignStatus,
-  GoogleAdsKeywordMatchType,
-  GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
 import {
   GoogleAdsAdGroup,
@@ -31,54 +29,18 @@ import {
   GoogleAdsRestBody,
   ResourceCreationResponse,
   GoogleAdsAdGroupCriterion,
+  GoogleAdsCampaignCriterion,
+  GoogleTokensResult,
+  SuggestGeoTargetConstantsRequestBody,
+  SuggestGeoTargetConstantsResponse,
 } from './google-ads.types';
-
-type GoogleTokensResult = {
-  access_token: string;
-  expires_in: number;
-  refresh_token: string;
-  scope: string;
-  token_type: string;
-  id_token: string;
-};
-
-type CreateCampaignBody = {
-  name: string;
-  campaignBudget: string;
-};
-
-type CreateAdGroupBody = {
-  campaignResourceName: string;
-  adGroupName: string;
-};
-
-type CreateAdGroupAdBody = {
-  adGroupResourceName: string;
-  adGroupAdName: string;
-  finalUrls: [string];
-  headlines: [
-    {
-      text: string;
-      pinnedField?: GoogleAdsServedAssetFieldType;
-    },
-  ];
-  descriptions: [
-    {
-      text: string;
-      pinnedField?: GoogleAdsServedAssetFieldType;
-    },
-  ];
-  path1?: string;
-  path2?: string;
-};
-
-type AddKeywordsBody = {
-  adGroupResourceName: string;
-  keywords: {
-    text: string;
-    matchType: GoogleAdsKeywordMatchType;
-  }[];
-};
+import {
+  AddGeoTargetingToCampaignBody,
+  AddKeywordsToAdGroupBody,
+  CreateAdGroupAdBody,
+  CreateAdGroupBody,
+  CreateCampaignBody,
+} from './my-types';
 
 @Injectable()
 export class GoogleAdsApi {
@@ -86,7 +48,7 @@ export class GoogleAdsApi {
   private GOOGLE_CLIENT_ID: string;
   private GOOGLE_CLIENT_SECRET: string;
   private GOOGLE_ADS_API_URL = 'https://googleads.googleapis.com';
-  private GOOGLE_ADS_VERSION = 20;
+  private GOOGLE_ADS_VERSION = 'v20';
   private GOOGLE_ADS_LOGIN_CUSTOMER_ID: string;
   private GOOGLE_ADS_DEVELOPER_TOKEN: string;
   private GOOGLE_ADS_REFRESH_TOKEN: string;
@@ -149,7 +111,7 @@ export class GoogleAdsApi {
   private async axiosInstance() {
     const accessToken = await this.getAccessToken();
     return axios.create({
-      baseURL: `${this.GOOGLE_ADS_API_URL}/v${this.GOOGLE_ADS_VERSION}`,
+      baseURL: `${this.GOOGLE_ADS_API_URL}/${this.GOOGLE_ADS_VERSION}`,
       headers: {
         'developer-token': this.GOOGLE_ADS_DEVELOPER_TOKEN,
         'login-customer-id': this.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
@@ -368,6 +330,41 @@ export class GoogleAdsApi {
     );
   }
 
+  private async campaignCriteriaMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[],
+  ) {
+    const resource = 'campaignCriteria';
+    return await this.mutateResourceOperation<GoogleAdsCampaignCriterion>(
+      resource,
+      customerId,
+      operations,
+    );
+  }
+
+  private async suggestGeoTargetConstants(
+    payload: Partial<SuggestGeoTargetConstantsRequestBody>,
+  ) {
+    try {
+      const url = `/geoTargetConstants:suggest`;
+      const axios = await this.axiosInstance();
+      const res = await axios.post<SuggestGeoTargetConstantsResponse>(
+        url,
+        payload,
+      );
+
+      return res.data;
+    } catch (error: unknown) {
+      console.error(`Cannot complete geoTargetConstants:suggest`);
+      console.log(error);
+      if (error instanceof AxiosError) {
+        console.log(error.response?.data);
+        console.log(error.response?.data?.error?.message);
+      }
+      throw error;
+    }
+  }
+
   async createBudget(
     account: GoogleAdsAccount,
     body: { name: string; amountMicros: number },
@@ -440,7 +437,7 @@ export class GoogleAdsApi {
 
       const adGroup: Partial<GoogleAdsAdGroup> = {
         name: `${body.adGroupName}`,
-        status: GoogleAdsAdGroupStatus.PAUSED,
+        status: GoogleAdsAdGroupStatus.ENABLED,
         campaign: `${body.campaignResourceName}`,
         type: GoogleAdsAdGroupType.SEARCH_STANDARD,
       };
@@ -479,7 +476,7 @@ export class GoogleAdsApi {
       );
 
       const adGroupAd: Partial<GoogleAdsAdGroupAd> = {
-        status: GoogleAdsAdGroupAdStatus.PAUSED,
+        status: GoogleAdsAdGroupAdStatus.ENABLED,
         adGroup: `${body.adGroupResourceName}`,
         ad: {
           finalUrls,
@@ -508,7 +505,7 @@ export class GoogleAdsApi {
     }
   }
 
-  async addKeywords(body: AddKeywordsBody) {
+  async addKeywordsToAdGroup(body: AddKeywordsToAdGroupBody) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
         body.adGroupResourceName,
@@ -516,10 +513,10 @@ export class GoogleAdsApi {
 
       const operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[] = [];
 
-      const criteria: Partial<GoogleAdsAdGroupCriterion>[] = [];
+      const adGroupCriteria: Partial<GoogleAdsAdGroupCriterion>[] = [];
 
       body.keywords.forEach((keyword) => {
-        criteria.push({
+        adGroupCriteria.push({
           adGroup: `${body.adGroupResourceName}`,
           status: GoogleAdsAdGroupCriterionStatus.ENABLED,
           keyword: {
@@ -529,7 +526,7 @@ export class GoogleAdsApi {
         });
       });
 
-      criteria.forEach((criterion) => {
+      adGroupCriteria.forEach((criterion) => {
         operations.push({
           create: criterion,
         });
@@ -541,16 +538,71 @@ export class GoogleAdsApi {
       );
 
       // append resourceNames
-      criteria.forEach((criterion, index) => {
+      adGroupCriteria.forEach((criterion, index) => {
         criterion.resourceName = res.results[index].resourceName;
       });
 
-      return { results: res.results, criteria };
+      return { results: res.results, adGroupCriteria };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
       throw new InternalServerErrorException('Cannot add keywords');
+    }
+  }
+
+  async addGeoTargetingToCampaign(body: AddGeoTargetingToCampaignBody) {
+    try {
+      const customerId = this.extractCustomerIdFromResourceName(
+        body.campaignResourceName,
+      );
+
+      const gtc = {
+        locale: body.locale ?? 'en', // defaults to en
+        countryCode: 'COUNTRY_CODE',
+        locationNames: {
+          names: ['GEOLOCATION_1', 'GEO_LOCATION_2', 'GEO_LOCATION_2'],
+        },
+      };
+
+      const { geoTargetConstantSuggestions } =
+        await this.suggestGeoTargetConstants(gtc);
+
+      const operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[] = [];
+
+      const campaignCriteria: Partial<GoogleAdsCampaignCriterion>[] = [];
+
+      geoTargetConstantSuggestions.forEach((geoTargetConstantSuggestion) => {
+        campaignCriteria.push({
+          campaign: body.campaignResourceName,
+          location: {
+            geoTargetConstant:
+              geoTargetConstantSuggestion.geoTargetConstant.resourceName,
+          },
+        });
+      });
+
+      campaignCriteria.forEach((campaignCriterion) => {
+        operations.push({
+          create: campaignCriterion,
+        });
+      });
+
+      const res = await this.campaignCriteriaMutateOperation(
+        customerId,
+        operations,
+      );
+
+      campaignCriteria.forEach((criterion, index) => {
+        criterion.resourceName = res.results[index].resourceName;
+      });
+
+      return { results: res.results, campaignCriteria };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot add geo targeting');
     }
   }
 }

@@ -3,6 +3,7 @@
   Under v20 documentation.
 */
 import {
+  GeoTargetConstantStatus,
   GoogleAdsAdGroupAdAdStrength,
   GoogleAdsAdGroupAdPrimaryStatus,
   GoogleAdsAdGroupAdPrimaryStatusReason,
@@ -14,11 +15,22 @@ import {
   GoogleAdsAdvertisingChannelType,
   GoogleAdsAssetSource,
   GoogleAdsAssetType,
+  GoogleAdsCampaignCriterionStatus,
   GoogleAdsCampaignStatus,
+  GoogleAdsCriterionType,
   GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
+
+export type GoogleTokensResult = {
+  access_token: string;
+  expires_in: number;
+  refresh_token: string;
+  scope: string;
+  token_type: string;
+  id_token: string;
+};
 
 export type GoogleAdsResource =
   | 'campaignBudgets'
@@ -27,6 +39,7 @@ export type GoogleAdsResource =
   | 'adGroupAds'
   | 'ads'
   | 'adGroupCriteria'
+  | 'campaignCriteria'
   | 'assets';
 
 export interface ResourceCreationResponse {
@@ -117,7 +130,7 @@ export interface GoogleAdsAdGroupAd {
 export interface GoogleAdsAd {
   resourceName: string;
   type: GoogleAdsAdType;
-  finalUrls: [string];
+  finalUrls: string[];
   id: string;
   trackingUrlTemplate: string;
   finalUrlSuffix: string;
@@ -125,23 +138,23 @@ export interface GoogleAdsAd {
   addedByGoogleAds: boolean;
   name: string;
   responsiveSearchAd: Partial<{
-    headlines: [GoogleAdsAdTextAsset];
-    descriptions: [GoogleAdsAdTextAsset];
+    headlines: GoogleAdsAdTextAsset[];
+    descriptions: GoogleAdsAdTextAsset[];
     path1: string;
     path2: string;
   }>;
-  textAd: {
-    headline: string;
-    description1: string;
-    description2: string;
-  };
+  // textAd: {
+  //   headline: string;
+  //   description1: string;
+  //   description2: string;
+  // };
 }
 
 export interface GoogleAdsAssets {
   resourceName: string;
   type: GoogleAdsAssetType;
-  finalUrls: [string];
-  finalMobileUrls: [string];
+  finalUrls: string[];
+  finalMobileUrls: string[];
   textAsset: {
     text: string;
   };
@@ -164,8 +177,57 @@ export interface GoogleAdsAdGroupCriterion {
   displayName: string;
   adGroup: string;
   status: GoogleAdsAdGroupCriterionStatus;
+  type: GoogleAdsCriterionType;
   keyword: {
     matchType: GoogleAdsKeywordMatchType;
     text: string;
   };
+}
+
+export interface GoogleAdsCampaignCriterion {
+  resourceName: string;
+  displayName: string;
+  campaign: string;
+  criterionId: string;
+  bidModifier: number;
+  negative: boolean;
+  type: GoogleAdsCriterionType;
+  status: GoogleAdsCampaignCriterionStatus;
+  location: {
+    geoTargetConstant: string;
+  };
+}
+
+export interface SuggestGeoTargetConstantsRequestBody {
+  locale: string;
+  countryCode: string;
+  locationNames: {
+    names: string[];
+  };
+  geoTargets: {
+    geoTargetConstants: string[];
+  };
+}
+
+export interface SuggestGeoTargetConstantsResponse {
+  geoTargetConstantSuggestions: GeoTargetConstantSuggestion[];
+}
+
+export interface GeoTargetConstantSuggestion {
+  geoTargetConstant: GeoTargetConstant;
+  geoTargetConstantParents: [GeoTargetConstant];
+  locale: string;
+  reach: string;
+  searchTerm: string;
+}
+
+interface GeoTargetConstant {
+  resourceName: string;
+  status: GeoTargetConstantStatus;
+  id: string;
+  name: string;
+  countryCode: string;
+  targetType: string;
+  canonicalName: string;
+  parentGeoTarget: string;
 }

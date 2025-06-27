@@ -3,6 +3,9 @@ import { GoogleAdsService } from './google-ads.service';
 import { ApiSecurity } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators';
 import {
+  AddGeotargetingToCampaignDto,
+  AddKeywordsToAdGroupDto,
+  CreateAdGroupAdDto,
   CreateAdGroupDto,
   CreateBudgetDto,
   CreateSearchCampaignDto,
@@ -38,5 +41,20 @@ export class GoogleAdsController {
   @Post('/create-ad-group')
   async createAdGroup(@Body() body: CreateAdGroupDto) {
     return await this.googleAdsService.createAdGroup(body);
+  }
+
+  @Post('/create-ad-group-ad')
+  async createAdGroupAd(@Body() body: CreateAdGroupAdDto) {
+    return await this.googleAdsService.createAdGroupAd(body);
+  }
+
+  @Post('/add-keywords-to-ad-group')
+  async addKeywordsToAdGroup(@Body() body: AddKeywordsToAdGroupDto) {
+    return await this.googleAdsService.addKeywordsToAdGroup(body);
+  }
+
+  @Post('/add-geo-targeting-to-campaign')
+  async addGeoTargetingToCampaign(@Body() body: AddGeotargetingToCampaignDto) {
+    return await this.googleAdsService.addGeoTargetingToCampaign(body);
   }
 }
