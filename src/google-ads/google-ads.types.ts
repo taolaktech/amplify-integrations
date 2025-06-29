@@ -43,7 +43,7 @@ export type GoogleAdsResource =
   | 'assets';
 
 export interface ResourceCreationResponse {
-  results: Result[];
+  results: Result[] | undefined;
 }
 
 export interface Result {
@@ -89,7 +89,16 @@ export interface GoogleAdsCampaign {
   endDate: string;
   status: GoogleAdsCampaignStatus;
   campaignBudget: string;
+  biddingStrategy: string;
   advertisingChannelType: GoogleAdsAdvertisingChannelType;
+  manualCpc: Partial<{
+    enhancedCpcEnabled: boolean;
+  }>;
+  targetCpa: {
+    targetCpaMicros: string;
+    cpcBidCeilingMicros: string;
+    cpcBidFloorMicros: string;
+  };
   networkSettings: Partial<{
     targetGoogleSearch: boolean;
     targetSearchNetwork: boolean;

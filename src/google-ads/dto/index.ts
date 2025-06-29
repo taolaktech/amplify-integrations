@@ -7,11 +7,9 @@ import {
   IsPositive,
   IsString,
   isURL,
-  MinLength,
-  ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { GoogleAdsAccount } from '../google-ads.enum';
+import { GoogleAdsAccount, GoogleAdsCampaignStatus } from '../google-ads.enum';
 import { Type } from 'class-transformer';
 
 export class CreateBudgetDto {
@@ -74,22 +72,16 @@ export class CreateAdGroupAdDto {
 
   @ApiProperty()
   @IsArray()
-  @MinLength(1)
-  @ValidateNested({ each: true })
   @Type(() => isURL)
   finalUrls: string[];
 
   @ApiProperty()
   @IsArray()
-  @MinLength(3)
-  @ValidateNested({ each: true })
   @Type(() => String)
   headlines: string[];
 
   @ApiProperty()
   @IsArray()
-  @MinLength(3)
-  @ValidateNested({ each: true })
   @Type(() => String)
   descriptions: string[];
 
@@ -112,19 +104,16 @@ export class AddKeywordsToAdGroupDto {
 
   @ApiProperty()
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => String)
   exactMatchKeywords: string[];
 
   @ApiProperty()
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => String)
   broadMatchKeywords: string[];
 
   @ApiProperty()
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => String)
   phraseMatchKeywords: string[];
 }
@@ -147,7 +136,21 @@ export class AddGeotargetingToCampaignDto {
 
   @ApiProperty()
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => String)
   locationNames: string[];
+}
+
+export class UpdateCampaignDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  campaignResourceName: string;
+
+  @ApiProperty()
+  @IsEnum([
+    GoogleAdsCampaignStatus.ENABLED,
+    GoogleAdsCampaignStatus.PAUSED,
+    GoogleAdsCampaignStatus.REMOVED,
+  ])
+  status: GoogleAdsCampaignStatus;
 }

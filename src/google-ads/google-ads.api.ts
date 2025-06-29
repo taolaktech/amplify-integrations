@@ -18,6 +18,7 @@ import {
   GoogleAdsAdGroupType,
   GoogleAdsAdvertisingChannelType,
   GoogleAdsCampaignStatus,
+  GoogleAdsResponseContentType,
 } from './google-ads.enum';
 import {
   GoogleAdsAdGroup,
@@ -40,6 +41,8 @@ import {
   CreateAdGroupAdBody,
   CreateAdGroupBody,
   CreateCampaignBody,
+  GoogleAdsRequestOptions,
+  UpdateCampaignBody,
 } from './my-types';
 
 @Injectable()
@@ -56,7 +59,7 @@ export class GoogleAdsApi {
   private googleAdsAccessTokenExpiresAt: DateTime;
   private GOOGLE_ADS_US_CUSTOMER_ID: string;
   private GOOGLE_ADS_CA_CUSTOMER_ID: string;
-  private DRY_RUN = true;
+  private DRY_RUN = false;
 
   constructor(private config: AppConfigService) {
     this.GOOGLE_CLIENT_ID = this.config.get('GOOGLE_CLIENT_ID');
@@ -247,21 +250,23 @@ export class GoogleAdsApi {
     resource: GoogleAdsResource,
     customerId: string,
     operations: GoogleAdsOperation<T>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     try {
       const url = `/customers/${customerId}/${resource}:mutate`;
       const axios = await this.axiosInstance();
       const data: GoogleAdsRestBody<T> = {
         operations,
-        validateOnly: this.DRY_RUN || undefined,
+        validateOnly: this.DRY_RUN || options?.validateOnly,
+        responseContentType: options?.responseContentType,
       };
       const res = await axios.post<ResourceCreationResponse>(url, data);
       return res.data;
     } catch (error: unknown) {
       console.error(`Cannot complete ${resource} mutate operation`);
-      console.log(error);
       if (error instanceof AxiosError) {
         console.log(error.response?.data);
+        console.log(JSON.stringify(error.response?.data || {}));
         console.log(error.response?.data?.error?.message);
       }
       throw error;
@@ -271,6 +276,7 @@ export class GoogleAdsApi {
   private async campaignBudgetMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsBudget>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'campaignBudgets';
 
@@ -278,36 +284,42 @@ export class GoogleAdsApi {
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
   private async campaignMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaign>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'campaigns';
     return await this.mutateResourceOperation<GoogleAdsCampaign>(
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
   private async adGroupsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroup>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'adGroups';
     return await this.mutateResourceOperation<GoogleAdsAdGroup>(
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
   private async adGroupsAdsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupAd>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'adGroupAds';
     // customers/{customerId}/adGroupAds/{adGroupId}~{ad_id}
@@ -315,30 +327,35 @@ export class GoogleAdsApi {
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
   private async adGroupCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'adGroupCriteria';
     return await this.mutateResourceOperation<GoogleAdsAdGroupCriterion>(
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
   private async campaignCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[],
+    options?: GoogleAdsRequestOptions,
   ) {
     const resource = 'campaignCriteria';
     return await this.mutateResourceOperation<GoogleAdsCampaignCriterion>(
       resource,
       customerId,
       operations,
+      options,
     );
   }
 
@@ -352,13 +369,12 @@ export class GoogleAdsApi {
         url,
         payload,
       );
-
       return res.data;
     } catch (error: unknown) {
       console.error(`Cannot complete geoTargetConstants:suggest`);
-      console.log(error);
       if (error instanceof AxiosError) {
         console.log(error.response?.data);
+        console.log(JSON.stringify(error.response?.data || {}));
         console.log(error.response?.data?.error?.message);
       }
       throw error;
@@ -368,6 +384,7 @@ export class GoogleAdsApi {
   async createBudget(
     account: GoogleAdsAccount,
     body: { name: string; amountMicros: number },
+    options?: GoogleAdsRequestOptions,
   ) {
     try {
       const customerId = this.getCustomerIdByAccount(account);
@@ -381,9 +398,14 @@ export class GoogleAdsApi {
       const res = await this.campaignBudgetMutateOperation(
         customerId,
         operations,
+        options,
       );
 
-      return { res, budget };
+      if (res.results?.length) {
+        budget.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, budget };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -395,6 +417,7 @@ export class GoogleAdsApi {
   async createSearchCampaign(
     account: GoogleAdsAccount,
     body: CreateCampaignBody,
+    options?: GoogleAdsRequestOptions,
   ) {
     try {
       const customerId = this.getCustomerIdByAccount(account);
@@ -406,21 +429,32 @@ export class GoogleAdsApi {
         status: GoogleAdsCampaignStatus.PAUSED,
         campaignBudget: body.campaignBudget,
         advertisingChannelType: GoogleAdsAdvertisingChannelType.SEARCH,
+        manualCpc: {},
+        // targetCpa: {
+        //   targetCpaMicros: string;
+        //   cpcBidCeilingMicros: string;
+        //   cpcBidFloorMicros: string;
+        // },
         networkSettings: {
+          targetPartnerSearchNetwork: false,
           targetGoogleSearch: true,
           targetSearchNetwork: true,
           targetContentNetwork: true,
-          targetPartnerSearchNetwork: false,
         },
       };
       const operations = [{ create: campaign }];
 
-      const res = await this.campaignMutateOperation(customerId, operations);
+      const res = await this.campaignMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
 
-      const resourceName = res.results[0].resourceName;
-      campaign.resourceName = resourceName;
+      if (res.results?.length) {
+        campaign.resourceName = res.results[0].resourceName;
+      }
 
-      return { result: res.results[0], campaign };
+      return { response: res, campaign };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -429,7 +463,10 @@ export class GoogleAdsApi {
     }
   }
 
-  async createAdGroup(body: CreateAdGroupBody) {
+  async createAdGroup(
+    body: CreateAdGroupBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
         body.campaignResourceName,
@@ -444,12 +481,17 @@ export class GoogleAdsApi {
 
       const operations = [{ create: adGroup }];
 
-      const res = await this.adGroupsMutateOperation(customerId, operations);
+      const res = await this.adGroupsMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
 
-      const resourceName = res.results[0].resourceName;
-      adGroup.resourceName = resourceName;
+      if (res.results?.length) {
+        adGroup.resourceName = res.results[0].resourceName;
+      }
 
-      return { result: res.results[0], adGroup };
+      return { response: res, adGroup };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -458,7 +500,10 @@ export class GoogleAdsApi {
     }
   }
 
-  async createAdGroupAd(body: CreateAdGroupAdBody) {
+  async createAdGroupAd(
+    body: CreateAdGroupAdBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
     const { finalUrls, headlines, descriptions, path1, path2 } = body;
     if (
       finalUrls.length < 1 ||
@@ -491,12 +536,17 @@ export class GoogleAdsApi {
 
       const operations = [{ create: adGroupAd }];
 
-      const res = await this.adGroupsAdsMutateOperation(customerId, operations);
+      const res = await this.adGroupsAdsMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
 
-      const resourceName = res.results[0].resourceName;
-      adGroupAd.resourceName = resourceName;
+      if (res.results?.length) {
+        adGroupAd.resourceName = res.results[0].resourceName;
+      }
 
-      return { result: res.results[0], adGroupAd };
+      return { response: res, adGroupAd };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -505,7 +555,10 @@ export class GoogleAdsApi {
     }
   }
 
-  async addKeywordsToAdGroup(body: AddKeywordsToAdGroupBody) {
+  async addKeywordsToAdGroup(
+    body: AddKeywordsToAdGroupBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
         body.adGroupResourceName,
@@ -535,14 +588,19 @@ export class GoogleAdsApi {
       const res = await this.adGroupCriteriaMutateOperation(
         customerId,
         operations,
+        options,
       );
 
       // append resourceNames
-      adGroupCriteria.forEach((criterion, index) => {
-        criterion.resourceName = res.results[index].resourceName;
-      });
+      if (res.results?.length) {
+        adGroupCriteria.forEach((criterion, index) => {
+          criterion.resourceName = res.results
+            ? res.results[index].resourceName
+            : undefined;
+        });
+      }
 
-      return { results: res.results, adGroupCriteria };
+      return { response: res, adGroupCriteria };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
@@ -551,7 +609,10 @@ export class GoogleAdsApi {
     }
   }
 
-  async addGeoTargetingToCampaign(body: AddGeoTargetingToCampaignBody) {
+  async addGeoTargetingToCampaign(
+    body: AddGeoTargetingToCampaignBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
         body.campaignResourceName,
@@ -559,9 +620,9 @@ export class GoogleAdsApi {
 
       const gtc = {
         locale: body.locale ?? 'en', // defaults to en
-        countryCode: 'COUNTRY_CODE',
+        countryCode: body.countryCode,
         locationNames: {
-          names: ['GEOLOCATION_1', 'GEO_LOCATION_2', 'GEO_LOCATION_2'],
+          names: body.locationNames,
         },
       };
 
@@ -591,18 +652,52 @@ export class GoogleAdsApi {
       const res = await this.campaignCriteriaMutateOperation(
         customerId,
         operations,
+        options,
       );
 
       campaignCriteria.forEach((criterion, index) => {
-        criterion.resourceName = res.results[index].resourceName;
+        criterion.resourceName = criterion.resourceName = res.results
+          ? res.results[index].resourceName
+          : undefined;
       });
 
-      return { results: res.results, campaignCriteria };
+      return { response: res, campaignCriteria };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
       throw new InternalServerErrorException('Cannot add geo targeting');
+    }
+  }
+
+  async updateCampaign(
+    body: UpdateCampaignBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
+    try {
+      if (!body.campaign.resourceName) {
+        throw new BadRequestException('campaign.resourceName required');
+      }
+
+      const customerId = this.extractCustomerIdFromResourceName(
+        body.campaign.resourceName,
+      );
+
+      const operations = [
+        { updateMask: body.updateMask, update: body.campaign },
+      ];
+
+      const res = await this.campaignMutateOperation(customerId, operations, {
+        ...options,
+        responseContentType: GoogleAdsResponseContentType.MUTABLE_RESOURCE,
+      });
+
+      return { response: res };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot update campaign');
     }
   }
 }
