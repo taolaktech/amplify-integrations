@@ -1,7 +1,16 @@
 import {
   GoogleAdsKeywordMatchType,
+  GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
+import { GoogleAdsCampaign } from './google-ads.types';
+
+export type GoogleAdsRequestOptions = {
+  validateOnly?: boolean;
+  partialFailure?: boolean;
+  responseContentType?: GoogleAdsResponseContentType;
+};
+
 export type CreateCampaignBody = {
   name: string;
   campaignBudget: string;
@@ -41,4 +50,9 @@ export type AddGeoTargetingToCampaignBody = {
   locale?: string;
   countryCode: string;
   locationNames: string[];
+};
+
+export type UpdateCampaignBody = {
+  campaign: Partial<GoogleAdsCampaign>;
+  updateMask: string;
 };

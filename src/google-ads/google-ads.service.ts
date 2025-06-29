@@ -6,6 +6,7 @@ import {
   CreateAdGroupDto,
   CreateBudgetDto,
   CreateSearchCampaignDto,
+  UpdateCampaignDto,
 } from './dto';
 
 import { GoogleAdsApi } from './google-ads.api';
@@ -13,6 +14,7 @@ import {
   GoogleAdsKeywordMatchType,
   GoogleAdsServedAssetFieldType,
 } from './google-ads.enum';
+import { GoogleAdsRequestOptions } from './my-types';
 
 @Injectable()
 export class GoogleAdsService {
@@ -41,16 +43,23 @@ export class GoogleAdsService {
     }
   }
 
-  async createBudget(dto: CreateBudgetDto) {
+  async createBudget(dto: CreateBudgetDto, options?: GoogleAdsRequestOptions) {
     const body = {
       name: dto.campaignBudgetName,
       amountMicros: dto.amount * this.ONE_CURRENCY_UNIT,
     };
-    const response = await this.googleAdsApi.createBudget(dto.account, body);
+    const response = await this.googleAdsApi.createBudget(
+      dto.account,
+      body,
+      options,
+    );
     return response;
   }
 
-  async createSearchCampaign(dto: CreateSearchCampaignDto) {
+  async createSearchCampaign(
+    dto: CreateSearchCampaignDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
     const body = {
       campaignBudget: dto.budgetResourceName,
       name: dto.campaignName,
@@ -58,20 +67,27 @@ export class GoogleAdsService {
     const response = await this.googleAdsApi.createSearchCampaign(
       dto.account,
       body,
+      options,
     );
     return response;
   }
 
-  async createAdGroup(dto: CreateAdGroupDto) {
+  async createAdGroup(
+    dto: CreateAdGroupDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
     const body = {
       adGroupName: dto.adGroupName,
       campaignResourceName: dto.campaignResourceName,
     };
-    const response = await this.googleAdsApi.createAdGroup(body);
+    const response = await this.googleAdsApi.createAdGroup(body, options);
     return response;
   }
 
-  async createAdGroupAd(dto: CreateAdGroupAdDto) {
+  async createAdGroupAd(
+    dto: CreateAdGroupAdDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
     if (dto.path2 && !dto.path1) {
       throw new BadRequestException(
         `path1 must be present if path2 is present`,
@@ -99,11 +115,14 @@ export class GoogleAdsService {
       path2: dto.path2,
     };
 
-    const response = await this.googleAdsApi.createAdGroupAd(body);
+    const response = await this.googleAdsApi.createAdGroupAd(body, options);
     return response;
   }
 
-  async addKeywordsToAdGroup(dto: AddKeywordsToAdGroupDto) {
+  async addKeywordsToAdGroup(
+    dto: AddKeywordsToAdGroupDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
     const keywords: { text: string; matchType: GoogleAdsKeywordMatchType }[] =
       [];
 
@@ -124,14 +143,20 @@ export class GoogleAdsService {
       keywords,
     };
 
-    const response = await this.googleAdsApi.addKeywordsToAdGroup(body);
+    const response = await this.googleAdsApi.addKeywordsToAdGroup(
+      body,
+      options,
+    );
 
     return response;
   }
 
   // async addGeolocation
 
-  async addGeoTargetingToCampaign(dto: AddGeotargetingToCampaignDto) {
+  async addGeoTargetingToCampaign(
+    dto: AddGeotargetingToCampaignDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
     const body = {
       campaignResourceName: dto.campaignResourceName,
       locale: dto.locale,
@@ -139,7 +164,24 @@ export class GoogleAdsService {
       locationNames: dto.locationNames,
     };
 
-    const res = this.googleAdsApi.addGeoTargetingToCampaign(body);
+    const res = this.googleAdsApi.addGeoTargetingToCampaign(body, options);
+
+    return res;
+  }
+
+  async updateCampaignStatus(
+    dto: UpdateCampaignDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
+    const body = {
+      updateMask: 'status',
+      campaign: {
+        resourceName: dto.campaignResourceName,
+        status: dto.status,
+      },
+    };
+
+    const res = this.googleAdsApi.updateCampaign(body, options);
 
     return res;
   }
