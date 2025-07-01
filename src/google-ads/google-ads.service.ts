@@ -60,9 +60,15 @@ export class GoogleAdsService {
     dto: CreateSearchCampaignDto,
     options?: GoogleAdsRequestOptions,
   ) {
+    if (dto.endDate < dto.startDate) {
+      throw new BadRequestException('endDate must be greater than startDate');
+    }
     const body = {
       campaignBudget: dto.budgetResourceName,
       name: dto.campaignName,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      targetRoas: dto.targetRoas,
     };
     const response = await this.googleAdsApi.createSearchCampaign(
       dto.account,
