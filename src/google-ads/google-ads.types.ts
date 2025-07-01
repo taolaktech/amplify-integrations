@@ -95,7 +95,12 @@ export interface GoogleAdsCampaign {
     enhancedCpcEnabled: boolean;
   }>;
   targetCpa: {
-    targetCpaMicros: string;
+    targetCpaMicros: number;
+    cpcBidCeilingMicros: string;
+    cpcBidFloorMicros: string;
+  };
+  tartgetRoas: {
+    targetRoas: number;
     cpcBidCeilingMicros: string;
     cpcBidFloorMicros: string;
   };

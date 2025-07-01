@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDate,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -11,6 +12,23 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { GoogleAdsAccount, GoogleAdsCampaignStatus } from '../google-ads.enum';
 import { Type } from 'class-transformer';
+
+class TargetRoas {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  targetRoas: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  cpcBidCeilingMicros: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  cpcBidFloorMicros: number;
+}
 
 export class CreateBudgetDto {
   @ApiProperty()
@@ -45,6 +63,23 @@ export class CreateSearchCampaignDto {
   @IsString()
   @IsNotEmpty()
   campaignName: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @Type(() => Date)
+  @IsDate()
+  startDate: Date;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @Type(() => Date)
+  @IsDate()
+  endDate: Date;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @Type(() => TargetRoas)
+  targetRoas: TargetRoas;
 }
 
 export class CreateAdGroupDto {

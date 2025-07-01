@@ -429,12 +429,13 @@ export class GoogleAdsApi {
         status: GoogleAdsCampaignStatus.PAUSED,
         campaignBudget: body.campaignBudget,
         advertisingChannelType: GoogleAdsAdvertisingChannelType.SEARCH,
-        manualCpc: {},
-        // targetCpa: {
-        //   targetCpaMicros: string;
-        //   cpcBidCeilingMicros: string;
-        //   cpcBidFloorMicros: string;
-        // },
+        startDate: body.startDate.toISOString(),
+        endDate: body.endDate.toISOString(),
+        tartgetRoas: {
+          targetRoas: body.targetRoas.targetRoas,
+          cpcBidCeilingMicros: body.targetRoas.cpcBidCeilingMicros.toString(),
+          cpcBidFloorMicros: body.targetRoas.cpcBidFloorMicros.toString(),
+        },
         networkSettings: {
           targetPartnerSearchNetwork: false,
           targetGoogleSearch: true,

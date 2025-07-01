@@ -14,6 +14,13 @@ export type GoogleAdsRequestOptions = {
 export type CreateCampaignBody = {
   name: string;
   campaignBudget: string;
+  startDate: Date;
+  endDate: Date;
+  targetRoas: {
+    targetRoas: number;
+    cpcBidCeilingMicros: number;
+    cpcBidFloorMicros: number;
+  };
 };
 
 export type CreateAdGroupBody = {
