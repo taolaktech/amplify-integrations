@@ -5,6 +5,7 @@ import {
   CreateAdGroupAdDto,
   CreateAdGroupDto,
   CreateBudgetDto,
+  CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
   UpdateCampaignDto,
 } from './dto';
@@ -43,6 +44,25 @@ export class GoogleAdsService {
     }
   }
 
+  async createTargetRoasBiddingStrategy(
+    dto: CreateTargetRoasBiddingStrategyDto,
+    options?: GoogleAdsRequestOptions,
+  ) {
+    const body = {
+      name: dto.biddingStrategyName,
+      targetRoas: dto.targetRoas,
+      cpcBidCeilingMicros: dto.cpcBidCeiling * this.ONE_CURRENCY_UNIT,
+      cpcBidFloorMicros: dto.cpcBidFloor * this.ONE_CURRENCY_UNIT,
+    };
+
+    const response = await this.googleAdsApi.createTargetRoasBiddingStrategy(
+      dto.account,
+      body,
+      options,
+    );
+    return response;
+  }
+
   async createBudget(dto: CreateBudgetDto, options?: GoogleAdsRequestOptions) {
     const body = {
       name: dto.campaignBudgetName,
@@ -68,7 +88,7 @@ export class GoogleAdsService {
       name: dto.campaignName,
       startDate: dto.startDate,
       endDate: dto.endDate,
-      targetRoas: dto.targetRoas,
+      biddingStrategy: dto.biddingStrategy,
     };
     const response = await this.googleAdsApi.createSearchCampaign(
       dto.account,

@@ -15,6 +15,7 @@ import {
   GoogleAdsAdvertisingChannelType,
   GoogleAdsAssetSource,
   GoogleAdsAssetType,
+  GoogleAdsBiddingStrategyStatus,
   GoogleAdsCampaignCriterionStatus,
   GoogleAdsCampaignStatus,
   GoogleAdsCriterionType,
@@ -40,6 +41,7 @@ export type GoogleAdsResource =
   | 'ads'
   | 'adGroupCriteria'
   | 'campaignCriteria'
+  | 'biddingStrategies'
   | 'assets';
 
 export interface ResourceCreationResponse {
@@ -99,11 +101,6 @@ export interface GoogleAdsCampaign {
     cpcBidCeilingMicros: string;
     cpcBidFloorMicros: string;
   };
-  tartgetRoas: {
-    targetRoas: number;
-    cpcBidCeilingMicros: string;
-    cpcBidFloorMicros: string;
-  };
   networkSettings: Partial<{
     targetGoogleSearch: boolean;
     targetSearchNetwork: boolean;
@@ -118,6 +115,23 @@ export interface GoogleAdsCampaign {
   optimizationScore: number;
   urlExpansionOptOut: boolean;
   brandGuidelinesEnabled: boolean;
+}
+
+export interface GoogleAdsBiddingStrategy {
+  name: string;
+  id: string;
+  resourceName: string;
+  status: GoogleAdsBiddingStrategyStatus;
+  targetRoas: {
+    targetRoas: number;
+    cpcBidCeilingMicros: number;
+    cpcBidFloorMicros: number;
+  };
+  targetCpa: {
+    targetCpaMicros: number;
+    cpcBidCeilingMicros: string;
+    cpcBidFloorMicros: string;
+  };
 }
 
 export interface GoogleAdsAdGroup {

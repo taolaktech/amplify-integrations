@@ -11,12 +11,13 @@ import { google } from 'googleapis';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
 import {
-  GoogleAdsAccount,
+  AmplifyGoogleAdsAccount,
   GoogleAdsAdGroupAdStatus,
   GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
   GoogleAdsAdGroupType,
   GoogleAdsAdvertisingChannelType,
+  GoogleAdsBiddingStrategyStatus,
   GoogleAdsCampaignStatus,
   GoogleAdsResponseContentType,
 } from './google-ads.enum';
@@ -34,6 +35,7 @@ import {
   GoogleTokensResult,
   SuggestGeoTargetConstantsRequestBody,
   SuggestGeoTargetConstantsResponse,
+  GoogleAdsBiddingStrategy,
 } from './google-ads.types';
 import {
   AddGeoTargetingToCampaignBody,
@@ -41,6 +43,7 @@ import {
   CreateAdGroupAdBody,
   CreateAdGroupBody,
   CreateCampaignBody,
+  CreateTargetRoasBiddingStrategyBody,
   GoogleAdsRequestOptions,
   UpdateCampaignBody,
 } from './my-types';
@@ -150,7 +153,7 @@ export class GoogleAdsApi {
   }
 
   private checkResourceAgainstAccount(
-    account: GoogleAdsAccount,
+    account: AmplifyGoogleAdsAccount,
     resourceName: string,
   ) {
     const customerId = this.getCustomerIdByAccount(account);
@@ -164,10 +167,10 @@ export class GoogleAdsApi {
     return customerId;
   }
 
-  private getCustomerIdByAccount(account: GoogleAdsAccount) {
-    if (account === GoogleAdsAccount.AMPLIFY_US) {
+  private getCustomerIdByAccount(account: AmplifyGoogleAdsAccount) {
+    if (account === AmplifyGoogleAdsAccount.AMPLIFY_US) {
       return this.GOOGLE_ADS_US_CUSTOMER_ID;
-    } else if (account === GoogleAdsAccount.AMPLIFY_CA) {
+    } else if (account === AmplifyGoogleAdsAccount.AMPLIFY_CA) {
       return this.GOOGLE_ADS_CA_CUSTOMER_ID;
     } else {
       throw new InternalServerErrorException('Selected account not configured');
@@ -176,7 +179,7 @@ export class GoogleAdsApi {
 
   async googleAuthCallbackHandler(params: any) {
     try {
-      const { code }: any = params;
+      const { code } = params;
 
       // get tokens
       const tokens = await this.getOauthTokensWithCode(code as string);
@@ -345,6 +348,20 @@ export class GoogleAdsApi {
     );
   }
 
+  private async biddingStrategiesMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsBiddingStrategy>[],
+    options?: GoogleAdsRequestOptions,
+  ) {
+    const resource = 'biddingStrategies';
+    return await this.mutateResourceOperation<GoogleAdsBiddingStrategy>(
+      resource,
+      customerId,
+      operations,
+      options,
+    );
+  }
+
   private async campaignCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[],
@@ -382,7 +399,7 @@ export class GoogleAdsApi {
   }
 
   async createBudget(
-    account: GoogleAdsAccount,
+    account: AmplifyGoogleAdsAccount,
     body: { name: string; amountMicros: number },
     options?: GoogleAdsRequestOptions,
   ) {
@@ -414,8 +431,46 @@ export class GoogleAdsApi {
     }
   }
 
+  async createTargetRoasBiddingStrategy(
+    account: AmplifyGoogleAdsAccount,
+    body: CreateTargetRoasBiddingStrategyBody,
+    options?: GoogleAdsRequestOptions,
+  ) {
+    try {
+      const customerId = this.getCustomerIdByAccount(account);
+      const biddingStrategy: Partial<GoogleAdsBiddingStrategy> = {
+        name: body.name,
+        status: GoogleAdsBiddingStrategyStatus.ENABLED,
+        targetRoas: {
+          targetRoas: body.targetRoas,
+          cpcBidCeilingMicros: body.cpcBidCeilingMicros,
+          cpcBidFloorMicros: body.cpcBidFloorMicros,
+        },
+      };
+      const operations = [{ create: biddingStrategy }];
+      const res = await this.biddingStrategiesMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        biddingStrategy.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, biddingStrategy };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Cannot create target ROAS bidding strategy',
+      );
+    }
+  }
+
   async createSearchCampaign(
-    account: GoogleAdsAccount,
+    account: AmplifyGoogleAdsAccount,
     body: CreateCampaignBody,
     options?: GoogleAdsRequestOptions,
   ) {
@@ -429,13 +484,9 @@ export class GoogleAdsApi {
         status: GoogleAdsCampaignStatus.PAUSED,
         campaignBudget: body.campaignBudget,
         advertisingChannelType: GoogleAdsAdvertisingChannelType.SEARCH,
-        startDate: body.startDate.toISOString(),
-        endDate: body.endDate.toISOString(),
-        tartgetRoas: {
-          targetRoas: body.targetRoas.targetRoas,
-          cpcBidCeilingMicros: body.targetRoas.cpcBidCeilingMicros.toString(),
-          cpcBidFloorMicros: body.targetRoas.cpcBidFloorMicros.toString(),
-        },
+        startDate: body.startDate.toISOString().split('T')[0],
+        endDate: body.endDate.toISOString().split('T')[0],
+        biddingStrategy: body.biddingStrategy,
         networkSettings: {
           targetPartnerSearchNetwork: false,
           targetGoogleSearch: true,
