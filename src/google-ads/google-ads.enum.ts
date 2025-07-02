@@ -1,6 +1,6 @@
 /* Enums available here- https://developers.google.com/google-ads/api/rest/reference/rest/v20/AdGroup */
 
-export enum GoogleAdsAccount {
+export enum AmplifyGoogleAdsAccount {
   AMPLIFY_US = 'amplify_us',
   AMPLIFY_CA = 'amplify_ca',
 }
@@ -55,6 +55,13 @@ export enum GoogleAdsBiddingStrategyType {
   TARGET_OUTRANK_SHARE = 'TARGET_OUTRANK_SHARE',
   TARGET_ROAS = 'TARGET_ROAS',
   TARGET_SPEND = 'TARGET_SPEND',
+}
+
+export enum GoogleAdsBiddingStrategyStatus {
+  UNSPECIFIED = 'UNSPECIFIED',
+  UNKNOWN = 'UNKNOWN',
+  ENABLED = 'ENABLED',
+  REMOVED = 'REMOVED',
 }
 
 export enum GoogleAdsAdGroupStatus {

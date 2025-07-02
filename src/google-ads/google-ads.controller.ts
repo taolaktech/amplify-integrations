@@ -8,6 +8,7 @@ import {
   CreateAdGroupAdDto,
   CreateAdGroupDto,
   CreateBudgetDto,
+  CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
   UpdateCampaignDto,
 } from './dto';
@@ -29,7 +30,7 @@ export class GoogleAdsController {
     return await this.googleAdsService.googleAuthCallbackHandler(q);
   }
 
-  @Post('/create-budget')
+  @Post('/campaign-budget/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createBudget(
     @Body() dto: CreateBudgetDto,
@@ -39,7 +40,19 @@ export class GoogleAdsController {
     return await this.googleAdsService.createBudget(dto, { validateOnly });
   }
 
-  @Post('/create-search-campaign')
+  @Post('/bidding-strategy/target-roas/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createTargetRoasBiggingStrategy(
+    @Body() dto: CreateTargetRoasBiddingStrategyDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createTargetRoasBiddingStrategy(dto, {
+      validateOnly,
+    });
+  }
+
+  @Post('/campaign/search-campaign/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createSearchCampaign(
     @Body() dto: CreateSearchCampaignDto,
@@ -51,7 +64,7 @@ export class GoogleAdsController {
     });
   }
 
-  @Post('/create-ad-group')
+  @Post('/ad-group/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createAdGroup(
     @Body() dto: CreateAdGroupDto,
@@ -61,7 +74,7 @@ export class GoogleAdsController {
     return await this.googleAdsService.createAdGroup(dto, { validateOnly });
   }
 
-  @Post('/create-ad-group-ad')
+  @Post('/ad-group-ad/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createAdGroupAd(
     @Body() dto: CreateAdGroupAdDto,
@@ -71,7 +84,7 @@ export class GoogleAdsController {
     return await this.googleAdsService.createAdGroupAd(dto, { validateOnly });
   }
 
-  @Post('/add-keywords-to-ad-group')
+  @Post('/ad-group/add-keywords')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async addKeywordsToAdGroup(
     @Body() dto: AddKeywordsToAdGroupDto,
@@ -83,7 +96,7 @@ export class GoogleAdsController {
     });
   }
 
-  @Post('/add-geo-targeting-to-campaign')
+  @Post('/campaign/add-geo-targeting')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async addGeoTargetingToCampaign(
     @Body() dto: AddGeotargetingToCampaignDto,
@@ -95,7 +108,7 @@ export class GoogleAdsController {
     });
   }
 
-  @Post('/update-campaign')
+  @Post('/campaign/update-status')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async updateCampaignStatus(
     @Body() dto: UpdateCampaignDto,

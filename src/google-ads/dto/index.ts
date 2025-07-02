@@ -8,33 +8,50 @@ import {
   IsPositive,
   IsString,
   isURL,
+  Max,
+  Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { GoogleAdsAccount, GoogleAdsCampaignStatus } from '../google-ads.enum';
+import {
+  AmplifyGoogleAdsAccount,
+  GoogleAdsCampaignStatus,
+} from '../google-ads.enum';
 import { Type } from 'class-transformer';
 
-class TargetRoas {
+export class CreateTargetRoasBiddingStrategyDto {
+  @ApiProperty()
+  @IsString()
+  @IsEnum(AmplifyGoogleAdsAccount)
+  account: AmplifyGoogleAdsAccount;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  biddingStrategyName: string;
+
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber()
+  @Max(1000)
+  @Min(0.01)
   targetRoas: number;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber()
-  cpcBidCeilingMicros: number;
+  cpcBidCeiling: number;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber()
-  cpcBidFloorMicros: number;
+  cpcBidFloor: number;
 }
 
 export class CreateBudgetDto {
   @ApiProperty()
   @IsString()
-  @IsEnum(GoogleAdsAccount)
-  account: GoogleAdsAccount;
+  @IsEnum(AmplifyGoogleAdsAccount)
+  account: AmplifyGoogleAdsAccount;
 
   @ApiProperty()
   @IsNumber()
@@ -51,13 +68,18 @@ export class CreateBudgetDto {
 export class CreateSearchCampaignDto {
   @ApiProperty()
   @IsString()
-  @IsEnum(GoogleAdsAccount)
-  account: GoogleAdsAccount;
+  @IsEnum(AmplifyGoogleAdsAccount)
+  account: AmplifyGoogleAdsAccount;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   budgetResourceName: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  biddingStrategy: string;
 
   @ApiProperty()
   @IsString()
@@ -75,11 +97,6 @@ export class CreateSearchCampaignDto {
   @Type(() => Date)
   @IsDate()
   endDate: Date;
-
-  @ApiProperty()
-  @IsNotEmpty()
-  @Type(() => TargetRoas)
-  targetRoas: TargetRoas;
 }
 
 export class CreateAdGroupDto {

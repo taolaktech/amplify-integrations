@@ -11,16 +11,19 @@ export type GoogleAdsRequestOptions = {
   responseContentType?: GoogleAdsResponseContentType;
 };
 
+export type CreateTargetRoasBiddingStrategyBody = {
+  name: string;
+  targetRoas: number;
+  cpcBidCeilingMicros: number;
+  cpcBidFloorMicros: number;
+};
+
 export type CreateCampaignBody = {
   name: string;
   campaignBudget: string;
   startDate: Date;
   endDate: Date;
-  targetRoas: {
-    targetRoas: number;
-    cpcBidCeilingMicros: number;
-    cpcBidFloorMicros: number;
-  };
+  biddingStrategy: string;
 };
 
 export type CreateAdGroupBody = {
