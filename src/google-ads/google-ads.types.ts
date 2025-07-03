@@ -5,8 +5,6 @@
 import {
   GeoTargetConstantStatus,
   GoogleAdsAdGroupAdAdStrength,
-  GoogleAdsAdGroupAdPrimaryStatus,
-  GoogleAdsAdGroupAdPrimaryStatusReason,
   GoogleAdsAdGroupAdStatus,
   GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
@@ -146,8 +144,6 @@ export interface GoogleAdsAdGroup {
 export interface GoogleAdsAdGroupAd {
   resourceName: string;
   status: GoogleAdsAdGroupAdStatus;
-  primaryStatus: GoogleAdsAdGroupAdPrimaryStatus;
-  primaryStatusReason: GoogleAdsAdGroupAdPrimaryStatusReason;
   ad: Partial<GoogleAdsAd>;
   adStrength: GoogleAdsAdGroupAdAdStrength;
   actionItems: [string];
