@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  isURL,
+  IsUrl,
   Max,
   Min,
 } from 'class-validator';
@@ -124,7 +124,8 @@ export class CreateAdGroupAdDto {
 
   @ApiProperty()
   @IsArray()
-  @Type(() => isURL)
+  @IsUrl({}, { each: true })
+  @Type(() => String)
   finalUrls: string[];
 
   @ApiProperty()
