@@ -22,6 +22,7 @@
     "graphql-codegen:watch": "graphql-codegen --watch"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.840.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

@@ -7,6 +7,7 @@ import {
   ShopifyAccountSchema,
   UserSchema,
   BusinessDetailsSchema,
+  CampaignSchema,
 } from './schema';
 
 @Global()
@@ -26,6 +27,7 @@ import {
       { name: 'shopify-accounts', schema: ShopifyAccountSchema },
       { name: 'users', schema: UserSchema },
       { name: 'business-details', schema: BusinessDetailsSchema },
+      { name: 'campaigns', schema: CampaignSchema },
     ]),
   ],
   exports: [MongooseModule],
