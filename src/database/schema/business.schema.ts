@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
-export type BusinessDetailsDoc = HydratedDocument<BusinessDetails>;
+export type BusinessDoc = HydratedDocument<Business>;
 
 @Schema({ _id: false })
 class Range {
@@ -39,10 +39,13 @@ class LocalShippingLocations {
   country: string;
 
   @Prop()
+  state: string;
+
+  @Prop()
   city: string;
 
   @Prop()
-  state: string;
+  shorthand: string;
 }
 
 @Schema({ _id: false })
@@ -55,7 +58,7 @@ class ShippingLocations {
 }
 
 @Schema({ timestamps: true })
-export class BusinessDetails {
+export class Business {
   @Prop({ type: Types.ObjectId, ref: 'users' })
   userId: Types.ObjectId;
 
@@ -88,7 +91,9 @@ export class BusinessDetails {
 
   @Prop()
   shippingLocations: ShippingLocations;
+
+  @Prop({ ref: 'shopify-accounts', type: Types.ObjectId, default: [] })
+  shopifyAccounts: Types.ObjectId[];
 }
 
-export const BusinessDetailsSchema =
-  SchemaFactory.createForClass(BusinessDetails);
+export const BusinessSchema = SchemaFactory.createForClass(Business);

@@ -1,9 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  DefaultValuePipe,
   Get,
-  ParseIntPipe,
   Post,
   Query,
   Res,
@@ -13,6 +12,7 @@ import { Public } from 'src/auth/decorators';
 import {
   GetProductByIdDto,
   GetProductsDto,
+  GetShopifyShopDetailsDto,
   GetShopifyOAuthUrlDto,
 } from './dto';
 import { ApiQuery, ApiSecurity } from '@nestjs/swagger';
@@ -35,17 +35,35 @@ export class ShopifyController {
     return { url };
   }
 
+  @Post('/shop-details')
+  async getShopDetails(@Body() dto: GetShopifyShopDetailsDto) {
+    const shopDetails = await this.shopifyService.getShopDetails(dto);
+    return { shopDetails };
+  }
+
   @ApiQuery({ name: 'first', required: false, type: Number })
   @ApiQuery({ name: 'after', required: false, type: String })
+  @ApiQuery({ name: 'last', required: false, type: Number })
+  @ApiQuery({ name: 'before', required: false, type: String })
   @Post('/products')
   async getAllProducts(
     @Body() dto: GetProductsDto,
-    @Query('first', new DefaultValuePipe(10), ParseIntPipe) first: number,
-    @Query('after') after?: string,
+    @Query() query: { [k: string]: string },
   ) {
+    const first = query.first ? parseInt(query.first) : undefined;
+    const last = query.last ? parseInt(query.last) : undefined;
+    if (
+      (first !== undefined && isNaN(first)) ||
+      (last !== undefined && isNaN(last))
+    ) {
+      throw new BadRequestException(`first, last must be number or undefined`);
+    }
+    const { before, after } = query;
     const products = await this.shopifyService.getProducts(dto, {
       first,
+      before,
       after,
+      last,
     });
     return products;
   }

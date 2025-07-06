@@ -56,3 +56,20 @@ export class GetProductByIdDto {
   @IsOptional()
   handle?: string;
 }
+
+export class GetShopifyShopDetailsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  shop: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  scope: string;
+}

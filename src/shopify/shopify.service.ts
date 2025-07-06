@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -24,17 +26,18 @@ import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { ShopifyAccountDoc, UserDoc } from 'src/database/schema';
+import { BusinessDoc, ShopifyAccountDoc, UserDoc } from 'src/database/schema';
 import { ShopifyAccountStatus } from '../enums';
-import { BusinessDetailsDoc } from 'src/database/schema';
 import {
   getProductsByIdQuery,
   getProductsQuery,
   getShopQuery,
 } from './shopify.queries';
+import { GetShopifyShopDetailsDto } from './dto';
 
 @Injectable()
 export class ShopifyService {
+  private readonly logger = new Logger(ShopifyService.name);
   private shopify: Shopify;
   private SHOPIFY_CLIENT_ID: string;
   private SHOPIFY_CLIENT_SECRET: string;
@@ -44,15 +47,19 @@ export class ShopifyService {
     private shopifyAccountModel: Model<ShopifyAccountDoc>,
     @InjectModel('users')
     private usersModel: Model<UserDoc>,
-    @InjectModel('business-details')
-    private businessDetailsModel: Model<BusinessDetailsDoc>,
     private config: AppConfigService,
     private jwtService: JwtService,
+    @InjectModel('businesses')
+    private businessModel: Model<BusinessDoc>,
   ) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
       apiSecretKey: this.config.get('SHOPIFY_CLIENT_SECRET'),
-      scopes: ['read_products', 'read_orders'],
+      scopes: [
+        'read_products',
+        'read_orders',
+        'unauthenticated_read_product_listings',
+      ],
       hostName: 'ngrok-tunnel-address',
       isEmbeddedApp: false,
       apiVersion: ApiVersion.January25,
@@ -70,7 +77,8 @@ export class ShopifyService {
     const clientId = this.config.get('SHOPIFY_CLIENT_ID');
     const API_URL = this.config.get('API_URL');
     const redirectUri = `${API_URL}/api/shopify/auth/callback`;
-    const scopes = 'read_products,read_orders';
+    const scopes =
+      'read_products,read_orders,unauthenticated_read_product_listings';
     const shopifyAuthUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}`;
     return shopifyAuthUrl;
   }
@@ -108,12 +116,12 @@ export class ShopifyService {
         scope,
       });
 
-      if (
-        shopDetails.currencyCode !== 'USD' &&
-        shopDetails.currencyCode !== 'CAD'
-      ) {
-        throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
-      }
+      // if (
+      //   shopDetails.currencyCode !== 'USD' &&
+      //   shopDetails.currencyCode !== 'CAD'
+      // ) {
+      //   throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
+      // }
 
       // send request to manager to save these values
       await this.saveAccountInfo({
@@ -128,15 +136,12 @@ export class ShopifyService {
         `${this.config.get('CLIENT_URL')}/setup?linked_store=true`,
       );
     } catch (error) {
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof HttpException) {
         return res.redirect(
           `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=${error.message}`,
         );
       }
-      console.log(error);
+      console.log({ error });
       return res.redirect(
         `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=E_INTERNAL_SERVER_ERROR`,
       );
@@ -152,48 +157,56 @@ export class ShopifyService {
   }) {
     // send request to manager to save account values
     try {
-      await this.shopifyAccountModel.findOneAndUpdate(
+      const userId = new Types.ObjectId(params.userId);
+      const shopifyAccount = await this.shopifyAccountModel.findOneAndUpdate(
         {
-          shopId: params.shopDetails.id,
-          belongsTo: new Types.ObjectId(params.userId),
+          shop: params.shop,
+          belongsTo: userId,
         },
         {
-          shopId: params.shopDetails.id,
-          belongsTo: new Types.ObjectId(params.userId),
           shop: params.shop,
+          belongsTo: userId,
           accessToken: params.accessToken,
           scope: params.scope,
           accountStatus: ShopifyAccountStatus.CONNECTED,
         },
-        { upsert: true },
+        { upsert: true, new: true },
       );
 
       const user = await this.usersModel.findById(params.userId);
-      if (!user) {
-        throw new InternalServerErrorException('User not found');
+      if (user) {
+        user.onboarding = { ...user.onboarding, shopifyAccountConnected: true };
+        await user.save();
       }
 
-      user.onboarding = {
-        ...user.onboarding,
-        shopifyAccountConnected: true,
-      };
-      await user.save();
+      // get business
+      let business = await this.businessModel.findOne({
+        userId,
+      });
 
-      if (!user.onboarding.isBusinessDetailsSet) {
-        await this.businessDetailsModel.findOneAndUpdate(
-          { userId: new Types.ObjectId(params.userId) },
-          {
-            userId: new Types.ObjectId(params.userId),
-            description: params.shopDetails.description ?? undefined,
-            companyName: params.shopDetails.name,
-            website: params.shopDetails.url,
-          },
-          { upsert: true },
-        );
+      // create business if not exists
+      if (!business) {
+        business = await this.businessModel.create({
+          userId,
+          shopifyAccounts: [],
+        });
       }
-    } catch (e: any) {
-      console.log(e);
-      throw new InternalServerErrorException('Error saving account values');
+
+      const shopifyAccountStrings = business.shopifyAccounts.map((id) =>
+        id.toString(),
+      );
+      const uniqueShopifyAccountStrings = new Set([
+        ...shopifyAccountStrings,
+        shopifyAccount._id.toString(),
+      ]);
+
+      business.shopifyAccounts = [...uniqueShopifyAccountStrings].map(
+        (id) => new Types.ObjectId(id),
+      );
+      await business.save();
+    } catch (c: any) {
+      console.log(c);
+      throw new InternalServerErrorException('Error Updating Account');
     }
   }
 
@@ -290,6 +303,7 @@ export class ShopifyService {
       throw new UnauthorizedException('Error Granting Permission');
     }
   }
+
   private parseShopStrToLongName(shop: string): string {
     // eslint-disable-next-line no-useless-escape
     const regex = /^https?\:\/\/[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com\/?/;
@@ -315,34 +329,69 @@ export class ShopifyService {
       accessToken: string;
       scope: string;
     },
-    query?: { first?: number; after?: string },
+    query?: { first?: number; after?: string; last?: number; before?: string },
   ) {
     try {
-      const { shop, accessToken, scope } = params;
-      let first = 10;
-      let after = '';
-      if (query) {
-        first = query.first ? Math.max(Number(query.first), 20) : first;
-        after = query.after ?? after;
+      if (query?.first && query?.last) {
+        throw new BadRequestException('Cannot use first and last together');
       }
-      const variables = { first };
 
-      let paramsDefinition = '$first: Int!';
-      let qParams = 'first: $first';
+      const { shop, accessToken, scope } = params;
 
-      if (after) {
-        variables['after'] = after;
+      let first = 10;
+      let paramsDefinition = '';
+      let qParams = '';
+
+      if (!query?.first && !query?.last) {
+        first = 10;
+        paramsDefinition = '$first: Int!';
+        qParams = 'first: $first';
+      }
+
+      const variables: {
+        first?: number;
+        after?: string;
+        last?: number;
+        before?: string;
+      } = { first };
+
+      if (query?.first) {
+        first = query.first;
+        variables['first'] = query.first;
+        paramsDefinition = '$first: Int!';
+        qParams = 'first: $first';
+      }
+
+      if (query?.after) {
+        variables['after'] = query.after;
         paramsDefinition = `${paramsDefinition}, $after: String`;
         qParams = `${qParams}, after: $after`;
       }
+
+      if (query?.last) {
+        variables['last'] = query.last;
+        variables['first'] = undefined;
+        paramsDefinition = `$last: Int`;
+        qParams = `last: $last`;
+      }
+
+      if (query?.before) {
+        variables['before'] = query.before;
+        paramsDefinition = `${paramsDefinition}, $before: String`;
+        qParams = `${qParams}, before: $before`;
+      }
+
       const client = this.createShopifyClientSession({
         shop: this.parseShopStrToLongName(shop),
         accessToken,
         scope,
       });
+
+      const q = getProductsQuery(paramsDefinition, qParams);
+
       const response = await client.query<GetAllProductsResponseBody>({
         data: {
-          query: getProductsQuery(paramsDefinition, qParams),
+          query: q,
           variables,
         },
       });
@@ -392,7 +441,11 @@ export class ShopifyService {
     }
   }
 
-  async getShop(params: { shop: string; accessToken: string; scope: string }) {
+  private async getShop(params: {
+    shop: string;
+    accessToken: string;
+    scope: string;
+  }) {
     try {
       const { shop, accessToken, scope } = params;
       const client = this.createShopifyClientSession({
@@ -413,5 +466,13 @@ export class ShopifyService {
       }
       throw error;
     }
+  }
+
+  async getShopDetails(dto: GetShopifyShopDetailsDto) {
+    return await this.getShop({
+      shop: dto.shop,
+      accessToken: dto.accessToken,
+      scope: dto.scope,
+    });
   }
 }
