@@ -21,7 +21,7 @@ import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
     MongooseModule.forFeature([
       { name: 'shopify-accounts', schema: ShopifyAccountSchema },
       { name: 'users', schema: UserSchema },
-      { name: 'businesses', schema: BusinessSchema },
+      { name: 'business', schema: BusinessSchema },
     ]),
   ],
   exports: [MongooseModule],

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { ShopifyAccountStatus } from 'src/enums/shopify-account-status';
+import { ShopifyAccountStatus } from 'src/shopify/enums/shopify-account-status';
 
 export type ShopifyAccountDoc = HydratedDocument<ShopifyAccount>;
 

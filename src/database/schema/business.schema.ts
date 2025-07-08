@@ -57,6 +57,15 @@ class ShippingLocations {
   internationalShippingLocations: string[];
 }
 
+@Schema({ _id: false })
+class Colors {
+  @Prop()
+  primary: string[];
+
+  @Prop()
+  secondary: string[];
+}
+
 @Schema({ timestamps: true })
 export class Business {
   @Prop({ type: Types.ObjectId, ref: 'users' })
@@ -72,6 +81,15 @@ export class Business {
   website: string;
 
   @Prop()
+  logo: string;
+
+  @Prop()
+  coverImage: string;
+
+  @Prop()
+  colors: Colors;
+
+  @Prop()
   industry: string;
 
   @Prop()
@@ -79,6 +97,9 @@ export class Business {
 
   @Prop()
   teamSize: Range;
+
+  @Prop()
+  currencyCode: string;
 
   @Prop()
   estimatedMonthlyBudget: Price;
@@ -92,7 +113,7 @@ export class Business {
   @Prop()
   shippingLocations: ShippingLocations;
 
-  @Prop({ ref: 'shopify-accounts', type: Types.ObjectId, default: [] })
+  @Prop({ ref: 'shopify-accounts', type: [Types.ObjectId], default: [] })
   shopifyAccounts: Types.ObjectId[];
 }
 
