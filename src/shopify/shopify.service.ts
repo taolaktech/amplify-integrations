@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -54,14 +55,13 @@ export class ShopifyService {
 
       const shopDetails = response.body.data.shop;
 
-      // if (
-      //   shopDetails.currencyCode !== 'USD' &&
-      //   shopDetails.currencyCode !== 'CAD'
-      // ) {
-      //   throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
-      // }
+      if (
+        shopDetails.currencyCode !== 'USD' &&
+        shopDetails.currencyCode !== 'CAD'
+      ) {
+        throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
+      }
 
-      // send request to manager to save these values
       await this.saveAccountInfo({
         accessToken,
         userId: stateBody.userId,

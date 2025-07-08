@@ -22,6 +22,9 @@ export class ShopifyAccount {
   belongsTo: mongoose.Types.ObjectId | string;
 
   @Prop()
+  currencyCode: string;
+
+  @Prop()
   accountStatus: ShopifyAccountStatus;
 
   @Prop()
