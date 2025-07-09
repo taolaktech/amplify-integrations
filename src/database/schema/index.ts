@@ -3,4 +3,3 @@ export * from './users.shema';
 export * from './campaign.schema';
 export * from './facebook-page.schema';
 export * from './business.schema';
-export * from './facebook-page.schema';
