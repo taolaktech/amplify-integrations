@@ -37,6 +37,8 @@ type Preview = {
 type Image = {
   url: string;
   altText: string;
+  height: number;
+  weight: number;
 };
 
 type PriceRangeV2 = {
