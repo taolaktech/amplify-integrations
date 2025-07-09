@@ -2,11 +2,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { HydratedDocument, Types } from 'mongoose';
-import {
-  CampaignPlatform,
-  CampaignStatus,
-  CampaignType,
-} from 'src/enums/campaign';
+import { CampaignStatus, CampaignType, CampaignPlatform } from '../../enums/campaign';
 
 export type CampaignDocument = HydratedDocument<Campaign>;
 
@@ -143,7 +139,7 @@ export class Campaign {
     example: '65e5d6a8c4b1a8d4b3c9d7b2',
     description: 'The ID of the associated business.',
   })
-  @Prop({ type: Types.ObjectId, ref: 'business-details', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'business', required: true })
   businessId: Types.ObjectId;
 
   @ApiProperty({
