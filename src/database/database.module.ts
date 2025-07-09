@@ -6,10 +6,12 @@ import { AppConfigModule } from 'src/config/config.module';
 import {
   ShopifyAccountSchema,
   UserSchema,
-  BusinessDetailsSchema,
+  BusinessSchema,
   CampaignSchema,
   FacebookPageSchema,
 } from './schema';
+// import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
+
 
 @Global()
 @Module({
@@ -27,9 +29,9 @@ import {
     MongooseModule.forFeature([
       { name: 'shopify-accounts', schema: ShopifyAccountSchema },
       { name: 'users', schema: UserSchema },
-      { name: 'business-details', schema: BusinessDetailsSchema },
       { name: 'campaigns', schema: CampaignSchema },
       { name: 'facebook-pages', schema: FacebookPageSchema },
+      { name: 'business', schema: BusinessSchema },
     ]),
   ],
   exports: [MongooseModule],

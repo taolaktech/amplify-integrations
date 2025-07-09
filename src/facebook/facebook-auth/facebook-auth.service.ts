@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FacebookPage } from '../schemas/facebook-page.schema';
+import { FacebookPage } from '../../database/schema/facebook-page.schema';
 import { Model } from 'mongoose';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 

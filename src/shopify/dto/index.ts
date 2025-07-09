@@ -56,3 +56,37 @@ export class GetProductByIdDto {
   @IsOptional()
   handle?: string;
 }
+
+export class GetShopDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  shop: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  scope: string;
+}
+
+export class GetShopBrandingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  shop: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  scope: string;
+}
