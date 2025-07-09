@@ -8,6 +8,7 @@ import {
   UserSchema,
   BusinessDetailsSchema,
   CampaignSchema,
+  FacebookPageSchema,
 } from './schema';
 
 @Global()
@@ -28,6 +29,7 @@ import {
       { name: 'users', schema: UserSchema },
       { name: 'business-details', schema: BusinessDetailsSchema },
       { name: 'campaigns', schema: CampaignSchema },
+      { name: 'facebook-pages', schema: FacebookPageSchema },
     ]),
   ],
   exports: [MongooseModule],

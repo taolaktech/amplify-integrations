@@ -34,7 +34,7 @@
     "@shopify/admin-api-client": "^1.0.8",
     "@shopify/shopify-api": "^11.11.1",
     "@shopify/storefront-api-client": "^1.0.7",
-    "axios": "^1.8.4",
+    "axios": "^1.10.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "luxon": "^3.6.0",

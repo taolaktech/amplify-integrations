@@ -29,7 +29,7 @@ export class CampaignWorkerService {
       throw new Error(`Campaign with ID ${message.campaignId} not found.`);
     }
 
-    // Here you would implement the logic to call the Facebook Ads API
+    // dummy logic to call the Facebook Ads API
     await new Promise((resolve) => setTimeout(resolve, 3000)); // Simulate a 3-second API call
     this.logger.log(
       `[Facebook] FAKE API Call successful for campaign: ${message.name}`,

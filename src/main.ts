@@ -8,9 +8,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true,
-      whitelist: true,
       errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      whitelist: true,
+      // Throw error if unknown properties are present
+      forbidNonWhitelisted: true,
+
+      // Transform payload to DTO instance
+      transform: true,
     }),
   );
 

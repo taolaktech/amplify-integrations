@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   SQSClient,
   ReceiveMessageCommand,
-  DeleteMessageCommand,
+  // DeleteMessageCommand,
   Message,
 } from '@aws-sdk/client-sqs';
 import { CampaignWorkerService } from './campaign-worker.service';
@@ -33,12 +33,12 @@ export class FacebookConsumerService implements OnModuleInit {
       credentials: { accessKeyId, secretAccessKey },
     });
     this.queueUrl =
-      'https://sqs.eu-north-1.amazonaws.com/835677831313/facebook-campaign-queue';
+      'https://sqs.us-east-2.amazonaws.com/835677831313/facebook-campaign-queue';
   }
 
   onModuleInit() {
     // This starts the polling process as soon as the module is initialized.
-    this.startPolling();
+    // this.startPolling();
   }
 
   async startPolling() {
@@ -77,11 +77,11 @@ export class FacebookConsumerService implements OnModuleInit {
       await this.workerService.processFacebookCampaign(messageBody);
 
       // 2. If processing is successful, delete the message from the queue
-      const deleteCommand = new DeleteMessageCommand({
-        QueueUrl: this.queueUrl,
-        ReceiptHandle: message.ReceiptHandle,
-      });
-      await this.sqsClient.send(deleteCommand);
+      // const deleteCommand = new DeleteMessageCommand({
+      //   QueueUrl: this.queueUrl,
+      //   ReceiptHandle: message.ReceiptHandle,
+      // });
+      // await this.sqsClient.send(deleteCommand);
       this.logger.log(`Message ${message.MessageId} processed and deleted.`);
     } catch (error) {
       // If an error occurs, the message is NOT deleted.

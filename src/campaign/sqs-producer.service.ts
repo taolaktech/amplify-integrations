@@ -42,8 +42,8 @@ export class SqsProducerService implements OnModuleInit {
 
     const messageBody = {
       campaignId: campaign._id.toString(),
-      name: campaign.name,
-      targetAudience: campaign.targetAudience,
+      // name: campaign.name,
+      // targetAudience: campaign.targetAudience,
       // Add any other relevant fields for the consumer
     };
 
@@ -68,11 +68,11 @@ export class SqsProducerService implements OnModuleInit {
   private getQueueUrlForPlatform(platform: string): string | undefined {
     const queueUrls = {
       facebook:
-        'https://sqs.eu-north-1.amazonaws.com/835677831313/facebook-campaign-queue',
+        'https://sqs.us-east-2.amazonaws.com/835677831313/facebook-campaign-queue',
       google:
-        'https://sqs.eu-north-1.amazonaws.com/835677831313/google-campaign-queue',
+        'https://sqs.us-east-2.amazonaws.com/835677831313/google-campaign-queue',
       instagram:
-        'https://sqs.eu-north-1.amazonaws.com/835677831313/instagram-campaign-queue',
+        'https://sqs.us-east-2.amazonaws.com/835677831313/instagram-campaign-queue',
     };
     return queueUrls[platform.toLowerCase()];
   }
