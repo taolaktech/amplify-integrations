@@ -138,17 +138,7 @@ export class ShopifyService {
       if (!business) {
         business = await this.businessModel.create({
           userId,
-          description: params.shopDetails.description ?? undefined,
-          companyName: params.shopDetails.name,
-          website: params.shopDetails.url,
           shopifyAccounts: [],
-          logo: brandingRes.data?.shop?.brand?.logo?.url ?? undefined,
-          coverImage: shopBranding?.coverImage?.url ?? undefined,
-          currencyCode: params.shopDetails.currencyCode,
-          colors: {
-            primary: shopBranding?.colors?.primary ?? undefined,
-            secondary: shopBranding?.colors?.secondary ?? undefined,
-          },
         });
       }
 
@@ -164,6 +154,24 @@ export class ShopifyService {
         (id) => new Types.ObjectId(id),
       );
 
+      await business.save();
+
+      business.description =
+        business.description ?? params.shopDetails.description ?? undefined;
+      business.companyName = business.companyName ?? params.shopDetails.name;
+      business.website = business.website ?? params.shopDetails.url;
+      business.currencyCode =
+        business.currencyCode ?? params.shopDetails.currencyCode;
+      await business.save();
+
+      business.logo = brandingRes.data?.shop?.brand?.logo?.url ?? undefined;
+      business.coverImage = shopBranding?.coverImage?.url ?? undefined;
+      await business.save();
+
+      business.colors = {
+        primary: shopBranding?.colors?.primary ?? undefined,
+        secondary: shopBranding?.colors?.secondary ?? undefined,
+      };
       await business.save();
     } catch (c: any) {
       console.log(c);
