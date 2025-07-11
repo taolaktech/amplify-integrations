@@ -136,13 +136,13 @@ export class Business {
   userId: Types.ObjectId;
 
   @Prop()
-  companyName: string;
+  companyName?: string;
 
   @Prop()
-  description: string;
+  description?: string;
 
   @Prop()
-  website: string;
+  website?: string;
 
   @Prop()
   logo?: string;
@@ -154,7 +154,7 @@ export class Business {
   industry: Industry;
 
   @Prop()
-  companyRole: string;
+  companyRole?: string;
 
   @Prop()
   contactEmail: string;
@@ -166,7 +166,7 @@ export class Business {
   teamSize: Range;
 
   @Prop()
-  currencyCode: string;
+  currencyCode?: string;
 
   @Prop()
   estimatedMonthlyBudget: Price;
