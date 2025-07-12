@@ -3,6 +3,8 @@
   Under v20 documentation.
 */
 import {
+  ConversionActionStatus,
+  ConversionActionType,
   GeoTargetConstantStatus,
   GoogleAdsAdGroupAdAdStrength,
   GoogleAdsAdGroupAdStatus,
@@ -20,7 +22,7 @@ import {
   GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
-} from './google-ads.enum';
+} from './enums';
 
 export type GoogleTokensResult = {
   access_token: string;
@@ -39,6 +41,7 @@ export type GoogleAdsResource =
   | 'ads'
   | 'adGroupCriteria'
   | 'campaignCriteria'
+  | 'conversionActions'
   | 'biddingStrategies'
   | 'assets';
 
@@ -254,4 +257,43 @@ interface GeoTargetConstant {
   targetType: string;
   canonicalName: string;
   parentGeoTarget: string;
+}
+
+export interface GoogleAdsConversionAction {
+  resourceName: string;
+  type: ConversionActionType;
+  status: ConversionActionStatus;
+  // "origin": enum (ConversionOrigin),
+  // "category": enum (ConversionActionCategory),
+  id: string;
+  name: string;
+  primaryForGoal: boolean;
+  ownerCustomer: string;
+  includeInConversionsMetric: boolean;
+  clickThroughLookbackWindowDays: string;
+  viewThroughLookbackWindowDays: string;
+  phoneCallDurationSeconds: string;
+  appId: string;
+  // "valueSettings": {
+  //   object (ValueSettings)
+  // },
+  // "countingType": enum (ConversionActionCountingType),
+  // "attributionModelSettings": {
+  //   object (AttributionModelSettings)
+  // },
+  // "tagSnippets": [
+  //   {
+  //     object (TagSnippet)
+  //   }
+  // ],
+  // "mobileAppVendor": enum (MobileAppVendor),
+  // "firebaseSettings": {
+  //   object (FirebaseSettings)
+  // },
+  // "thirdPartyAppAnalyticsSettings": {
+  //   object (ThirdPartyAppAnalyticsSettings)
+  // },
+  // "googleAnalytics4Settings": {
+  //   object (GoogleAnalytics4Settings)
+  // },
 }

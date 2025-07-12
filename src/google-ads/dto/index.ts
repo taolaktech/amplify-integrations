@@ -12,17 +12,14 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  AmplifyGoogleAdsAccount,
-  GoogleAdsCampaignStatus,
-} from '../google-ads.enum';
+import { GoogleAdsCampaignStatus } from '../api/resource-api/enums';
 import { Type } from 'class-transformer';
 
 export class CreateTargetRoasBiddingStrategyDto {
   @ApiProperty()
   @IsString()
-  @IsEnum(AmplifyGoogleAdsAccount)
-  account: AmplifyGoogleAdsAccount;
+  @IsNotEmpty()
+  customerId: string;
 
   @ApiProperty()
   @IsString()
@@ -50,8 +47,8 @@ export class CreateTargetRoasBiddingStrategyDto {
 export class CreateBudgetDto {
   @ApiProperty()
   @IsString()
-  @IsEnum(AmplifyGoogleAdsAccount)
-  account: AmplifyGoogleAdsAccount;
+  @IsNotEmpty()
+  customerId: string;
 
   @ApiProperty()
   @IsNumber()
@@ -68,8 +65,8 @@ export class CreateBudgetDto {
 export class CreateSearchCampaignDto {
   @ApiProperty()
   @IsString()
-  @IsEnum(AmplifyGoogleAdsAccount)
-  account: AmplifyGoogleAdsAccount;
+  @IsNotEmpty()
+  customerId: string;
 
   @ApiProperty()
   @IsString()
@@ -206,4 +203,23 @@ export class UpdateCampaignDto {
     GoogleAdsCampaignStatus.REMOVED,
   ])
   status: GoogleAdsCampaignStatus;
+}
+
+export class CreateCustomerDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerName: string;
+}
+
+export class CreateConversionActionDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
 }
