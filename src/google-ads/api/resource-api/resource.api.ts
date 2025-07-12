@@ -4,14 +4,10 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { DateTime } from 'luxon';
 import axios, { AxiosError } from 'axios';
-import { OAuth2Client } from 'google-auth-library';
-import { google } from 'googleapis';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
 import {
-  AmplifyGoogleAdsAccount,
   GoogleAdsAdGroupAdStatus,
   GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
@@ -20,7 +16,7 @@ import {
   GoogleAdsBiddingStrategyStatus,
   GoogleAdsCampaignStatus,
   GoogleAdsResponseContentType,
-} from './google-ads.enum';
+} from './enums';
 import {
   GoogleAdsAdGroup,
   GoogleAdsAdGroupAd,
@@ -36,110 +32,37 @@ import {
   SuggestGeoTargetConstantsRequestBody,
   SuggestGeoTargetConstantsResponse,
   GoogleAdsBiddingStrategy,
-} from './google-ads.types';
+  GoogleAdsConversionAction,
+} from './types';
 import {
   AddGeoTargetingToCampaignBody,
   AddKeywordsToAdGroupBody,
   CreateAdGroupAdBody,
   CreateAdGroupBody,
   CreateCampaignBody,
+  CreateConversionActionBody,
   CreateTargetRoasBiddingStrategyBody,
-  GoogleAdsRequestOptions,
+  GoogleAdsResourceRequestOptions,
   UpdateCampaignBody,
-} from './my-types';
+} from '../../my-types';
+import { GoogleAdsSharedMethodsService } from '../shared';
 
 @Injectable()
-export class GoogleAdsApi {
-  private oauth2Client: OAuth2Client;
+export class GoogleAdsResourceApiService {
   private GOOGLE_CLIENT_ID: string;
   private GOOGLE_CLIENT_SECRET: string;
-  private GOOGLE_ADS_API_URL = 'https://googleads.googleapis.com';
-  private GOOGLE_ADS_VERSION = 'v20';
-  private GOOGLE_ADS_LOGIN_CUSTOMER_ID: string;
-  private GOOGLE_ADS_DEVELOPER_TOKEN: string;
-  private GOOGLE_ADS_REFRESH_TOKEN: string;
-  private googleAdsAccessToken: string;
-  private googleAdsAccessTokenExpiresAt: DateTime;
-  private GOOGLE_ADS_US_CUSTOMER_ID: string;
-  private GOOGLE_ADS_CA_CUSTOMER_ID: string;
   private DRY_RUN = false;
 
-  constructor(private config: AppConfigService) {
+  constructor(
+    private config: AppConfigService,
+    private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
+  ) {
     this.GOOGLE_CLIENT_ID = this.config.get('GOOGLE_CLIENT_ID');
     this.GOOGLE_CLIENT_SECRET = this.config.get('GOOGLE_CLIENT_SECRET');
-
-    this.oauth2Client = new google.auth.OAuth2(
-      this.GOOGLE_CLIENT_ID,
-      this.GOOGLE_CLIENT_SECRET,
-      `${this.config.get('API_URL')}/api/google/auth/redirect`,
-    );
-
-    this.GOOGLE_ADS_DEVELOPER_TOKEN = this.config.get(
-      'GOOGLE_ADS_DEVELOPER_TOKEN',
-    );
-    this.GOOGLE_ADS_LOGIN_CUSTOMER_ID = this.config.get(
-      'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
-    );
-    this.GOOGLE_ADS_REFRESH_TOKEN = this.config.get('GOOGLE_ADS_REFRESH_TOKEN');
-    this.GOOGLE_ADS_US_CUSTOMER_ID = this.config.get(
-      'GOOGLE_ADS_US_CUSTOMER_ID',
-    );
-    this.GOOGLE_ADS_CA_CUSTOMER_ID = this.config.get(
-      'GOOGLE_ADS_CA_CUSTOMER_ID',
-    );
-
-    this.googleAdsAccessTokenExpiresAt = DateTime.now().minus({ days: 1 });
-  }
-
-  getGoogleAuthUrl(): string {
-    const scopes = [
-      'https://www.googleapis.com/auth/adwords',
-      // 'https://www.googleapis.com/auth/userinfo.profile',
-      // 'openid',
-      // 'https://www.googleapis.com/auth/userinfo.email',
-    ];
-
-    // Generate a url that asks permissions for the Drive activity scope
-    const authorizationUrl = this.oauth2Client.generateAuthUrl({
-      // 'online' (default) or 'offline' (gets refresh_token)
-      access_type: 'offline',
-      /** Pass in the scopes array defined above.
-       * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
-      scope: scopes,
-      // Enable incremental authorization. Recommended as a best practice.
-      include_granted_scopes: true,
-      state: 'state_parameter_passthrough_value',
-      prompt: 'consent',
-    });
-    return authorizationUrl;
   }
 
   private async axiosInstance() {
-    const accessToken = await this.getAccessToken();
-    return axios.create({
-      baseURL: `${this.GOOGLE_ADS_API_URL}/${this.GOOGLE_ADS_VERSION}`,
-      headers: {
-        'developer-token': this.GOOGLE_ADS_DEVELOPER_TOKEN,
-        'login-customer-id': this.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-  }
-
-  private async getAccessToken() {
-    if (DateTime.now() > this.googleAdsAccessTokenExpiresAt) {
-      const { access_token, expires_in } =
-        await this.getAccessTokenFromRefreshToken(
-          this.GOOGLE_ADS_REFRESH_TOKEN,
-        );
-      this.googleAdsAccessToken = access_token;
-      this.googleAdsAccessTokenExpiresAt = DateTime.now().plus({
-        seconds: expires_in - 10,
-      });
-      return access_token;
-    } else {
-      return this.googleAdsAccessToken;
-    }
+    return await this.googleAdsSharedMethodsService.axiosInstance();
   }
 
   private extractCustomerIdFromResourceName(resourceName: string) {
@@ -153,44 +76,17 @@ export class GoogleAdsApi {
   }
 
   private checkResourceAgainstAccount(
-    account: AmplifyGoogleAdsAccount,
+    customerId: string,
     resourceName: string,
   ) {
-    const customerId = this.getCustomerIdByAccount(account);
     const resourceCustomerId =
       this.extractCustomerIdFromResourceName(resourceName);
     if (customerId !== resourceCustomerId) {
       throw new BadRequestException(
-        `Resource x account mismatch- account-${customerId}, resourceCustomerId-${resourceCustomerId} `,
+        `Resource x customer mismatch- customer-${customerId}, resourceCustomerId-${resourceCustomerId} `,
       );
     }
     return customerId;
-  }
-
-  private getCustomerIdByAccount(account: AmplifyGoogleAdsAccount) {
-    if (account === AmplifyGoogleAdsAccount.AMPLIFY_US) {
-      return this.GOOGLE_ADS_US_CUSTOMER_ID;
-    } else if (account === AmplifyGoogleAdsAccount.AMPLIFY_CA) {
-      return this.GOOGLE_ADS_CA_CUSTOMER_ID;
-    } else {
-      throw new InternalServerErrorException('Selected account not configured');
-    }
-  }
-
-  async googleAuthCallbackHandler(params: any) {
-    try {
-      const { code } = params;
-
-      // get tokens
-      const tokens = await this.getOauthTokensWithCode(code as string);
-
-      const { refresh_token } = tokens;
-
-      return { refresh_token };
-    } catch (error) {
-      console.log('Error occurred:', error);
-      throw new InternalServerErrorException();
-    }
   }
 
   async getGoogleAccessTokenCall(params: {
@@ -223,37 +119,11 @@ export class GoogleAdsApi {
     }
   }
 
-  async getOauthTokensWithCode(code: string) {
-    try {
-      const tokensData = await this.getGoogleAccessTokenCall({
-        code,
-        grantType: 'authorization_code',
-      });
-      return tokensData;
-    } catch (err: any) {
-      console.error('error getting tokens');
-      throw err;
-    }
-  }
-
-  private async getAccessTokenFromRefreshToken(refreshToken: string) {
-    try {
-      const tokensData = await this.getGoogleAccessTokenCall({
-        refreshToken,
-        grantType: 'refresh_token',
-      });
-      return tokensData;
-    } catch (err: any) {
-      console.error('error getting tokens');
-      throw err;
-    }
-  }
-
   private async mutateResourceOperation<T>(
     resource: GoogleAdsResource,
     customerId: string,
     operations: GoogleAdsOperation<T>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const url = `/customers/${customerId}/${resource}:mutate`;
@@ -279,7 +149,7 @@ export class GoogleAdsApi {
   private async campaignBudgetMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsBudget>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaignBudgets';
 
@@ -294,7 +164,7 @@ export class GoogleAdsApi {
   private async campaignMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaign>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaigns';
     return await this.mutateResourceOperation<GoogleAdsCampaign>(
@@ -308,7 +178,7 @@ export class GoogleAdsApi {
   private async adGroupsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroup>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroups';
     return await this.mutateResourceOperation<GoogleAdsAdGroup>(
@@ -322,7 +192,7 @@ export class GoogleAdsApi {
   private async adGroupsAdsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupAd>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroupAds';
     // customers/{customerId}/adGroupAds/{adGroupId}~{ad_id}
@@ -337,7 +207,7 @@ export class GoogleAdsApi {
   private async adGroupCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroupCriteria';
     return await this.mutateResourceOperation<GoogleAdsAdGroupCriterion>(
@@ -351,7 +221,7 @@ export class GoogleAdsApi {
   private async biddingStrategiesMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsBiddingStrategy>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'biddingStrategies';
     return await this.mutateResourceOperation<GoogleAdsBiddingStrategy>(
@@ -365,10 +235,24 @@ export class GoogleAdsApi {
   private async campaignCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[],
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaignCriteria';
     return await this.mutateResourceOperation<GoogleAdsCampaignCriterion>(
+      resource,
+      customerId,
+      operations,
+      options,
+    );
+  }
+
+  private async conversionActionMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsConversionAction>[],
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const resource = 'conversionActions';
+    return await this.mutateResourceOperation<GoogleAdsConversionAction>(
       resource,
       customerId,
       operations,
@@ -399,12 +283,11 @@ export class GoogleAdsApi {
   }
 
   async createBudget(
-    account: AmplifyGoogleAdsAccount,
+    customerId: string,
     body: { name: string; amountMicros: number },
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
-      const customerId = this.getCustomerIdByAccount(account);
       const budget: Partial<GoogleAdsBudget> = {
         name: body.name,
         amountMicros: body.amountMicros,
@@ -432,12 +315,11 @@ export class GoogleAdsApi {
   }
 
   async createTargetRoasBiddingStrategy(
-    account: AmplifyGoogleAdsAccount,
+    customerId: string,
     body: CreateTargetRoasBiddingStrategyBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
-      const customerId = this.getCustomerIdByAccount(account);
       const biddingStrategy: Partial<GoogleAdsBiddingStrategy> = {
         name: body.name,
         status: GoogleAdsBiddingStrategyStatus.ENABLED,
@@ -470,14 +352,12 @@ export class GoogleAdsApi {
   }
 
   async createSearchCampaign(
-    account: AmplifyGoogleAdsAccount,
+    customerId: string,
     body: CreateCampaignBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
-      const customerId = this.getCustomerIdByAccount(account);
-
-      this.checkResourceAgainstAccount(account, body.campaignBudget);
+      this.checkResourceAgainstAccount(customerId, body.campaignBudget);
 
       const campaign: Partial<GoogleAdsCampaign> = {
         name: body.name,
@@ -517,7 +397,7 @@ export class GoogleAdsApi {
 
   async createAdGroup(
     body: CreateAdGroupBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -554,7 +434,7 @@ export class GoogleAdsApi {
 
   async createAdGroupAd(
     body: CreateAdGroupAdBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const { finalUrls, headlines, descriptions, path1, path2 } = body;
     if (
@@ -609,7 +489,7 @@ export class GoogleAdsApi {
 
   async addKeywordsToAdGroup(
     body: AddKeywordsToAdGroupBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -663,7 +543,7 @@ export class GoogleAdsApi {
 
   async addGeoTargetingToCampaign(
     body: AddGeoTargetingToCampaignBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -724,7 +604,7 @@ export class GoogleAdsApi {
 
   async updateCampaign(
     body: UpdateCampaignBody,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       if (!body.campaign.resourceName) {
@@ -750,6 +630,36 @@ export class GoogleAdsApi {
         throw error;
       }
       throw new InternalServerErrorException('Cannot update campaign');
+    }
+  }
+
+  async createConversionAction(
+    body: CreateConversionActionBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      const conversionAction: Partial<GoogleAdsConversionAction> = {
+        name: `${body.name}`,
+      };
+
+      const operations = [{ create: conversionAction }];
+
+      const res = await this.conversionActionMutateOperation(
+        body.customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        conversionAction.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, conversionAction };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create adGroup');
     }
   }
 }

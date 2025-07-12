@@ -1,10 +1,5 @@
 /* Enums available here- https://developers.google.com/google-ads/api/rest/reference/rest/v20/AdGroup */
 
-export enum AmplifyGoogleAdsAccount {
-  AMPLIFY_US = 'amplify_us',
-  AMPLIFY_CA = 'amplify_ca',
-}
-
 export enum GoogleAdsResponseContentType {
   UNSPECIFIED = 'UNSPECIFIED',
   RESOURCE_NAME_ONLY = 'RESOURCE_NAME_ONLY',
@@ -226,4 +221,25 @@ export enum GeoTargetConstantStatus {
   UNKNOWN = 'UNKNOWN',
   ENABLED = 'ENABLED',
   REMOVAL_PLANNED = 'REMOVAL_PLANNED',
+}
+
+export enum ConversionActionType {
+  UNSPECIFIED = 'UNSPECIFIED', // Not specified.
+  UNKNOWN = 'UNKNOWN', // Used for return value only. Represents value unknown in this version.
+  AD_CALL = 'AD_CALL', // Conversions that occur when a user clicks on an ad's call extension.
+  CLICK_TO_CALL = 'CLICK_TO_CALL', // Conversions that occur when a user on a mobile device clicks a phone number.
+  GOOGLE_PLAY_DOWNLOAD = 'GOOGLE_PLAY_DOWNLOAD', // Conversions that occur when a user downloads a mobile app from the Google Play Store.
+  GOOGLE_PLAY_IN_APP_PURCHASE = 'GOOGLE_PLAY_IN_APP_PURCHASE', // Conversions that occur when a user makes a purchase in an app through Android billing.
+  UPLOAD_CALLS = 'UPLOAD_CALLS', // Call conversions that are tracked by the advertiser and uploaded.
+  UPLOAD_CLICKS = 'UPLOAD_CLICKS', // Conversions that are tracked by the advertiser and uploaded with attributed clicks.
+  WEBPAGE = 'WEBPAGE', // Conversions that occur on a webpage.
+  WEBSITE_CALL = 'WEBSITE_CALL', // Conversions that occur when a user calls a dynamically-generated phone number from an advertiser's website.
+}
+
+export enum ConversionActionStatus {
+  UNSPECIFIED = 'UNSPECIFIED', // Not specified.
+  UNKNOWN = 'UNKNOWN', // Used for return value only. Represents value unknown in this version.
+  ENABLED = 'ENABLED', // Conversions will be recorded.
+  REMOVED = 'REMOVED', // Conversions will not be recorded.
+  HIDDEN = 'HIDDEN', // Conversions will not be recorded and the conversion action will not appear in the UI.
 }

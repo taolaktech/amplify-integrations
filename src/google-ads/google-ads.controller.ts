@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { GoogleAdsService } from './google-ads.service';
 import { ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators';
@@ -11,6 +11,8 @@ import {
   CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
   UpdateCampaignDto,
+  CreateCustomerDto,
+  CreateConversionActionDto,
 } from './dto';
 
 @ApiSecurity('x-api-key')
@@ -28,6 +30,33 @@ export class GoogleAdsController {
   @Get('/auth/redirect')
   async googleAuthCallback(@Query() q: { [k: string]: string }) {
     return await this.googleAdsService.googleAuthCallbackHandler(q);
+  }
+
+  @Post('/customer/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createCustomer(
+    @Body() dto: CreateCustomerDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createCustomer(dto, { validateOnly });
+  }
+
+  @Post('/conversion-action/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createConversionAction(
+    @Body() dto: CreateConversionActionDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createConversionAction(dto, {
+      validateOnly,
+    });
+  }
+
+  @Get('/customer/:customerId/conversion-actions')
+  async getConversionActions(@Param('customerId') customerId: string) {
+    return await this.googleAdsService.getConversionActions(customerId);
   }
 
   @Post('/campaign-budget/create')

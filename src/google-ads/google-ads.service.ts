@@ -8,35 +8,46 @@ import {
   CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
   UpdateCampaignDto,
+  CreateCustomerDto,
+  CreateConversionActionDto,
 } from './dto';
 
-import { GoogleAdsApi } from './google-ads.api';
+import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
 import {
   GoogleAdsKeywordMatchType,
   GoogleAdsServedAssetFieldType,
-} from './google-ads.enum';
-import { GoogleAdsRequestOptions } from './my-types';
+} from './api/resource-api/enums';
+import { GoogleAdsResourceRequestOptions } from './my-types';
+import { GoogleAdsAuthApiService } from './api/auth-api/auth.api';
+import { GoogleAdsCustomerApiService } from './api/customer-api/customer.api';
+import { GoogleAdsSearchApiService } from './api/search-api/search-api';
 
 @Injectable()
 export class GoogleAdsService {
   private ONE_CURRENCY_UNIT = 1_000_000;
 
-  constructor(private googleAdsApi: GoogleAdsApi) {}
+  constructor(
+    private googleAdsResourceApi: GoogleAdsResourceApiService,
+    private googleAdsAuthApiService: GoogleAdsAuthApiService,
+    private googleAdsCustomerApi: GoogleAdsCustomerApiService,
+    private googleAdsSearchApi: GoogleAdsSearchApiService,
+  ) {}
 
   getGoogleAuthUrl(): string {
-    return this.googleAdsApi.getGoogleAuthUrl();
+    return this.googleAdsAuthApiService.getGoogleAuthUrl();
   }
 
   async googleAuthCallbackHandler(params: any) {
-    return this.googleAdsApi.googleAuthCallbackHandler(params);
+    return await this.googleAdsAuthApiService.googleAuthCallbackHandler(params);
   }
 
   async getOauthTokensWithCode(code: string) {
     try {
-      const tokensData = await this.googleAdsApi.getGoogleAccessTokenCall({
-        code,
-        grantType: 'authorization_code',
-      });
+      const tokensData =
+        await this.googleAdsResourceApi.getGoogleAccessTokenCall({
+          code,
+          grantType: 'authorization_code',
+        });
       return tokensData;
     } catch (err: any) {
       console.error('error getting tokens');
@@ -46,7 +57,7 @@ export class GoogleAdsService {
 
   async createTargetRoasBiddingStrategy(
     dto: CreateTargetRoasBiddingStrategyDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const body = {
       name: dto.biddingStrategyName,
@@ -55,21 +66,25 @@ export class GoogleAdsService {
       cpcBidFloorMicros: dto.cpcBidFloor * this.ONE_CURRENCY_UNIT,
     };
 
-    const response = await this.googleAdsApi.createTargetRoasBiddingStrategy(
-      dto.account,
-      body,
-      options,
-    );
+    const response =
+      await this.googleAdsResourceApi.createTargetRoasBiddingStrategy(
+        dto.customerId,
+        body,
+        options,
+      );
     return response;
   }
 
-  async createBudget(dto: CreateBudgetDto, options?: GoogleAdsRequestOptions) {
+  async createBudget(
+    dto: CreateBudgetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
     const body = {
       name: dto.campaignBudgetName,
       amountMicros: dto.amount * this.ONE_CURRENCY_UNIT,
     };
-    const response = await this.googleAdsApi.createBudget(
-      dto.account,
+    const response = await this.googleAdsResourceApi.createBudget(
+      dto.customerId,
       body,
       options,
     );
@@ -78,7 +93,7 @@ export class GoogleAdsService {
 
   async createSearchCampaign(
     dto: CreateSearchCampaignDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     if (dto.endDate < dto.startDate) {
       throw new BadRequestException('endDate must be greater than startDate');
@@ -90,8 +105,8 @@ export class GoogleAdsService {
       endDate: dto.endDate,
       biddingStrategy: dto.biddingStrategy,
     };
-    const response = await this.googleAdsApi.createSearchCampaign(
-      dto.account,
+    const response = await this.googleAdsResourceApi.createSearchCampaign(
+      dto.customerId,
       body,
       options,
     );
@@ -100,19 +115,22 @@ export class GoogleAdsService {
 
   async createAdGroup(
     dto: CreateAdGroupDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const body = {
       adGroupName: dto.adGroupName,
       campaignResourceName: dto.campaignResourceName,
     };
-    const response = await this.googleAdsApi.createAdGroup(body, options);
+    const response = await this.googleAdsResourceApi.createAdGroup(
+      body,
+      options,
+    );
     return response;
   }
 
   async createAdGroupAd(
     dto: CreateAdGroupAdDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     if (dto.path2 && !dto.path1) {
       throw new BadRequestException(
@@ -141,13 +159,16 @@ export class GoogleAdsService {
       path2: dto.path2,
     };
 
-    const response = await this.googleAdsApi.createAdGroupAd(body, options);
+    const response = await this.googleAdsResourceApi.createAdGroupAd(
+      body,
+      options,
+    );
     return response;
   }
 
   async addKeywordsToAdGroup(
     dto: AddKeywordsToAdGroupDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const keywords: { text: string; matchType: GoogleAdsKeywordMatchType }[] =
       [];
@@ -169,7 +190,7 @@ export class GoogleAdsService {
       keywords,
     };
 
-    const response = await this.googleAdsApi.addKeywordsToAdGroup(
+    const response = await this.googleAdsResourceApi.addKeywordsToAdGroup(
       body,
       options,
     );
@@ -181,7 +202,7 @@ export class GoogleAdsService {
 
   async addGeoTargetingToCampaign(
     dto: AddGeotargetingToCampaignDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const body = {
       campaignResourceName: dto.campaignResourceName,
@@ -190,14 +211,17 @@ export class GoogleAdsService {
       locationNames: dto.locationNames,
     };
 
-    const res = this.googleAdsApi.addGeoTargetingToCampaign(body, options);
+    const res = this.googleAdsResourceApi.addGeoTargetingToCampaign(
+      body,
+      options,
+    );
 
     return res;
   }
 
   async updateCampaignStatus(
     dto: UpdateCampaignDto,
-    options?: GoogleAdsRequestOptions,
+    options?: GoogleAdsResourceRequestOptions,
   ) {
     const body = {
       updateMask: 'status',
@@ -207,8 +231,36 @@ export class GoogleAdsService {
       },
     };
 
-    const res = this.googleAdsApi.updateCampaign(body, options);
+    const res = this.googleAdsResourceApi.updateCampaign(body, options);
 
+    return res;
+  }
+
+  async createCustomer(dto: CreateCustomerDto, q?: any) {
+    const body = {
+      descriptiveName: dto.customerName,
+    };
+    const res = await this.googleAdsCustomerApi.createCustomer(body, q);
+    return res;
+  }
+
+  async createConversionAction(
+    dto: CreateConversionActionDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = {
+      name: dto.name,
+      customerId: dto.customerId,
+    };
+    const res = await this.googleAdsResourceApi.createConversionAction(
+      body,
+      options,
+    );
+    return res;
+  }
+
+  async getConversionActions(customerId: string) {
+    const res = await this.googleAdsSearchApi.getConversionActions(customerId);
     return res;
   }
 }

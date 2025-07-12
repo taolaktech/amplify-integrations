@@ -2,15 +2,14 @@ import {
   GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
-} from './google-ads.enum';
-import { GoogleAdsCampaign } from './google-ads.types';
+} from './api/resource-api/enums';
+import { GoogleAdsCampaign } from './api/resource-api/types';
 
-export type GoogleAdsRequestOptions = {
+export type GoogleAdsResourceRequestOptions = {
   validateOnly?: boolean;
   partialFailure?: boolean;
   responseContentType?: GoogleAdsResponseContentType;
 };
-
 export type CreateTargetRoasBiddingStrategyBody = {
   name: string;
   targetRoas: number;
@@ -65,4 +64,9 @@ export type AddGeoTargetingToCampaignBody = {
 export type UpdateCampaignBody = {
   campaign: Partial<GoogleAdsCampaign>;
   updateMask: string;
+};
+
+export type CreateConversionActionBody = {
+  name: string;
+  customerId: string;
 };

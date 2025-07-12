@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
 export const configSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   PORT: z
     .string()
     .transform((val) => parseInt(val, 10))
@@ -28,8 +31,6 @@ export const configSchema = z.object({
   GOOGLE_ADS_DEVELOPER_TOKEN: z.string(),
   GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
   GOOGLE_ADS_REFRESH_TOKEN: z.string(),
-  GOOGLE_ADS_US_CUSTOMER_ID: z.string(),
-  GOOGLE_ADS_CA_CUSTOMER_ID: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
