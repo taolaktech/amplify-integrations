@@ -14,35 +14,24 @@ import {
 import { AppConfigService } from 'src/config/config.service';
 import '@shopify/shopify-api/adapters/node';
 import {
+  CreateWebPixelResponse,
   GetAllProductsResponseBody,
   GetProductByIdResponseBody,
   GetShopResponseBody,
-} from '../types/grapql-admin';
-import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { BusinessDoc, ShopifyAccountDoc, UserDoc } from 'src/database/schema';
+} from '../../types/grapql-admin';
 import {
   getProductsByIdQuery,
   getProductsQuery,
   getShopQuery,
-} from '../queries/graphql-admin.queries';
+  webPixelCreate,
+} from './graphql-admin.queries';
 
 @Injectable()
-export class ShopifyGraphqlAdminApi {
-  private readonly logger = new Logger(ShopifyGraphqlAdminApi.name);
+export class ShopifyGraphqlAdminApiService {
+  private readonly logger = new Logger(ShopifyGraphqlAdminApiService.name);
   private shopify: Shopify;
 
-  constructor(
-    @InjectModel('shopify-accounts')
-    private shopifyAccountModel: Model<ShopifyAccountDoc>,
-    @InjectModel('users')
-    private usersModel: Model<UserDoc>,
-    private config: AppConfigService,
-    private jwtService: JwtService,
-    @InjectModel('business')
-    private businessModel: Model<BusinessDoc>,
-  ) {
+  constructor(private config: AppConfigService) {
     this.shopify = shopifyApi({
       apiKey: this.config.get('SHOPIFY_CLIENT_ID'),
       apiSecretKey: this.config.get('SHOPIFY_CLIENT_SECRET'),
@@ -228,6 +217,44 @@ export class ShopifyGraphqlAdminApi {
       return response;
     } catch (error: unknown) {
       if (error instanceof GraphqlQueryError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  /* Work in Progress */
+  async createWebPixel(params: {
+    shop: string;
+    accessToken: string;
+    scope: string;
+    pixelSettings: string;
+  }) {
+    try {
+      const { shop, accessToken, scope } = params;
+      const client = this.createShopifyClientSession({
+        shop,
+        accessToken,
+        scope,
+      });
+
+      const response = await client.query<CreateWebPixelResponse>({
+        data: {
+          query: webPixelCreate(),
+          variables: {
+            webPixel: {
+              settings: {
+                trackingId: 'AK-TRACKING-ID-123456',
+              },
+            },
+          },
+        },
+      });
+
+      return response;
+    } catch (error: unknown) {
+      if (error instanceof GraphqlQueryError) {
+        this.logger.error(JSON.stringify(error.body));
         throw new BadRequestException(error.message);
       }
       throw error;

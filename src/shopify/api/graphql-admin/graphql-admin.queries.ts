@@ -127,3 +127,18 @@ export const getShopQuery = () => `#graphql
     }
   }
 `;
+
+export const webPixelCreate = () => `
+  mutation webPixelCreate($webPixel: WebPixelInput!) {
+    webPixelCreate(webPixel: $webPixel) {
+      userErrors {
+        field
+        message
+        code
+      }
+      webPixel {
+        id
+        settings
+      }
+    }
+  }`;

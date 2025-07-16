@@ -3,12 +3,12 @@ import { GraphqlQueryError } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { createStorefrontApiClient } from '@shopify/storefront-api-client';
 import { fetch as nodeFetch } from 'node-fetch';
-import { getShopQuery } from '../queries/storefront.queries';
-import { ShopResponseData } from '../types/storefront';
+import { getShopQuery } from './store-front.queries';
+import { ShopResponseData } from '../../types/storefront';
 
 @Injectable()
-export class ShopifyStoreFrontApi {
-  private readonly logger = new Logger(ShopifyStoreFrontApi.name);
+export class ShopifyStoreFrontApiService {
+  private readonly logger = new Logger(ShopifyStoreFrontApiService.name);
   private readonly STORE_FRONT_API_VERION = '2025-07';
 
   constructor() {}
