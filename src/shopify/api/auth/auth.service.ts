@@ -26,8 +26,13 @@ export class ShopifyAuthService {
     const clientId = this.config.get('SHOPIFY_CLIENT_ID');
     const API_URL = this.config.get('API_URL');
     const redirectUri = `${API_URL}/api/shopify/auth/callback`;
-    const scopes =
-      'read_products,read_orders,unauthenticated_read_product_listings';
+    const scopes = [
+      'read_customer_events',
+      'read_products',
+      'read_orders',
+      'unauthenticated_read_product_listings',
+      'write_pixels',
+    ].join(',');
     const shopifyAuthUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&state=${state}`;
     return shopifyAuthUrl;
   }

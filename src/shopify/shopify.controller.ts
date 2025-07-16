@@ -15,6 +15,7 @@ import {
   GetShopifyOAuthUrlDto,
   GetShopBrandingDto,
   GetShopDto,
+  CreateWebPixelDto,
 } from './dto';
 import { ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -76,9 +77,13 @@ export class ShopifyController {
 
   @Post('/products/product-by-id')
   async getProductById(@Body() dto: GetProductByIdDto) {
-    const products = await this.shopifyService.getProductById({
-      ...dto,
-    });
+    const products = await this.shopifyService.getProductById(dto);
     return products;
+  }
+
+  @Post('/pixels/create-web-pixel')
+  async createWebPixel(@Body() dto: CreateWebPixelDto) {
+    const pixel = await this.shopifyService.createWebPixel(dto);
+    return pixel;
   }
 }

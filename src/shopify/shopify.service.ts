@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -12,10 +11,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { BusinessDoc, ShopifyAccountDoc, UserDoc } from 'src/database/schema';
 import { ShopifyAccountStatus } from './enums';
-import { GetProductsDto, GetShopDto, GetShopBrandingDto } from './dto';
-import { ShopifyAuthService } from './api/auth';
-import { ShopifyGraphqlAdminApi } from './api/graphql-admin';
-import { ShopifyStoreFrontApi } from './api/store-front-api';
+import {
+  GetProductsDto,
+  GetShopDto,
+  GetShopBrandingDto,
+  CreateWebPixelDto,
+} from './dto';
+import { ShopifyAuthService } from './api/auth/auth.service';
+import { ShopifyGraphqlAdminApiService } from './api/graphql-admin/graphql-admin.service';
+import { ShopifyStoreFrontApiService } from './api/store-front/store-front-api.service';
 
 @Injectable()
 export class ShopifyService {
@@ -30,8 +34,8 @@ export class ShopifyService {
     private businessModel: Model<BusinessDoc>,
     private config: AppConfigService,
     private shopifyAuthService: ShopifyAuthService,
-    private shopifyGraphqlAdminApi: ShopifyGraphqlAdminApi,
-    private shopifyStoreFrontApiService: ShopifyStoreFrontApi,
+    private shopifyGraphqlAdminApi: ShopifyGraphqlAdminApiService,
+    private shopifyStoreFrontApiService: ShopifyStoreFrontApiService,
   ) {}
 
   getShopifyOAuthUrl(params: { shop: string; userId: string }) {
@@ -55,12 +59,12 @@ export class ShopifyService {
 
       const shopDetails = response.body.data.shop;
 
-      if (
-        shopDetails.currencyCode !== 'USD' &&
-        shopDetails.currencyCode !== 'CAD'
-      ) {
-        throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
-      }
+      // if (
+      //   shopDetails.currencyCode !== 'USD' &&
+      //   shopDetails.currencyCode !== 'CAD'
+      // ) {
+      //   throw new BadRequestException('E_CURRENCY_NOT_SUPPORTED');
+      // }
 
       await this.saveAccountInfo({
         accessToken,
@@ -230,5 +234,10 @@ export class ShopifyService {
     });
 
     return res.data;
+  }
+
+  async createWebPixel(dto: CreateWebPixelDto) {
+    const res = await this.shopifyGraphqlAdminApi.createWebPixel(dto);
+    return res.body.data;
   }
 }
