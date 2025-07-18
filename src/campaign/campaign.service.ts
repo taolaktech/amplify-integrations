@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CampaignDocument } from 'src/database/schema';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { SqsProducerService } from './sqs-producer.service';
 
 @Injectable()
@@ -67,5 +70,47 @@ export class CampaignService {
     }
 
     return campaign;
+  }
+
+  async update(
+    id: string,
+    userId: string,
+    updateCampaignDto: UpdateCampaignDto,
+  ): Promise<CampaignDocument> {
+    try {
+      // 1. Check for an empty request body
+      if (Object.keys(updateCampaignDto).length === 0) {
+        throw new BadRequestException('Update data cannot be empty.');
+      }
+
+      // 2. Find and update the document atomically.
+      // The { new: true } option ensures the updated document is returned.
+      const updatedCampaign = await this.campaignModel
+        .findByIdAndUpdate(id, updateCampaignDto, { new: true })
+        .exec();
+
+      // 3. Handle the case where the campaign does not exist
+      if (!updatedCampaign) {
+        throw new NotFoundException(`Campaign with ID "${id}" not found`);
+      }
+
+      this.logger.log(`Campaign with ID "${id}" was successfully updated.`);
+      return updatedCampaign;
+    } catch (error) {
+      let errorMessage = error.message;
+      this.logger.error(
+        `Error updating campaign with ID ${id}: ${error.message}`,
+        error.stack,
+      );
+
+      if (error instanceof HttpException) {
+        // extract the error message from the HttpException instance
+        errorMessage = error.message;
+      }
+
+      throw new InternalServerErrorException(
+        `Error updating campaign with ID ${id}: ${error.message}`,
+      );
+    }
   }
 }

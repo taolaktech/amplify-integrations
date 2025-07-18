@@ -40,7 +40,8 @@ export class FacebookAuthService {
         // 'pages_show_list', // unavailable for now, until App is approved
         'email',
         'public_profile',
-        // 'pages_manage_ads',
+        'pages_show_list',
+        'pages_manage_ads',
         // 'ads_management',
         // 'business_management',
       ].join(','),

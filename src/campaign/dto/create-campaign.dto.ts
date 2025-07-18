@@ -175,7 +175,15 @@ export class CreateCampaignDto {
   })
   @IsString()
   @IsNotEmpty()
-  color: string;
+  brandColor: string;
+
+  @ApiProperty({
+    description: 'The accent color theme for the campaign creative.',
+    example: '#3b5998',
+  })
+  @IsString()
+  @IsNotEmpty()
+  accentColor: string;
 
   @ApiProperty({
     description: 'The desired tone of voice for the campaign ad copy.',
@@ -190,14 +198,14 @@ export class CreateCampaignDto {
     example: '2024-10-01T09:00:00Z',
   })
   @IsDateString({}, { message: 'A valid start date must be provided.' })
-  start: string;
+  startDate: string;
 
   @ApiProperty({
     description: 'The end date and time for the campaign in ISO 8601 format.',
     example: '2024-10-31T23:59:59Z',
   })
   @IsDateString({}, { message: 'A valid end date must be provided.' })
-  end: string;
+  endDate: string;
 
   @ApiProperty({
     description: 'The total budget for the entire campaign.',

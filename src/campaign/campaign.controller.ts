@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -19,6 +20,7 @@ import {
 import { Campaign } from 'src/database/schema';
 import { TokenAuthGuard } from 'src/auth/token-auth.guard';
 import { ExtendedRequest } from 'src/common/interfaces/request.interface';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
 
 class CampaignResponse {
   @ApiProperty({ example: true })
@@ -76,6 +78,44 @@ export class CampaignController {
     return {
       data: createdCampaign,
       message: 'Campaign created successfully',
+      success: true,
+    };
+  }
+
+  @Public()
+  @UseGuards(TokenAuthGuard)
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update an existing campaign' })
+  @ApiResponse({
+    status: 200,
+    description: 'Campaign updated successfully.',
+    type: CampaignResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request. The request body is empty or invalid.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not Found. Campaign with the specified ID not found.',
+  })
+  async update(
+    @Req() request: ExtendedRequest,
+    @Param('id') id: string,
+    @Body() updateCampaignDto: UpdateCampaignDto,
+  ) {
+    const user = request['authenticatedData'];
+    const userId = user._id.toString();
+
+    const updatedCampaign = await this.campaignService.update(
+      id,
+      userId,
+      updateCampaignDto,
+    );
+
+    return {
+      data: updatedCampaign,
+      message: 'Campaign updated successfully',
       success: true,
     };
   }

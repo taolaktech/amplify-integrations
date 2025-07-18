@@ -23,11 +23,11 @@ export class FacebookAuthController {
   constructor(private readonly facebookAuthService: FacebookAuthService) {}
 
   @Public()
-  @UseGuards(TokenAuthGuard)
+  // @UseGuards(TokenAuthGuard)
   @Get()
   redirectToFacebook(@Req() request: ExtendedRequest, @Res() res: Response) {
-    const user = request['authenticatedData'];
-    const userId = user._id.toString(); // ?? '680690b4b7fe560e4582cf2f';
+    // const user = request['authenticatedData'];
+    const userId = '680690b4b7fe560e4582cf2f'; // user._id.toString(); //
     const state = this.facebookAuthService.generateStateToken(userId);
     const url = this.facebookAuthService.getAuthRedirectURL(state);
     return res.redirect(url);

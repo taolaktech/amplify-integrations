@@ -2,7 +2,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { HydratedDocument, Types } from 'mongoose';
-import { CampaignStatus, CampaignType, CampaignPlatform } from '../../enums/campaign';
+import {
+  CampaignStatus,
+  CampaignType,
+  CampaignPlatform,
+} from '../../enums/campaign';
 
 export type CampaignDocument = HydratedDocument<Campaign>;
 
@@ -152,7 +156,11 @@ export class Campaign {
 
   @ApiProperty({ example: '#3b5998', description: 'Primary campaign color.' })
   @Prop({ required: true })
-  color: string;
+  brandColor: string;
+
+  @ApiProperty({ example: '#3b5998', description: 'Primary campaign color.' })
+  @Prop({ required: true })
+  accentColor: string;
 
   @ApiProperty({
     example: 'Playful and energetic',
@@ -166,14 +174,14 @@ export class Campaign {
     description: 'Campaign start date.',
   })
   @Prop({ required: true })
-  start: Date;
+  startDate: Date;
 
   @ApiProperty({
     example: '2024-08-31T23:59:59Z',
     description: 'Campaign end date.',
   })
   @Prop({ required: true })
-  end: Date;
+  endDate: Date;
 
   @ApiProperty({ example: 15000, description: 'Total campaign budget.' })
   @Prop({ required: true })

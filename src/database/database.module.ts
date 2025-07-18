@@ -12,7 +12,6 @@ import {
 } from './schema';
 // import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
 
-
 @Global()
 @Module({
   imports: [
