@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AxiosError } from 'axios';
 
 import { GoogleAdsSharedMethodsService } from '../shared';
-import { AppConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class GoogleAdsSearchApiService {
@@ -10,7 +9,6 @@ export class GoogleAdsSearchApiService {
 
   constructor(
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
-    private config: AppConfigService,
   ) {}
 
   private async axiosInstance() {

@@ -13,6 +13,7 @@ import {
   UpdateCampaignDto,
   CreateCustomerDto,
   CreateConversionActionDto,
+  GenerateKeywordIdeasDto,
 } from './dto';
 
 @ApiSecurity('x-api-key')
@@ -57,6 +58,17 @@ export class GoogleAdsController {
   @Get('/customer/:customerId/conversion-actions')
   async getConversionActions(@Param('customerId') customerId: string) {
     return await this.googleAdsService.getConversionActions(customerId);
+  }
+
+  @Get('/customer/:customerId/conversion-actions/:conversionActionId')
+  async getConversionActionById(
+    @Param('customerId') customerId: string,
+    @Param('conversionActionId') conversionActionId: string,
+  ) {
+    return await this.googleAdsService.getConversionActionById(
+      customerId,
+      conversionActionId,
+    );
   }
 
   @Post('/campaign-budget/create')
@@ -111,6 +123,16 @@ export class GoogleAdsController {
   ) {
     const validateOnly = query.validateOnly === '1';
     return await this.googleAdsService.createAdGroupAd(dto, { validateOnly });
+  }
+
+  @ApiQuery({ name: 'pageToken', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: String })
+  @Post('/keyword-ideas/generate')
+  async generateKeywordIdeas(
+    @Body() dto: GenerateKeywordIdeasDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    return await this.googleAdsService.generateKeywordIdeas(dto, query);
   }
 
   @Post('/ad-group/add-keywords')

@@ -7,9 +7,9 @@ export type GoogleAdsCustomerRequestOptions = {
   validateOnly?: boolean;
 };
 
-enum AccessRole {
-  UNSPECIFIED = 'UNSPECIFIED', // Not specified.
-  UNKNOWN = 'UNKNOWN', // Used for return value only. Represents value unknown in this version.
+export enum AccessRole {
+  // UNSPECIFIED = 'UNSPECIFIED', // Not specified.
+  // UNKNOWN = 'UNKNOWN', // Used for return value only. Represents value unknown in this version.
   ADMIN = 'ADMIN', // Owns its account and can control the addition of other users.
   STANDARD = 'STANDARD', // Can modify campaigns, but can't affect other users.
   READ_ONLY = 'READ_ONLY', // Can view campaigns and account changes, but cannot make edits.
@@ -56,4 +56,40 @@ export type GoogleAdsCustomer = {
   imageAssetAutoMigrationDone: boolean;
   locationAssetAutoMigrationDoneDateTime: string;
   imageAssetAutoMigrationDoneDateTime: string;
+};
+
+export type GenerateKeywordIdeasRequestBody = {
+  includeAdultKeywords: boolean;
+  pageToken?: string;
+  pageSize?: number;
+  keywordAndUrlSeed: {
+    keywords: string[];
+    url: string;
+  };
+  urlSeed: {
+    url: string;
+  };
+  keywordSeed: {
+    keywords: string[];
+  };
+};
+
+export type GenerateKeywordIdeasResponse = {
+  results: GenerateKeywordIdeaResult[];
+  // object(KeywordPlanAggregateMetricResults);
+  aggregateMetricResults: {
+    deviceSearches: {
+      device: string; // enum (Device),
+      searchCount: string;
+    };
+  };
+  nextPageToken: string;
+  totalSize: string;
+};
+
+type GenerateKeywordIdeaResult = {
+  keywordIdeaMetrics: any; //{ object (KeywordPlanHistoricalMetrics)}
+  keywordAnnotations: any; // object (KeywordAnnotations)
+  closeVariants: string[];
+  text: string;
 };
