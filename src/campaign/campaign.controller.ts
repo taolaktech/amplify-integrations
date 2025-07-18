@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,35 @@ import { Campaign } from 'src/database/schema';
 import { TokenAuthGuard } from 'src/auth/token-auth.guard';
 import { ExtendedRequest } from 'src/common/interfaces/request.interface';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { ListCampaignsDto } from './dto/list-campaigns.dto';
+
+class PaginationMeta {
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  perPage: number;
+
+  @ApiProperty()
+  totalPages: number;
+
+  @ApiProperty()
+  hasNextPage: boolean;
+
+  @ApiProperty()
+  hasPrevPage: boolean;
+}
+
+class PaginatedCampaignResponse {
+  @ApiProperty({ type: [Campaign] })
+  data: Campaign[];
+
+  @ApiProperty({ type: PaginationMeta })
+  pagination: PaginationMeta;
+}
 
 class CampaignResponse {
   @ApiProperty({ example: true })
@@ -116,6 +146,33 @@ export class CampaignController {
     return {
       data: updatedCampaign,
       message: 'Campaign updated successfully',
+      success: true,
+    };
+  }
+
+  @Public()
+  @UseGuards(TokenAuthGuard)
+  @Get()
+  @ApiOperation({ summary: 'List campaigns for the authenticated user' })
+  @ApiResponse({
+    status: 200,
+    description: 'A paginated list of campaigns.',
+    type: PaginatedCampaignResponse,
+  })
+  async findAll(
+    @Req() request: ExtendedRequest,
+    @Query() listCampaignsDto: ListCampaignsDto,
+  ) {
+    const user = request['authenticatedData'];
+    const userId = user._id.toString();
+    const campaigns = await this.campaignService.findAll(
+      listCampaignsDto,
+      userId,
+    );
+
+    return {
+      data: campaigns,
+      message: 'Campaigns retrieved successfully',
       success: true,
     };
   }

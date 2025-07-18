@@ -6,7 +6,6 @@ import {
   IsHexColor,
   IsNotEmpty,
   IsOptional,
-  IsString,
   MinDate,
 } from 'class-validator';
 import { IsAfter } from 'src/common/validators/date-comparison.validator';

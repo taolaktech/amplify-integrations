@@ -7,11 +7,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, SortOrder, Types } from 'mongoose';
 import { CampaignDocument } from 'src/database/schema';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { SqsProducerService } from './sqs-producer.service';
+import { ListCampaignsDto } from './dto/list-campaigns.dto';
 
 @Injectable()
 export class CampaignService {
@@ -109,8 +110,61 @@ export class CampaignService {
       }
 
       throw new InternalServerErrorException(
-        `Error updating campaign with ID ${id}: ${error.message}`,
+        `Error updating campaign with ID ${id}: ${errorMessage}`,
       );
     }
+  }
+
+  async findAll(listCampaignsDto: ListCampaignsDto, userId: string) {
+    const { page, perPage, status, type, platforms, sortBy } = listCampaignsDto;
+
+    // 1. Build the filter query, now including the createdBy field
+    const filter: FilterQuery<CampaignDocument> = {
+      createdBy: new Types.ObjectId(userId),
+    };
+    if (status) {
+      filter.status = status;
+    }
+    if (type) {
+      filter.type = type;
+    }
+    if (platforms && platforms.length > 0) {
+      filter.platforms = { $all: platforms };
+    }
+
+    // 2. Build the sort query - with the TypeScript fix
+    const [sortField, sortOrder] = sortBy.split(':');
+    const sortOptions: { [key: string]: SortOrder } = {
+      [sortField]: sortOrder as SortOrder,
+    };
+
+    // 3. Calculate pagination
+    const skip = (page - 1) * perPage;
+
+    // 4. Execute queries
+    const [campaigns, total] = await Promise.all([
+      this.campaignModel
+        .find(filter)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(perPage)
+        .exec(),
+      this.campaignModel.countDocuments(filter).exec(),
+    ]);
+
+    // 5. Construct the paginated response
+    const totalPages = Math.ceil(total / perPage);
+
+    return {
+      data: campaigns,
+      pagination: {
+        total,
+        page,
+        perPage,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 }
