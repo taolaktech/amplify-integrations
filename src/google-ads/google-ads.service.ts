@@ -10,6 +10,7 @@ import {
   UpdateCampaignDto,
   CreateCustomerDto,
   CreateConversionActionDto,
+  GenerateKeywordIdeasDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -240,7 +241,12 @@ export class GoogleAdsService {
     const body = {
       descriptiveName: dto.customerName,
     };
-    const res = await this.googleAdsCustomerApi.createCustomer(body, q);
+    const res = await this.googleAdsCustomerApi.createCustomer(
+      body,
+      dto.emailAddress,
+      dto.accessRole,
+      q,
+    );
     return res;
   }
 
@@ -261,6 +267,35 @@ export class GoogleAdsService {
 
   async getConversionActions(customerId: string) {
     const res = await this.googleAdsSearchApi.getConversionActions(customerId);
+    return res;
+  }
+
+  async getConversionActionById(
+    customerId: string,
+    conversionActionId: string,
+  ) {
+    const res = await this.googleAdsSearchApi.getConversionActionById(
+      customerId,
+      conversionActionId,
+    );
+    return res;
+  }
+
+  async generateKeywordIdeas(
+    dto: GenerateKeywordIdeasDto,
+    q?: { pageSize?: number; pageToken?: string },
+  ) {
+    const body = {
+      pageSize: q?.pageSize,
+      pageToken: q?.pageToken,
+      urlSeed: {
+        url: dto.url,
+      },
+    };
+    const res = await this.googleAdsCustomerApi.generateKeywordIdeas(
+      dto.customerId,
+      body,
+    );
     return res;
   }
 }

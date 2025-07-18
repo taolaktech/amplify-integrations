@@ -3,11 +3,13 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
 import {
+  ConversionActionType,
   GoogleAdsAdGroupAdStatus,
   GoogleAdsAdGroupCriterionStatus,
   GoogleAdsAdGroupStatus,
@@ -52,6 +54,7 @@ export class GoogleAdsResourceApiService {
   private GOOGLE_CLIENT_ID: string;
   private GOOGLE_CLIENT_SECRET: string;
   private DRY_RUN = false;
+  private logger = new Logger(GoogleAdsResourceApiService.name);
 
   constructor(
     private config: AppConfigService,
@@ -136,11 +139,10 @@ export class GoogleAdsResourceApiService {
       const res = await axios.post<ResourceCreationResponse>(url, data);
       return res.data;
     } catch (error: unknown) {
-      console.error(`Cannot complete ${resource} mutate operation`);
+      this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
       if (error instanceof AxiosError) {
-        console.log(error.response?.data);
-        console.log(JSON.stringify(error.response?.data || {}));
-        console.log(error.response?.data?.error?.message);
+        this.logger.log(error.response?.data);
+        this.logger.error(JSON.stringify(error.response?.data || {}));
       }
       throw error;
     }
@@ -358,6 +360,7 @@ export class GoogleAdsResourceApiService {
   ) {
     try {
       this.checkResourceAgainstAccount(customerId, body.campaignBudget);
+      this.checkResourceAgainstAccount(customerId, body.biddingStrategy);
 
       const campaign: Partial<GoogleAdsCampaign> = {
         name: body.name,
@@ -639,7 +642,8 @@ export class GoogleAdsResourceApiService {
   ) {
     try {
       const conversionAction: Partial<GoogleAdsConversionAction> = {
-        name: `${body.name}`,
+        name: body.name,
+        type: ConversionActionType.WEBPAGE,
       };
 
       const operations = [{ create: conversionAction }];
