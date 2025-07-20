@@ -22,6 +22,7 @@
     "graphql-codegen:watch": "graphql-codegen --watch"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.840.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -31,9 +32,9 @@
     "@nestjs/swagger": "^11.1.0",
     "@nestjs/terminus": "^11.0.0",
     "@shopify/admin-api-client": "^1.0.8",
+    "axios": "^1.10.0",
     "@shopify/shopify-api": "^11.13.0",
     "@shopify/storefront-api-client": "^1.0.8",
-    "axios": "^1.8.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "luxon": "^3.6.0",
