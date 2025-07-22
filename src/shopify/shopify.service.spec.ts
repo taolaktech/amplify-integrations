@@ -68,13 +68,13 @@ describe('ShopifyService', () => {
     });
 
     it('should get shop', async () => {
-      // const data = await service.getShop({
-      //   shop: process.env.STORE_NAME || '',
-      //   accessToken: process.env.STORE_ACCESS_TOKEN || '',
-      //   scope: process.env.STORE_SCOPES || '',
-      // });
+      const data = await service.getShop({
+        shop: process.env.STORE_NAME || '',
+        accessToken: process.env.STORE_ACCESS_TOKEN || '',
+        scope: process.env.STORE_SCOPES || '',
+      });
       // console.log(JSON.stringify({ data }));
-      // expect(data).toBeDefined();
+      expect(data).toBeDefined();
     });
   });
 });

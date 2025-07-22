@@ -8,7 +8,7 @@ import { ShopifyModule } from './shopify/shopify.module';
 import { ConfigModule } from '@nestjs/config';
 import { FacebookModule } from './facebook/facebook.module';
 import { APP_GUARD } from '@nestjs/core';
-import { GoogleAdsModule } from './google-ads/google-ads.module';
+import { FacebookModule } from './facebook/facebook.module';
 
 import { AuthGuard } from './auth/auth.guard';
 
