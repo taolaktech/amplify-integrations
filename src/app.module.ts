@@ -7,10 +7,10 @@ import { DatabaseModule } from './database/database.module';
 import { ShopifyModule } from './shopify/shopify.module';
 import { AuthGuard } from './auth/auth.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { GoogleAdsModule } from './google-ads/google-ads.module';
+import { FacebookModule } from './facebook/facebook.module';
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule, HealthcheckModule, ShopifyModule, GoogleAdsModule],
+  imports: [AppConfigModule, DatabaseModule, HealthcheckModule, ShopifyModule, FacebookModule],
   controllers: [AppController],
   providers: [
     AppService,

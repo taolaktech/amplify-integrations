@@ -1,17 +1,16 @@
-export type WebPixelCreate = {
-  webPixelCreate: {
-    userErrors: any[];
-    webPixel: {
-      id: string;
-      settings: string;
-    };
+export interface GetShopResponseBody {
+  data: {
+    shop: Shop;
   };
-};
-export interface CreateWebPixelResponse {
-  data: WebPixelCreate;
   extensions: Extensions;
   headers: { [key: string]: string[] };
 }
+
+type Shop = {
+  name: string;
+  url: string;
+  currencyCode: string;
+};
 
 type Extensions = {
   cost: Cost;
