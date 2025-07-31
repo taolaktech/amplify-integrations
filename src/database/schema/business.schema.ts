@@ -166,7 +166,7 @@ export class Business {
   teamSize: Range;
 
   @Prop()
-  currencyCode?: string;
+  currencyCode: string;
 
   @Prop()
   estimatedMonthlyBudget: Price;
