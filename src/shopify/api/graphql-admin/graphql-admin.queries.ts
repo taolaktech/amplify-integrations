@@ -118,6 +118,27 @@ export const getShopQuery = () => `#graphql
       name
       url
       currencyCode
+      description
+      myshopifyDomain
+      id
+      primaryDomain {
+        host
+      }
     }
   }
 `;
+
+export const webPixelCreate = () => `
+  mutation webPixelCreate($webPixel: WebPixelInput!) {
+    webPixelCreate(webPixel: $webPixel) {
+      userErrors {
+        field
+        message
+        code
+      }
+      webPixel {
+        id
+        settings
+      }
+    }
+  }`;
