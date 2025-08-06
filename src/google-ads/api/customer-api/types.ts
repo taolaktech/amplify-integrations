@@ -1,5 +1,6 @@
 export type GoogleAdsCustomerMethod =
   | 'createCustomerClient'
+  | 'listAccessibleCustomers'
   | 'mutate'
   | 'generateKeywordIdeas';
 
@@ -27,9 +28,9 @@ export enum CustomerAccountStatus {
 
 export type CreateCustomerRequestBody = {
   customerClient: Partial<GoogleAdsCustomer>;
-  accessRole: AccessRole;
-  validateOnly: boolean;
-  emailAddress: string;
+  accessRole?: AccessRole;
+  validateOnly?: boolean;
+  emailAddress?: string;
 };
 
 export type CreateCustomerResponse = {

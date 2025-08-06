@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { AxiosError } from 'axios';
 import {
-  AccessRole,
   CreateCustomerRequestBody,
   CreateCustomerResponse,
   GenerateKeywordIdeasRequestBody,
@@ -54,10 +53,30 @@ export class GoogleAdsCustomerApiService {
     }
   }
 
+  private async customerOperationWithoutId<R>(method: GoogleAdsCustomerMethod) {
+    try {
+      const url = `/customers:${method}`;
+
+      const axios = await this.axiosInstance();
+
+      const res = await axios.get<R>(url);
+
+      return res.data;
+    } catch (error: unknown) {
+      this.logger.error(`Cannot complete ${method} customer operation`);
+      if (error instanceof AxiosError) {
+        this.logger.log(error.response?.data);
+        this.logger.error(JSON.stringify(error.response?.data || {}));
+        this.logger.log(error.response?.data?.error?.message);
+      }
+      throw new InternalServerErrorException(
+        `Cannot complete ${method} customer operation`,
+      );
+    }
+  }
+
   async createCustomer(
     data: CreateCustomerRequestBody['customerClient'],
-    emailAddress: string,
-    accessRole: AccessRole,
     q?: any,
   ) {
     const body: Partial<CreateCustomerRequestBody> = {
@@ -65,8 +84,6 @@ export class GoogleAdsCustomerApiService {
         ...data,
         testAccount: this.config.get('NODE_ENV') !== 'production',
       },
-      emailAddress,
-      accessRole,
       validateOnly: q?.validateOnly ?? false,
     };
     const customerId =
@@ -88,6 +105,13 @@ export class GoogleAdsCustomerApiService {
       GenerateKeywordIdeasResponse
     >(customerId, 'generateKeywordIdeas', data);
 
+    return res;
+  }
+
+  async listAccessibleCustomers() {
+    const res = await this.customerOperationWithoutId<{
+      resourceNames: string[];
+    }>('listAccessibleCustomers');
     return res;
   }
 }

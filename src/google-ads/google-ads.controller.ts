@@ -10,10 +10,11 @@ import {
   CreateBudgetDto,
   CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
-  UpdateCampaignDto,
+  UpdateGoogleCampaignDto,
   CreateCustomerDto,
   CreateConversionActionDto,
   GenerateKeywordIdeasDto,
+  GetCampaignByNameOrIdDto,
 } from './dto';
 
 @ApiSecurity('x-api-key')
@@ -55,9 +56,22 @@ export class GoogleAdsController {
     });
   }
 
+  @Get('/customer/accessible-customers')
+  async getCustomers() {
+    return await this.googleAdsService.listAccessibleCustomers();
+  }
+
   @Get('/customer/:customerId/conversion-actions')
   async getConversionActions(@Param('customerId') customerId: string) {
     return await this.googleAdsService.getConversionActions(customerId);
+  }
+
+  @Post('/customer/:customerId/campaigns/get-by-name-or-id')
+  async getCampaignByNameOrId(
+    @Param('customerId') customerId: string,
+    @Body() dto: GetCampaignByNameOrIdDto,
+  ) {
+    return await this.googleAdsService.getCampaignByNameOrId(customerId, dto);
   }
 
   @Get('/customer/:customerId/conversion-actions/:conversionActionId')
@@ -162,7 +176,7 @@ export class GoogleAdsController {
   @Post('/campaign/update-status')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async updateCampaignStatus(
-    @Body() dto: UpdateCampaignDto,
+    @Body() dto: UpdateGoogleCampaignDto,
     @Query() query: { [k: string]: string },
   ) {
     const validateOnly = query.validateOnly === '1';

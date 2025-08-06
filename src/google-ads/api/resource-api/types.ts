@@ -170,11 +170,6 @@ export interface GoogleAdsAd {
     path1: string;
     path2: string;
   }>;
-  // textAd: {
-  //   headline: string;
-  //   description1: string;
-  //   description2: string;
-  // };
 }
 
 export interface GoogleAdsAssets {

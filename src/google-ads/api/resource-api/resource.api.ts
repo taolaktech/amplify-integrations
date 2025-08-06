@@ -122,6 +122,36 @@ export class GoogleAdsResourceApiService {
     }
   }
 
+  private mutateResourceErrorHandler(
+    error: unknown,
+    resource: GoogleAdsResource,
+    customerId: string,
+  ): Error {
+    if (axios.isAxiosError(error) && error.response?.data?.error) {
+      const googleAdsError = error.response.data.error;
+
+      // Loop through error details and extract errors
+      for (const detail of googleAdsError.details || []) {
+        if (Array.isArray(detail.errors)) {
+          for (const err of detail.errors) {
+            if (err.errorCode?.campaignBudgetError === 'DUPLICATE_NAME') {
+              throw new BadRequestException({
+                message: `${resource} for customerId ${customerId} with the same name already exists`,
+                duplicateName: true,
+              });
+            }
+          }
+        }
+      }
+    }
+    if (error instanceof AxiosError) {
+      this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
+      this.logger.log(error.response?.data);
+      this.logger.error(JSON.stringify(error.response?.data || {}));
+    }
+    throw error;
+  }
+
   private async mutateResourceOperation<T>(
     resource: GoogleAdsResource,
     customerId: string,
@@ -139,12 +169,10 @@ export class GoogleAdsResourceApiService {
       const res = await axios.post<ResourceCreationResponse>(url, data);
       return res.data;
     } catch (error: unknown) {
-      this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
-      if (error instanceof AxiosError) {
-        this.logger.log(error.response?.data);
-        this.logger.error(JSON.stringify(error.response?.data || {}));
-      }
-      throw error;
+      this.mutateResourceErrorHandler(error, resource, customerId);
+      throw new InternalServerErrorException(
+        `Cannot complete ${resource} mutate operation for customerId ${customerId}`,
+      );
     }
   }
 
@@ -274,11 +302,11 @@ export class GoogleAdsResourceApiService {
       );
       return res.data;
     } catch (error: unknown) {
-      console.error(`Cannot complete geoTargetConstants:suggest`);
+      this.logger.error(`Cannot complete geoTargetConstants:suggest`);
       if (error instanceof AxiosError) {
-        console.log(error.response?.data);
-        console.log(JSON.stringify(error.response?.data || {}));
-        console.log(error.response?.data?.error?.message);
+        this.logger.log(error.response?.data);
+        this.logger.log(JSON.stringify(error.response?.data || {}));
+        this.logger.log(error.response?.data?.error?.message);
       }
       throw error;
     }

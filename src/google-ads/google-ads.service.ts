@@ -7,10 +7,11 @@ import {
   CreateBudgetDto,
   CreateTargetRoasBiddingStrategyDto,
   CreateSearchCampaignDto,
-  UpdateCampaignDto,
+  UpdateGoogleCampaignDto,
   CreateCustomerDto,
   CreateConversionActionDto,
   GenerateKeywordIdeasDto,
+  GetCampaignByNameOrIdDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -42,18 +43,8 @@ export class GoogleAdsService {
     return await this.googleAdsAuthApiService.googleAuthCallbackHandler(params);
   }
 
-  async getOauthTokensWithCode(code: string) {
-    try {
-      const tokensData =
-        await this.googleAdsResourceApi.getGoogleAccessTokenCall({
-          code,
-          grantType: 'authorization_code',
-        });
-      return tokensData;
-    } catch (err: any) {
-      console.error('error getting tokens');
-      throw err;
-    }
+  async listAccessibleCustomers() {
+    return await this.googleAdsCustomerApi.listAccessibleCustomers();
   }
 
   async createTargetRoasBiddingStrategy(
@@ -221,7 +212,7 @@ export class GoogleAdsService {
   }
 
   async updateCampaignStatus(
-    dto: UpdateCampaignDto,
+    dto: UpdateGoogleCampaignDto,
     options?: GoogleAdsResourceRequestOptions,
   ) {
     const body = {
@@ -240,13 +231,10 @@ export class GoogleAdsService {
   async createCustomer(dto: CreateCustomerDto, q?: any) {
     const body = {
       descriptiveName: dto.customerName,
+      currencyCode: dto.currencyCode,
+      timeZone: dto.timeZone,
     };
-    const res = await this.googleAdsCustomerApi.createCustomer(
-      body,
-      dto.emailAddress,
-      dto.accessRole,
-      q,
-    );
+    const res = await this.googleAdsCustomerApi.createCustomer(body, q);
     return res;
   }
 
@@ -285,17 +273,57 @@ export class GoogleAdsService {
     dto: GenerateKeywordIdeasDto,
     q?: { pageSize?: number; pageToken?: string },
   ) {
-    const body = {
+    const { url, keywords } = dto;
+    const body: {
+      pageSize?: number;
+      pageToken?: string;
+      keywordAndUrlSeed?: { keywords: string[]; url: string };
+      keywordSeed?: { keywords: string[] };
+      urlSeed?: { url: string };
+    } = {
       pageSize: q?.pageSize,
       pageToken: q?.pageToken,
-      urlSeed: {
-        url: dto.url,
-      },
     };
+
+    if (!url && !keywords.length) {
+      throw new BadRequestException(`url or keywords must be present`);
+    }
+
+    if (dto.url && dto.keywords) {
+      body.keywordAndUrlSeed = {
+        keywords,
+        url,
+      };
+    } else if (keywords) {
+      body.keywordSeed = {
+        keywords,
+      };
+    } else {
+      body.urlSeed = {
+        url,
+      };
+    }
+
     const res = await this.googleAdsCustomerApi.generateKeywordIdeas(
       dto.customerId,
       body,
     );
     return res;
+  }
+
+  async getCampaignByNameOrId(
+    customerId: string,
+    dto: GetCampaignByNameOrIdDto,
+  ) {
+    const { name, id } = dto;
+    if (!name && !id) {
+      throw new BadRequestException(
+        'Either name or id must be provided to get campaign',
+      );
+    } else if (id) {
+      return await this.googleAdsSearchApi.getCampaignById(customerId, id);
+    } else {
+      return await this.googleAdsSearchApi.getCampaignByName(customerId, name!);
+    }
   }
 }
