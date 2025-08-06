@@ -1,7 +1,6 @@
 import {
   IsArray,
   IsDate,
-  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -15,7 +14,6 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { GoogleAdsCampaignStatus } from '../api/resource-api/enums';
 import { Type } from 'class-transformer';
-import { AccessRole } from '../api/customer-api/types';
 
 export class CreateTargetRoasBiddingStrategyDto {
   @ApiProperty()
@@ -192,7 +190,7 @@ export class AddGeotargetingToCampaignDto {
   locationNames: string[];
 }
 
-export class UpdateCampaignDto {
+export class UpdateGoogleCampaignDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -214,14 +212,14 @@ export class CreateCustomerDto {
   customerName: string;
 
   @ApiProperty()
-  @IsEnum(AccessRole)
+  @IsString()
   @IsNotEmpty()
-  accessRole: AccessRole;
+  currencyCode: string;
 
   @ApiProperty()
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
-  emailAddress: string;
+  timeZone: string;
 }
 
 export class CreateConversionActionDto {
@@ -245,6 +243,23 @@ export class GenerateKeywordIdeasDto {
   @ApiProperty()
   @IsString()
   @IsUrl()
-  @IsNotEmpty()
+  @IsOptional()
   url: string;
+
+  @ApiProperty()
+  @IsArray()
+  @IsString({ each: true })
+  keywords: string[];
+}
+
+export class GetCampaignByNameOrIdDto {
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  id?: string;
 }

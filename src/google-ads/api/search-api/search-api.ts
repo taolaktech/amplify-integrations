@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { AxiosError } from 'axios';
 
 import { GoogleAdsSharedMethodsService } from '../shared';
@@ -31,8 +35,14 @@ export class GoogleAdsSearchApiService {
         this.logger.log(error.response?.data);
         this.logger.log(JSON.stringify(error.response?.data || {}));
         this.logger.log(error.response?.data?.error?.message);
+        throw new InternalServerErrorException({
+          error: error.response?.data?.error,
+          query,
+        });
       }
-      throw error;
+      throw new InternalServerErrorException(
+        'cannot complete action at this time',
+      );
     }
   }
 
@@ -53,10 +63,28 @@ export class GoogleAdsSearchApiService {
       SELECT
         campaign.id,
         campaign.name,
+        campaign.campaign_budget,
         campaign.status,
-        campaign.bidding_strategy_type,
+        campaign.bidding_strategy,
+        campaign.bidding_strategy_type
       FROM campaign
-      WHERE campaign.id='${campaignId}'
+      WHERE campaign.id=${campaignId}
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getCampaignByName(customerId: string, campaignName: string) {
+    const query = `
+      SELECT
+        campaign.id,
+        campaign.name,
+        campaign.campaign_budget,
+        campaign.status,
+        campaign.bidding_strategy,
+        campaign.bidding_strategy_type
+      FROM campaign
+      WHERE campaign.name='${campaignName}'
     `;
 
     return await this.googleAdsSearch(customerId, query);
@@ -85,7 +113,7 @@ export class GoogleAdsSearchApiService {
         conversion_action.name,
         conversion_action.tag_snippets
       FROM conversion_action
-      WHERE conversion_action.id = ${conversionActionId}
+      WHERE conversion_action.id=${conversionActionId}
     `;
 
     return await this.googleAdsSearch(customerId, query);
