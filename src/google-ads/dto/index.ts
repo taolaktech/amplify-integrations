@@ -254,6 +254,44 @@ export class GenerateKeywordIdeasDto {
 
 export class GetCampaignByNameOrIdDto {
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  id?: string;
+}
+
+export class GetConversionActionByNameOrIdDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  id?: string;
+}
+export class GetBiddingStrategyByNameOrIdDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
   @IsOptional()
   @IsString()
   name?: string;

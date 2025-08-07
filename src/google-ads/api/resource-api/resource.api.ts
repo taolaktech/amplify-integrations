@@ -134,10 +134,14 @@ export class GoogleAdsResourceApiService {
       for (const detail of googleAdsError.details || []) {
         if (Array.isArray(detail.errors)) {
           for (const err of detail.errors) {
-            if (err.errorCode?.campaignBudgetError === 'DUPLICATE_NAME') {
-              throw new BadRequestException({
-                message: `${resource} for customerId ${customerId} with the same name already exists`,
-                duplicateName: true,
+            if (err.errorCode) {
+              Object.keys(err.errorCode).forEach((key) => {
+                if (err.errorCode[key] === 'DUPLICATE_NAME') {
+                  throw new BadRequestException({
+                    message: `${resource} for customerId ${customerId} with the same name already exists`,
+                    duplicateName: true,
+                  });
+                }
               });
             }
           }

@@ -118,4 +118,53 @@ export class GoogleAdsSearchApiService {
 
     return await this.googleAdsSearch(customerId, query);
   }
+
+  async getConversionActionByName(
+    customerId: string,
+    conversionActionName: string,
+  ) {
+    const query = `
+      SELECT
+        conversion_action.id,
+        conversion_action.name,
+        conversion_action.tag_snippets
+      FROM conversion_action
+      WHERE conversion_action.name='${conversionActionName}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getBiddingStrategyById(customerId: string, biddingStrategyId: string) {
+    const query = `
+      SELECT
+        bidding_strategy.id,
+        bidding_strategy.name,
+        bidding_strategy.type,
+        bidding_strategy.target_roas.target_roas,
+        bidding_strategy.target_cpa.target_cpa_micros
+      FROM bidding_strategy
+      WHERE bidding_strategy.id = ${biddingStrategyId}
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getBiddingStrategyByName(
+    customerId: string,
+    biddingStrategyName: string,
+  ) {
+    const query = `
+      SELECT
+        bidding_strategy.id,
+        bidding_strategy.name,
+        bidding_strategy.type,
+        bidding_strategy.target_roas.target_roas,
+        bidding_strategy.target_cpa.target_cpa_micros
+      FROM bidding_strategy
+      WHERE bidding_strategy.name = '${biddingStrategyName}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
 }
