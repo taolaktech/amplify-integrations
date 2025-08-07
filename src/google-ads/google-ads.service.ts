@@ -12,6 +12,8 @@ import {
   CreateConversionActionDto,
   GenerateKeywordIdeasDto,
   GetCampaignByNameOrIdDto,
+  GetConversionActionByNameOrIdDto,
+  GetBiddingStrategyByNameOrIdDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -190,8 +192,6 @@ export class GoogleAdsService {
     return response;
   }
 
-  // async addGeolocation
-
   async addGeoTargetingToCampaign(
     dto: AddGeotargetingToCampaignDto,
     options?: GoogleAdsResourceRequestOptions,
@@ -258,15 +258,42 @@ export class GoogleAdsService {
     return res;
   }
 
-  async getConversionActionById(
-    customerId: string,
-    conversionActionId: string,
-  ) {
-    const res = await this.googleAdsSearchApi.getConversionActionById(
-      customerId,
-      conversionActionId,
-    );
-    return res;
+  async getConversionActionByNameOrId(dto: GetConversionActionByNameOrIdDto) {
+    const { name, id, customerId } = dto;
+    if (!name && !id) {
+      throw new BadRequestException(
+        'Either name or id must be provided to get campaign',
+      );
+    } else if (id) {
+      return await this.googleAdsSearchApi.getConversionActionById(
+        customerId,
+        id,
+      );
+    } else {
+      return await this.googleAdsSearchApi.getConversionActionByName(
+        customerId,
+        name!,
+      );
+    }
+  }
+
+  async getBiddingStrategyByNameOrId(dto: GetBiddingStrategyByNameOrIdDto) {
+    const { name, id, customerId } = dto;
+    if (!name && !id) {
+      throw new BadRequestException(
+        'Either name or id must be provided to get campaign',
+      );
+    } else if (id) {
+      return await this.googleAdsSearchApi.getBiddingStrategyById(
+        customerId,
+        id,
+      );
+    } else {
+      return await this.googleAdsSearchApi.getBiddingStrategyByName(
+        customerId,
+        name!,
+      );
+    }
   }
 
   async generateKeywordIdeas(
@@ -311,11 +338,8 @@ export class GoogleAdsService {
     return res;
   }
 
-  async getCampaignByNameOrId(
-    customerId: string,
-    dto: GetCampaignByNameOrIdDto,
-  ) {
-    const { name, id } = dto;
+  async getCampaignByNameOrId(dto: GetCampaignByNameOrIdDto) {
+    const { name, id, customerId } = dto;
     if (!name && !id) {
       throw new BadRequestException(
         'Either name or id must be provided to get campaign',
