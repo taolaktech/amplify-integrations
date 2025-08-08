@@ -9,6 +9,8 @@ import {
   BusinessSchema,
   CampaignSchema,
   FacebookPageSchema,
+  FacebookAdAccountSchema,
+  UserTokenSchema,
 } from './schema';
 // import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
 
@@ -31,6 +33,8 @@ import {
       { name: 'campaigns', schema: CampaignSchema },
       { name: 'facebook-pages', schema: FacebookPageSchema },
       { name: 'business', schema: BusinessSchema },
+      { name: 'facebook-ad-accounts', schema: FacebookAdAccountSchema },
+      { name: 'user-tokens', schema: UserTokenSchema },
     ]),
   ],
   exports: [MongooseModule],
