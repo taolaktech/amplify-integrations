@@ -75,7 +75,7 @@ export class GoogleAdsResourceApiService {
 
   private extractResouceIdFromResourceName(resourceName: string) {
     const parts = resourceName.split('/');
-    return parts[3];
+    return parts[parts.length - 1];
   }
 
   private checkResourceAgainstAccount(
