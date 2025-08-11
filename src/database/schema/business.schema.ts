@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+import { ShopifyAccountStatus } from 'src/shopify/enums';
 
 export type BusinessDoc = HydratedDocument<Business>;
 
@@ -61,21 +62,27 @@ class ShippingLocations {
 class ShopifyIntegrationSchema {
   @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
   id: Types.ObjectId;
+
+  @Prop({ enum: Object.values(ShopifyAccountStatus), default: 'connected' })
+  status: ShopifyAccountStatus;
 }
 
 @Schema({ _id: false })
 class GoogleAdsConversionActionSchema {
+  @Prop()
+  resourceName: string;
+
+  @Prop()
+  id: string;
+
   @Prop()
   tag: string;
 
   @Prop()
   label: string;
 
-  @Prop()
-  eventSnippets: string;
-
-  @Prop()
-  tagSnippets: string;
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  tagSnippets: any[];
 }
 
 @Schema({ _id: false })
@@ -93,19 +100,16 @@ class GoogleAdsIntegrationSchema {
 @Schema({ _id: false })
 class IntegrationsSchema {
   @Prop()
-  shopify: ShopifyIntegrationSchema[];
+  shopify: ShopifyIntegrationSchema;
 
   @Prop()
-  googleAds: GoogleAdsIntegrationSchema[];
+  googleAds: GoogleAdsIntegrationSchema;
 }
 
 @Schema({ timestamps: true })
 export class Business {
   @Prop({ type: Types.ObjectId, ref: 'users' })
   userId: Types.ObjectId;
-
-  @Prop()
-  integrations: IntegrationsSchema;
 
   @Prop()
   companyName: string;
@@ -160,6 +164,9 @@ export class Business {
 
   @Prop({ ref: 'shopify-accounts', type: [Types.ObjectId], default: [] })
   shopifyAccounts: Types.ObjectId[];
+
+  @Prop()
+  integrations: IntegrationsSchema;
 }
 
 export const BusinessSchema = SchemaFactory.createForClass(Business);
