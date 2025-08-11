@@ -163,6 +163,12 @@ export class Business {
   contactPhone: string;
 
   @Prop()
+  contactEmail: string;
+
+  @Prop()
+  contactPhone: string;
+
+  @Prop()
   teamSize: Range;
 
   @Prop()
