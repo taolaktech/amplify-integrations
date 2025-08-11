@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 
 export type BusinessDoc = HydratedDocument<Business>;
 
@@ -58,18 +58,54 @@ class ShippingLocations {
 }
 
 @Schema({ _id: false })
-class Colors {
+class ShopifyIntegrationSchema {
+  @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
+  id: Types.ObjectId;
+}
+
+@Schema({ _id: false })
+class GoogleAdsConversionActionSchema {
   @Prop()
-  primary: string[];
+  tag: string;
 
   @Prop()
-  secondary: string[];
+  label: string;
+
+  @Prop()
+  eventSnippets: string;
+
+  @Prop()
+  tagSnippets: string;
+}
+
+@Schema({ _id: false })
+class GoogleAdsIntegrationSchema {
+  @Prop()
+  customerId: string;
+
+  @Prop()
+  customerName: string;
+
+  @Prop()
+  conversionAction: GoogleAdsConversionActionSchema;
+}
+
+@Schema({ _id: false })
+class IntegrationsSchema {
+  @Prop()
+  shopify: ShopifyIntegrationSchema[];
+
+  @Prop()
+  googleAds: GoogleAdsIntegrationSchema[];
 }
 
 @Schema({ timestamps: true })
 export class Business {
   @Prop({ type: Types.ObjectId, ref: 'users' })
   userId: Types.ObjectId;
+
+  @Prop()
+  integrations: IntegrationsSchema;
 
   @Prop()
   companyName: string;
@@ -81,19 +117,22 @@ export class Business {
   website: string;
 
   @Prop()
-  logo: string;
+  logo?: string;
 
   @Prop()
-  coverImage: string;
-
-  @Prop()
-  colors: Colors;
+  logoKey?: string;
 
   @Prop()
   industry: string;
 
   @Prop()
   companyRole: string;
+
+  @Prop()
+  contactEmail: string;
+
+  @Prop()
+  contactPhone: string;
 
   @Prop()
   teamSize: Range;
@@ -109,6 +148,12 @@ export class Business {
 
   @Prop()
   businessGoals: BusinessGoal;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  shopifyBrandAssets: { [k: string]: any };
+
+  @Prop({ ref: 'brand-assets', type: [Types.ObjectId] })
+  brandAssets: Types.ObjectId[];
 
   @Prop()
   shippingLocations: ShippingLocations;
