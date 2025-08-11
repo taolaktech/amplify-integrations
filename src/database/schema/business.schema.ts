@@ -97,7 +97,11 @@ class GoogleAdsIntegration {
   customerResourceName: string;
 
   @Prop()
+<<<<<<< HEAD
   conversionAction: GoogleAdsConversionAction;
+=======
+  conversionAction: GoogleAdsConversionActionSchema;
+>>>>>>> bba4ba7 (endpoint to save google ads data)
 }
 
 @Schema({ _id: false })
