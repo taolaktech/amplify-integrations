@@ -59,7 +59,7 @@ class ShippingLocations {
 }
 
 @Schema({ _id: false })
-class ShopifyIntegrationSchema {
+class ShopifyIntegration {
   @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
   id: Types.ObjectId;
 
@@ -68,7 +68,7 @@ class ShopifyIntegrationSchema {
 }
 
 @Schema({ _id: false })
-class GoogleAdsConversionActionSchema {
+class GoogleAdsConversionAction {
   @Prop()
   resourceName: string;
 
@@ -86,7 +86,7 @@ class GoogleAdsConversionActionSchema {
 }
 
 @Schema({ _id: false })
-class GoogleAdsIntegrationSchema {
+class GoogleAdsIntegration {
   @Prop()
   customerId: string;
 
@@ -97,16 +97,16 @@ class GoogleAdsIntegrationSchema {
   customerResourceName: string;
 
   @Prop()
-  conversionAction: GoogleAdsConversionActionSchema;
+  conversionAction: GoogleAdsConversionAction;
 }
 
 @Schema({ _id: false })
-class IntegrationsSchema {
+class Integrations {
   @Prop()
-  shopify: ShopifyIntegrationSchema;
+  shopify: ShopifyIntegration;
 
   @Prop()
-  googleAds: GoogleAdsIntegrationSchema;
+  googleAds: GoogleAdsIntegration;
 }
 
 @Schema({ timestamps: true })
@@ -169,7 +169,7 @@ export class Business {
   shopifyAccounts: Types.ObjectId[];
 
   @Prop()
-  integrations: IntegrationsSchema;
+  integrations: Integrations;
 }
 
 export const BusinessSchema = SchemaFactory.createForClass(Business);
