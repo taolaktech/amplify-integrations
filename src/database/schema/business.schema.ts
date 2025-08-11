@@ -76,10 +76,10 @@ class GoogleAdsConversionActionSchema {
   id: string;
 
   @Prop()
-  tag: string;
+  tag?: string;
 
   @Prop()
-  label: string;
+  label?: string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed })
   tagSnippets: any[];
@@ -92,6 +92,9 @@ class GoogleAdsIntegrationSchema {
 
   @Prop()
   customerName: string;
+
+  @Prop()
+  customerResourceName: string;
 
   @Prop()
   conversionAction: GoogleAdsConversionActionSchema;
