@@ -72,15 +72,12 @@ class GoogleAdsConversionAction {
   @Prop()
   id: string;
 
-<<<<<<< HEAD
   @Prop()
   tag?: string;
 
   @Prop()
   label?: string;
 
-=======
->>>>>>> 5a038e5 (adding redirect and google conversions schema update)
   @Prop({ type: mongoose.Schema.Types.Mixed })
   tagSnippets: any[];
 }
@@ -97,11 +94,7 @@ class GoogleAdsIntegration {
   customerResourceName: string;
 
   @Prop()
-<<<<<<< HEAD
   conversionAction: GoogleAdsConversionAction;
-=======
-  conversionAction: GoogleAdsConversionActionSchema;
->>>>>>> bba4ba7 (endpoint to save google ads data)
 }
 
 @Schema({ _id: false })
