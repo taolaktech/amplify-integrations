@@ -11,6 +11,11 @@ export class GetShopifyOAuthUrlDto {
   @IsString()
   @IsNotEmpty()
   userId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  redirect?: string;
 }
 
 export class GetProductsDto {

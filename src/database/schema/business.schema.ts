@@ -72,12 +72,15 @@ class GoogleAdsConversionAction {
   @Prop()
   id: string;
 
+<<<<<<< HEAD
   @Prop()
   tag?: string;
 
   @Prop()
   label?: string;
 
+=======
+>>>>>>> 5a038e5 (adding redirect and google conversions schema update)
   @Prop({ type: mongoose.Schema.Types.Mixed })
   tagSnippets: any[];
 }
