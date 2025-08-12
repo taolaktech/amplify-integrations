@@ -16,7 +16,9 @@ export class BusinessService {
   ) {}
 
   async getBusinessById(businessId: string) {
-    const business = await this.businessModel.findById(businessId);
+    const business = await this.businessModel
+      .findById(businessId)
+      .populate('integrations.shopify.shopifyAccount');
 
     if (!business) {
       throw new NotFoundException(`business with id ${businessId} not found`);

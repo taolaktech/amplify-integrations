@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
-import { ShopifyAccountStatus } from 'src/shopify/enums';
 
 export type BusinessDoc = HydratedDocument<Business>;
 
@@ -61,10 +60,7 @@ class ShippingLocations {
 @Schema({ _id: false })
 class ShopifyIntegration {
   @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
-  id: Types.ObjectId;
-
-  @Prop({ enum: Object.values(ShopifyAccountStatus), default: 'connected' })
-  status: ShopifyAccountStatus;
+  shopifyAccount: Types.ObjectId;
 }
 
 @Schema({ _id: false })
