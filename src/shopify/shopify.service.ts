@@ -165,8 +165,7 @@ export class ShopifyService {
       business.integrations = {
         ...business.integrations,
         shopify: {
-          id: shopifyAccount._id,
-          status: ShopifyAccountStatus.CONNECTED,
+          shopifyAccount: shopifyAccount._id,
         },
       };
 
