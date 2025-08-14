@@ -10,7 +10,6 @@ import { CampaignModule } from './campaign/campaign.module';
 import { FacebookModule } from './facebook/facebook.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard';
-import { BusinessModule } from './business/business.module';
 
 @Module({
   imports: [
@@ -23,7 +22,6 @@ import { BusinessModule } from './business/business.module';
     }),
     CampaignModule,
     FacebookModule,
-    BusinessModule,
   ],
   controllers: [AppController],
   providers: [
