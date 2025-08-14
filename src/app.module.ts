@@ -11,7 +11,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { GoogleAdsModule } from './google-ads/google-ads.module';
 
 import { AuthGuard } from './auth/auth.guard';
-import { BusinessModule } from './business/business.module';
 
 @Module({
   imports: [
@@ -24,7 +23,6 @@ import { BusinessModule } from './business/business.module';
       isGlobal: true,
     }),
     FacebookModule,
-    BusinessModule,
   ],
   controllers: [AppController],
   providers: [
