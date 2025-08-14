@@ -112,6 +112,8 @@ export class ShopifyService {
         {
           shopId: params.shopDetails.id,
           shop: params.shop,
+          url: params.shopDetails.url,
+          myshopifyDomain: params.shopDetails.myshopifyDomain,
           belongsTo: userId,
           accessToken: params.accessToken,
           scope: params.scope,

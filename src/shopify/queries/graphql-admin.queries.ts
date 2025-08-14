@@ -18,7 +18,16 @@ query GetProducts(${paramsDefinition}) {
         handle
         title
         description
+        productType
+        status
+        tags
+        onlineStoreUrl
+        onlineStorePreviewUrl
         hasOnlyDefaultVariant
+        seo {
+          title,
+          description,
+        }
         priceRangeV2 {
           maxVariantPrice {
             amount
@@ -67,7 +76,16 @@ query getProductById($identifier: ProductIdentifierInput!) {
     handle
     title
     description
+    productType
+    status
+    tags
+    onlineStoreUrl
+    onlineStorePreviewUrl
     hasOnlyDefaultVariant
+    seo {
+      title,
+      description,
+    }
     priceRangeV2 {
       maxVariantPrice {
         amount
