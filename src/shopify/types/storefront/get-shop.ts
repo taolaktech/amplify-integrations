@@ -13,7 +13,9 @@ export interface Brand {
   shortDescription: string | null;
   slogan: string | null;
   coverImage: Image | null;
-  logo: Image | null;
+  logo: {
+    image: Image;
+  } | null;
   colors: Colors;
 }
 
