@@ -175,7 +175,8 @@ export class ShopifyService {
         business.description ?? params.shopDetails.description ?? undefined;
       business.currencyCode =
         business.currencyCode ?? params.shopDetails.currencyCode ?? undefined;
-      business.logo = business.logo ?? brandingRes.data?.shop?.brand?.logo?.url;
+      business.logo =
+        business.logo ?? brandingRes.data?.shop?.brand?.logo?.image?.url;
       business.website =
         business.website ?? params.shopDetails.url ?? undefined;
       business.companyName =
@@ -184,7 +185,7 @@ export class ShopifyService {
       business.shopifyBrandAssets = {
         ...business.shopifyBrandAssets,
         coverImage: shopBranding?.coverImage?.url ?? undefined,
-        logo: brandingRes.data?.shop?.brand?.logo?.url ?? undefined,
+        logo: brandingRes.data?.shop?.brand?.logo?.image?.url ?? undefined,
         colors: {
           primary: shopBranding?.colors?.primary ?? undefined,
           secondary: shopBranding?.colors?.secondary ?? undefined,
