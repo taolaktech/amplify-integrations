@@ -17,6 +17,7 @@ import {
   GetCampaignByNameOrIdDto,
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
+  GetAdGroupByNameOrIdDto,
 } from './dto';
 
 @ApiSecurity('x-api-key')
@@ -141,6 +142,7 @@ export class GoogleAdsController {
       validateOnly,
     });
   }
+
   @ApiOperation({
     summary: 'Get bidding strategy by name or ID',
     description:
@@ -182,6 +184,16 @@ export class GoogleAdsController {
   ) {
     const validateOnly = query.validateOnly === '1';
     return await this.googleAdsService.createAdGroup(dto, { validateOnly });
+  }
+
+  @ApiOperation({
+    summary: 'Get adGroup by name or ID',
+    description: 'Retrieves a adGroup by its name or ID for a customer.',
+  })
+  @Post('/ad-groups/get-by-name-or-id')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async getAdGroupByNameOrId(@Body() dto: GetAdGroupByNameOrIdDto) {
+    return await this.googleAdsService.getAdGroupByNameOrId(dto);
   }
 
   @ApiOperation({

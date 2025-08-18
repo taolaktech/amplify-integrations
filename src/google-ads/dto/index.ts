@@ -301,3 +301,25 @@ export class GetBiddingStrategyByNameOrIdDto {
   @IsString()
   id?: string;
 }
+
+export class GetAdGroupByNameOrIdDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  campaignResourceName: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  id?: string;
+}
