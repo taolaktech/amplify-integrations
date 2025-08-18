@@ -136,7 +136,11 @@ export class GoogleAdsResourceApiService {
           for (const err of detail.errors) {
             if (err.errorCode) {
               Object.keys(err.errorCode).forEach((key) => {
-                if (err.errorCode[key] === 'DUPLICATE_NAME') {
+                if (
+                  err.errorCode[key] === 'DUPLICATE_NAME' ||
+                  err.errorCode[key] === 'DUPLICATE_ADGROUP_NAME' ||
+                  err.errorCode[key] === 'DUPLICATE_ADGROUPAD_NAME'
+                ) {
                   throw new BadRequestException({
                     message: `${resource} for customerId ${customerId} with the same name already exists`,
                     duplicateName: true,
@@ -147,11 +151,13 @@ export class GoogleAdsResourceApiService {
           }
         }
       }
-    }
-    if (error instanceof AxiosError) {
       this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
       this.logger.log(error.response?.data);
       this.logger.error(JSON.stringify(error.response?.data || {}));
+      throw new InternalServerErrorException({
+        googleAdsError,
+        mesage: 'Something went wrong while performing operation',
+      });
     }
     throw error;
   }

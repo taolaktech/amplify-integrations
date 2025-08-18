@@ -317,19 +317,21 @@ export class GoogleAdsService {
       throw new BadRequestException(`url or keywords must be present`);
     }
 
-    if (dto.url && dto.keywords) {
+    if (dto.url && dto.keywords.length) {
       body.keywordAndUrlSeed = {
         keywords,
         url,
       };
-    } else if (keywords) {
+    } else if (keywords.length) {
       body.keywordSeed = {
         keywords,
       };
-    } else {
+    } else if (url) {
       body.urlSeed = {
         url,
       };
+    } else {
+      throw new BadRequestException(`url and/or keywords required`);
     }
 
     const res = await this.googleAdsCustomerApi.generateKeywordIdeas(
