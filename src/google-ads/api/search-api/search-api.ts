@@ -167,4 +167,42 @@ export class GoogleAdsSearchApiService {
 
     return await this.googleAdsSearch(customerId, query);
   }
+
+  async getAdGroupByName(
+    customerId: string,
+    campaignResourceName: string,
+    adGroupName: string,
+  ) {
+    const query = `
+      SELECT
+        ad_group.id,
+        ad_group.name,
+        ad_group.status,
+        ad_group.campaign
+      FROM ad_group
+      WHERE ad_group.campaign = '${campaignResourceName}'
+      AND ad_group.name = '${adGroupName}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getAdGroupById(
+    customerId: string,
+    campaignResourceName: string,
+    adGroupId: string,
+  ) {
+    const query = `
+      SELECT
+        ad_group.id,
+        ad_group.name,
+        ad_group.status,
+        ad_group.campaign
+      FROM ad_group
+      WHERE ad_group.campaign = '${campaignResourceName}'
+      AND ad_group.id = '${adGroupId}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
 }

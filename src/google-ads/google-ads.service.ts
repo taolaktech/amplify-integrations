@@ -14,6 +14,7 @@ import {
   GetCampaignByNameOrIdDto,
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
+  GetAdGroupByNameOrIdDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -348,6 +349,27 @@ export class GoogleAdsService {
       return await this.googleAdsSearchApi.getCampaignById(customerId, id);
     } else {
       return await this.googleAdsSearchApi.getCampaignByName(customerId, name!);
+    }
+  }
+
+  async getAdGroupByNameOrId(dto: GetAdGroupByNameOrIdDto) {
+    const { name, id, customerId, campaignResourceName } = dto;
+    if (!name && !id) {
+      throw new BadRequestException(
+        'Either name or id must be provided to get campaign',
+      );
+    } else if (id) {
+      return await this.googleAdsSearchApi.getAdGroupById(
+        customerId,
+        campaignResourceName,
+        id,
+      );
+    } else {
+      return await this.googleAdsSearchApi.getAdGroupByName(
+        customerId,
+        campaignResourceName,
+        name!,
+      );
     }
   }
 }
