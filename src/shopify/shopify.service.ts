@@ -17,6 +17,7 @@ import {
   GetShopDto,
   GetShopBrandingDto,
   GetShopifyOAuthUrlDto,
+  GetOrdersDto,
 } from './dto';
 import { ShopifyAuthService } from './api/auth';
 import { ShopifyGraphqlAdminApi } from './api/graphql-admin';
@@ -248,5 +249,49 @@ export class ShopifyService {
     });
 
     return res.data;
+  }
+
+  async getOrders(
+    params: GetOrdersDto,
+    query?: {
+      first?: number;
+      after?: string;
+      last?: number;
+      before?: string;
+      query?: string;
+    },
+  ) {
+    try {
+      const response = await this.shopifyGraphqlAdminApi.getOrders(
+        params,
+        query,
+      );
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async getOrdersCount(
+    params: GetOrdersDto,
+    query?: {
+      query?: string;
+    },
+  ) {
+    try {
+      const response = await this.shopifyGraphqlAdminApi.getOrdersCount(
+        params,
+        query,
+      );
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
   }
 }

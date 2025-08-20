@@ -185,3 +185,36 @@ export const getShopQuery = () => `#graphql
     }
   }
 `;
+
+export const getOrdersCountQuery = (
+  paramsDefinition?: string,
+  ordersCountParams?: string,
+) => `#graphql
+  query GetOrdersCount ${paramsDefinition} {
+    ordersCount ${ordersCountParams} {
+      count
+      precision
+    }
+  }
+`;
+
+export const getOrdersQuery = (
+  paramsDefinition: string,
+  ordersParams: string,
+) => `#graphql
+  query GetOrders(${paramsDefinition}) {
+    orders (${ordersParams}) {
+      edges {
+        node {
+          id
+          totalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
+    }
+  }
+`;

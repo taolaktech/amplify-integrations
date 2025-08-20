@@ -81,4 +81,55 @@ export class ShopifyController {
     });
     return products;
   }
+
+  @ApiQuery({ name: 'first', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'after', required: false, type: String, example: '' })
+  @ApiQuery({ name: 'last', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'before', required: false, type: String, example: '' })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    example: 'financial_status:paid',
+  })
+  @Post('/orders')
+  async getOrders(
+    @Body() dto: GetProductsDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const first = query.first ? parseInt(query.first) : undefined;
+    const last = query.last ? parseInt(query.last) : undefined;
+    if (
+      (first !== undefined && isNaN(first)) ||
+      (last !== undefined && isNaN(last))
+    ) {
+      throw new BadRequestException(`first, last must be number or undefined`);
+    }
+    const { before, after } = query;
+    const products = await this.shopifyService.getOrders(dto, {
+      first,
+      before,
+      after,
+      last,
+    });
+    return products;
+  }
+
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    example: 'financial_status:paid',
+  })
+  @Post('/orders-count')
+  async getOrdersCount(
+    @Body() dto: GetProductsDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const { query: q } = query;
+    const products = await this.shopifyService.getOrdersCount(dto, {
+      query: q,
+    });
+    return products;
+  }
 }
