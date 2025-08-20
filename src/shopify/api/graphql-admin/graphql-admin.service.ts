@@ -20,6 +20,8 @@ import {
   GetShopResponseBody,
 } from '../../types/grapql-admin';
 import {
+  getOrdersCountQuery,
+  getOrdersQuery,
   getProductsByIdQuery,
   getProductsQuery,
   getShopQuery,

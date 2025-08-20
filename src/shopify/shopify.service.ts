@@ -16,19 +16,11 @@ import {
   GetProductsDto,
   GetShopDto,
   GetShopBrandingDto,
-<<<<<<< HEAD
   CreateWebPixelDto,
 } from './dto';
 import { ShopifyAuthService } from './api/auth/auth.service';
 import { ShopifyGraphqlAdminApiService } from './api/graphql-admin/graphql-admin.service';
 import { ShopifyStoreFrontApiService } from './api/store-front/store-front-api.service';
-=======
-  GetShopifyOAuthUrlDto,
-} from './dto';
-import { ShopifyAuthService } from './api/auth';
-import { ShopifyGraphqlAdminApi } from './api/graphql-admin';
-import { ShopifyStoreFrontApi } from './api/store-front-api';
->>>>>>> 5a038e5 (adding redirect and google conversions schema update)
 
 @Injectable()
 export class ShopifyService {
@@ -154,14 +146,10 @@ export class ShopifyService {
 
       // create business if not exists
       if (!business) {
-<<<<<<< HEAD
         business = await this.businessModel.create({
           userId,
           shopifyAccounts: [],
         });
-=======
-        business = new this.businessModel({ userId, shopifyAccounts: [] });
->>>>>>> 5a038e5 (adding redirect and google conversions schema update)
       }
 
       business.integrations = {
