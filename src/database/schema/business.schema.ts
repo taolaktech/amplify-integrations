@@ -58,30 +58,51 @@ class ShippingLocations {
 }
 
 @Schema({ _id: false })
-class BrandAssetPrimarySecondary {
-  @Prop()
-  primary: string;
-
-  @Prop()
-  secondary: string;
+class ShopifyIntegration {
+  @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
+  shopifyAccount: Types.ObjectId;
 }
 
 @Schema({ _id: false })
-class BrandAssets {
+class GoogleAdsConversionAction {
   @Prop()
-  colors: BrandAssetPrimarySecondary;
+  resourceName: string;
 
   @Prop()
-  logos: BrandAssetPrimarySecondary;
+  id: string;
 
   @Prop()
-  fonts: BrandAssetPrimarySecondary;
+  tag?: string;
 
   @Prop()
-  brandGuide: string;
+  label?: string;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  tagSnippets: any[];
+}
+
+@Schema({ _id: false })
+class GoogleAdsIntegration {
+  @Prop()
+  customerId: string;
 
   @Prop()
-  toneOfVoice: string;
+  customerName: string;
+
+  @Prop()
+  customerResourceName: string;
+
+  @Prop()
+  conversionAction: GoogleAdsConversionAction;
+}
+
+@Schema({ _id: false })
+class Integrations {
+  @Prop()
+  shopify: ShopifyIntegration;
+
+  @Prop()
+  googleAds: GoogleAdsIntegration;
 }
 
 @Schema({ timestamps: true })
@@ -99,10 +120,22 @@ export class Business {
   website: string;
 
   @Prop()
+  logo?: string;
+
+  @Prop()
+  logoKey?: string;
+
+  @Prop()
   industry: string;
 
   @Prop()
   companyRole: string;
+
+  @Prop()
+  contactEmail: string;
+
+  @Prop()
+  contactPhone: string;
 
   @Prop()
   teamSize: Range;
@@ -122,14 +155,17 @@ export class Business {
   @Prop({ type: mongoose.Schema.Types.Mixed })
   shopifyBrandAssets: { [k: string]: any };
 
-  @Prop()
-  brandAssets: BrandAssets;
+  @Prop({ ref: 'brand-assets', type: [Types.ObjectId] })
+  brandAssets: Types.ObjectId[];
 
   @Prop()
   shippingLocations: ShippingLocations;
 
   @Prop({ ref: 'shopify-accounts', type: [Types.ObjectId], default: [] })
   shopifyAccounts: Types.ObjectId[];
+
+  @Prop()
+  integrations: Integrations;
 }
 
 export const BusinessSchema = SchemaFactory.createForClass(Business);

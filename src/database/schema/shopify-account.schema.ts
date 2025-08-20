@@ -16,6 +16,12 @@ export class ShopifyAccount {
   accessToken: string;
 
   @Prop()
+  url: string;
+
+  @Prop()
+  myshopifyDomain: string;
+
+  @Prop()
   scope: string;
 
   @Prop({ type: mongoose.Types.ObjectId, ref: 'users' })

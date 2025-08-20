@@ -16,11 +16,11 @@ import {
   GetProductsDto,
   GetShopDto,
   GetShopBrandingDto,
-  CreateWebPixelDto,
+  GetShopifyOAuthUrlDto,
 } from './dto';
-import { ShopifyAuthService } from './api/auth/auth.service';
-import { ShopifyGraphqlAdminApiService } from './api/graphql-admin/graphql-admin.service';
-import { ShopifyStoreFrontApiService } from './api/store-front/store-front-api.service';
+import { ShopifyAuthService } from './api/auth';
+import { ShopifyGraphqlAdminApi } from './api/graphql-admin';
+import { ShopifyStoreFrontApi } from './api/store-front-api';
 
 @Injectable()
 export class ShopifyService {
@@ -39,7 +39,7 @@ export class ShopifyService {
     private shopifyStoreFrontApiService: ShopifyStoreFrontApiService,
   ) {}
 
-  getShopifyOAuthUrl(params: { shop: string; userId: string }) {
+  getShopifyOAuthUrl(params: GetShopifyOAuthUrlDto) {
     const shopifyAuthUrl = this.shopifyAuthService.getShopifyOAuthUrl(params);
     return shopifyAuthUrl;
   }
@@ -75,16 +75,19 @@ export class ShopifyService {
         scope,
       });
 
-      return res.redirect(
-        `${this.config.get('CLIENT_URL')}/setup?linked_store=true`,
-      );
+      let redirect = stateBody.redirect ?? '/setup?linked_store=true';
+
+      // remove leading slashes
+      redirect = redirect.replace(/^\/+/, '');
+
+      return res.redirect(`${this.config.get('CLIENT_URL')}/${redirect}`);
     } catch (error) {
       if (error instanceof HttpException) {
         return res.redirect(
           `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=${error.message}`,
         );
       }
-      console.log({ error });
+      this.logger.log({ error });
       return res.redirect(
         `${this.config.get('CLIENT_URL')}/shopify/auth/failed?error=E_INTERNAL_SERVER_ERROR`,
       );
@@ -109,6 +112,8 @@ export class ShopifyService {
         {
           shopId: params.shopDetails.id,
           shop: params.shop,
+          url: params.shopDetails.url,
+          myshopifyDomain: params.shopDetails.myshopifyDomain,
           belongsTo: userId,
           accessToken: params.accessToken,
           scope: params.scope,
@@ -141,11 +146,35 @@ export class ShopifyService {
 
       // create business if not exists
       if (!business) {
-        business = await this.businessModel.create({
-          userId,
-          shopifyAccounts: [],
-        });
+        business = new this.businessModel({ userId, shopifyAccounts: [] });
       }
+
+      business.integrations = {
+        ...business.integrations,
+        shopify: {
+          shopifyAccount: shopifyAccount._id,
+        },
+      };
+
+      business.description =
+        business.description ?? params.shopDetails.description ?? undefined;
+      business.currencyCode =
+        business.currencyCode ?? params.shopDetails.currencyCode ?? undefined;
+      business.logo = business.logo ?? brandingRes.data?.shop?.brand?.logo?.url;
+      business.website =
+        business.website ?? params.shopDetails.url ?? undefined;
+      business.companyName =
+        business.companyName ?? params.shopDetails.name ?? undefined;
+
+      business.shopifyBrandAssets = {
+        ...business.shopifyBrandAssets,
+        coverImage: shopBranding?.coverImage?.url ?? undefined,
+        logo: brandingRes.data?.shop?.brand?.logo?.url ?? undefined,
+        colors: {
+          primary: shopBranding?.colors?.primary ?? undefined,
+          secondary: shopBranding?.colors?.secondary ?? undefined,
+        },
+      };
 
       const shopifyAccountStrings = business.shopifyAccounts.map((id) =>
         id.toString(),
@@ -159,6 +188,7 @@ export class ShopifyService {
         (id) => new Types.ObjectId(id),
       );
 
+      business.markModified('shopifyBrandAssets');
       await business.save();
 
       business.description =

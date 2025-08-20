@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpStatus, ValidationPipe } from '@nestjs/common';
@@ -26,7 +27,57 @@ async function bootstrap() {
     .addApiKey({ type: 'apiKey', in: 'header' }, 'x-api-key')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory);
+
+  const dir = './public';
+
+  // Ensure the directory exists
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // Write the Swagger JSON to the public directory
+  writeFileSync('./public/swagger.json', JSON.stringify(documentFactory()));
+  // SwaggerModule.setup('docs', app, documentFactory, redocOptions);
+
+  app.use('/api-json', (req, res) => {
+    res.header('Content-Type', 'application/json');
+    res.send(JSON.stringify(documentFactory(), null, 2));
+  });
+
+  // Create a custom Scalar endpoint at /docs
+  app.use('/docs', (req, res) => {
+    const scalarHtml = `
+       <!DOCTYPE html>
+       <html>
+         <head>
+           <title>Amplify Integrations API Documentation</title>
+           <meta charset="utf-8" />
+           <meta name="viewport" content="width=device-width, initial-scale=1" />
+         </head>
+         <body>
+           <script
+             id="api-reference"
+             data-url="/api-json"
+             data-configuration='{
+               "theme": "purple",
+               "layout": "modern",
+               "defaultHttpClient": {
+                 "targetKey": "javascript",
+                 "clientKey": "fetch"
+               },
+               "showSidebar": true,
+               "customCss": "--scalar-color-1: #121212; --scalar-color-2: #2a2a2a; --scalar-color-3: #8b5cf6;",
+               "searchHotKey": "k",
+               "navigation": {
+                 "title": "Amplify Integrations API"
+               }
+             }'></script>
+           <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+         </body>
+       </html>
+     `;
+    res.send(scalarHtml);
+  });
 
   await app.listen(PORT);
   console.log(`App is listening on port ${PORT}...`);
