@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { GoogleAdsService } from './google-ads.service';
-import { ApiOperation, ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiProperty,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators';
 import {
   AddGeotargetingToCampaignDto,
@@ -19,6 +25,22 @@ import {
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
 } from './dto';
+
+class Result {
+  @ApiProperty()
+  resourceName: string;
+}
+class ResourceCreationResponse {
+  @ApiProperty({ type: [Result] })
+  result: Result[] | undefined;
+}
+class CreateResourceResponse {
+  @ApiProperty({ type: ResourceCreationResponse })
+  response: ResourceCreationResponse;
+
+  @ApiProperty()
+  '[resource]': object;
+}
 
 @ApiSecurity('x-api-key')
 @Controller('api/google-ads')
@@ -63,6 +85,11 @@ export class GoogleAdsController {
   @ApiOperation({
     summary: 'Create a conversion action',
     description: 'Creates a new conversion action for tracking conversions.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Conversion action Created Successfully',
+    type: CreateResourceResponse,
   })
   @Post('/conversion-actions/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
@@ -117,6 +144,11 @@ export class GoogleAdsController {
     summary: 'Create campaign budget',
     description: 'Creates a new campaign budget in Google Ads.',
   })
+  @ApiResponse({
+    status: 201,
+    description: 'Budget Created Successfully',
+    type: CreateResourceResponse,
+  })
   @Post('/campaign-budgets/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createBudget(
@@ -130,6 +162,11 @@ export class GoogleAdsController {
   @ApiOperation({
     summary: 'Create Target ROAS bidding strategy',
     description: 'Creates a new Target ROAS bidding strategy for campaigns.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Bidding Strategy Created Successfully',
+    type: CreateResourceResponse,
   })
   @Post('/bidding-strategy/target-roas/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
@@ -160,6 +197,11 @@ export class GoogleAdsController {
     summary: 'Create search campaign',
     description: 'Creates a new search campaign in Google Ads.',
   })
+  @ApiResponse({
+    status: 201,
+    description: 'Camapign Created Successfully',
+    type: CreateResourceResponse,
+  })
   @Post('/campaigns/search-campaign/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async createSearchCampaign(
@@ -175,6 +217,11 @@ export class GoogleAdsController {
   @ApiOperation({
     summary: 'Create ad group',
     description: 'Creates a new ad group within a campaign.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Ad group Created Successfully',
+    type: CreateResourceResponse,
   })
   @Post('/ad-groups/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
@@ -199,6 +246,11 @@ export class GoogleAdsController {
   @ApiOperation({
     summary: 'Create ad group ad',
     description: 'Creates a new ad within an ad group.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Adgroup ad Created Successfully',
+    type: CreateResourceResponse,
   })
   @Post('/ad-group-ads/create')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
