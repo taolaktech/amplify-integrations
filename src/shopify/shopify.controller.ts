@@ -90,7 +90,7 @@ export class ShopifyController {
     name: 'query',
     required: false,
     type: String,
-    example: 'financial_status:paid',
+    example: 'financial_status:paid created_at:>=2024-06-01',
   })
   @Post('/orders')
   async getOrders(
@@ -119,7 +119,7 @@ export class ShopifyController {
     name: 'query',
     required: false,
     type: String,
-    example: 'financial_status:paid',
+    example: 'financial_status:paid created_at:>=2024-06-01',
   })
   @Post('/orders-count')
   async getOrdersCount(
