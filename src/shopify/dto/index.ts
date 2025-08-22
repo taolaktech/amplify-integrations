@@ -95,3 +95,19 @@ export class GetShopBrandingDto {
   @IsNotEmpty()
   scope: string;
 }
+export class GetOrdersDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  shop: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  scope: string;
+}

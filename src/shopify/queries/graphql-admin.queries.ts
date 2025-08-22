@@ -15,6 +15,7 @@ query GetProducts(${paramsDefinition}) {
     edges {
       node {
         id
+        status
         handle
         title
         description
@@ -24,6 +25,25 @@ query GetProducts(${paramsDefinition}) {
         onlineStoreUrl
         onlineStorePreviewUrl
         hasOnlyDefaultVariant
+        vendor
+        category {
+          name
+          fullName
+          id
+        }
+        featuredMedia {
+          id
+          alt
+          mediaContentType
+          preview {
+            image {
+              altText
+              url
+              height
+              width
+            }
+          }
+        }
         seo {
           title,
           description,
@@ -73,6 +93,7 @@ query getProductById($identifier: ProductIdentifierInput!) {
   }
   productByIdentifier (identifier: $identifier) {
     id
+    status
     handle
     title
     description
@@ -82,6 +103,25 @@ query getProductById($identifier: ProductIdentifierInput!) {
     onlineStoreUrl
     onlineStorePreviewUrl
     hasOnlyDefaultVariant
+    vendor
+    category {
+      name
+      fullName
+      id
+    }
+    featuredMedia {
+      id
+      alt
+      mediaContentType
+      preview {
+        image {
+          altText
+          url
+          height
+          width
+        }
+      }
+    }
     seo {
       title,
       description,
@@ -141,6 +181,45 @@ export const getShopQuery = () => `#graphql
       id
       primaryDomain {
         host
+      }
+    }
+  }
+`;
+
+export const getOrdersCountQuery = (
+  paramsDefinition?: string,
+  ordersCountParams?: string,
+) => `#graphql
+  query GetOrdersCount ${paramsDefinition} {
+    ordersCount ${ordersCountParams} {
+      count
+      precision
+    }
+  }
+`;
+
+export const getOrdersQuery = (
+  paramsDefinition: string,
+  ordersParams: string,
+) => `#graphql
+  query GetOrders(${paramsDefinition}) {
+    orders (${ordersParams}) {
+      edges {
+        node {
+          id
+          totalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasPreviousPage
+        hasNextPage
+        startCursor
+        endCursor
       }
     }
   }
