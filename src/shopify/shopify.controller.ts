@@ -76,9 +76,7 @@ export class ShopifyController {
 
   @Post('/products/product-by-id')
   async getProductById(@Body() dto: GetProductByIdDto) {
-    const products = await this.shopifyService.getProductById({
-      ...dto,
-    });
+    const products = await this.shopifyService.getProductById(dto);
     return products;
   }
 
