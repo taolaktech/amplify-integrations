@@ -198,5 +198,11 @@ export const webPixelCreate = () => `
         id
         settings
       }
+      pageInfo {
+        hasPreviousPage
+        hasNextPage
+        startCursor
+        endCursor
+      }
     }
   }`;
