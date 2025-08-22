@@ -95,8 +95,7 @@ export class GetShopBrandingDto {
   @IsNotEmpty()
   scope: string;
 }
-
-export class CreateWebPixelDto {
+export class GetOrdersDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -111,9 +110,4 @@ export class CreateWebPixelDto {
   @IsString()
   @IsNotEmpty()
   scope: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  pixelSettings: string;
 }

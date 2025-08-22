@@ -17,6 +17,7 @@ import {
   GetShopDto,
   GetShopBrandingDto,
   GetShopifyOAuthUrlDto,
+  GetOrdersDto,
 } from './dto';
 import { ShopifyAuthService } from './api/auth';
 import { ShopifyGraphqlAdminApi } from './api/graphql-admin';
@@ -160,7 +161,8 @@ export class ShopifyService {
         business.description ?? params.shopDetails.description ?? undefined;
       business.currencyCode =
         business.currencyCode ?? params.shopDetails.currencyCode ?? undefined;
-      business.logo = business.logo ?? brandingRes.data?.shop?.brand?.logo?.url;
+      business.logo =
+        business.logo ?? brandingRes.data?.shop?.brand?.logo?.image?.url;
       business.website =
         business.website ?? params.shopDetails.url ?? undefined;
       business.companyName =
@@ -169,7 +171,7 @@ export class ShopifyService {
       business.shopifyBrandAssets = {
         ...business.shopifyBrandAssets,
         coverImage: shopBranding?.coverImage?.url ?? undefined,
-        logo: brandingRes.data?.shop?.brand?.logo?.url ?? undefined,
+        logo: brandingRes.data?.shop?.brand?.logo?.image?.url ?? undefined,
         colors: {
           primary: shopBranding?.colors?.primary ?? undefined,
           secondary: shopBranding?.colors?.secondary ?? undefined,
@@ -267,8 +269,47 @@ export class ShopifyService {
     return res.data;
   }
 
-  async createWebPixel(dto: CreateWebPixelDto) {
-    const res = await this.shopifyGraphqlAdminApi.createWebPixel(dto);
-    return res.body.data;
+  async getOrders(
+    params: GetOrdersDto,
+    query?: {
+      first?: number;
+      after?: string;
+      last?: number;
+      before?: string;
+      query?: string;
+    },
+  ) {
+    try {
+      const response = await this.shopifyGraphqlAdminApi.getOrders(
+        params,
+        query,
+      );
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async getOrdersCount(
+    params: GetOrdersDto,
+    query?: {
+      query?: string;
+    },
+  ) {
+    try {
+      const response = await this.shopifyGraphqlAdminApi.getOrdersCount(
+        params,
+        query,
+      );
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
   }
 }
