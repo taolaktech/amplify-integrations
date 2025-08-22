@@ -35,8 +35,8 @@ export class ShopifyService {
     private businessModel: Model<BusinessDoc>,
     private config: AppConfigService,
     private shopifyAuthService: ShopifyAuthService,
-    private shopifyGraphqlAdminApi: ShopifyGraphqlAdminApiService,
-    private shopifyStoreFrontApiService: ShopifyStoreFrontApiService,
+    private shopifyGraphqlAdminApi: ShopifyGraphqlAdminApi,
+    private shopifyStoreFrontApiService: ShopifyStoreFrontApi,
   ) {}
 
   getShopifyOAuthUrl(params: GetShopifyOAuthUrlDto) {
@@ -193,24 +193,6 @@ export class ShopifyService {
       );
 
       business.markModified('shopifyBrandAssets');
-      await business.save();
-
-      business.description =
-        business.description ?? params.shopDetails.description ?? undefined;
-      business.companyName = business.companyName ?? params.shopDetails.name;
-      business.website = business.website ?? params.shopDetails.url;
-      business.currencyCode =
-        business.currencyCode ?? params.shopDetails.currencyCode;
-      await business.save();
-
-      business.shopifyBrandAssets = {
-        logo: brandingRes.data?.shop?.brand?.logo?.url ?? undefined,
-        coverImage: shopBranding?.coverImage?.url ?? undefined,
-        colors: {
-          primary: shopBranding?.colors?.primary ?? undefined,
-          secondary: shopBranding?.colors?.secondary ?? undefined,
-        },
-      };
       await business.save();
     } catch (c: any) {
       console.log(c);
