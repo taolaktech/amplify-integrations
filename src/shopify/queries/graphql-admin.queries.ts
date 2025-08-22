@@ -215,6 +215,12 @@ export const getOrdersQuery = (
           }
         }
       }
+      pageInfo {
+        hasPreviousPage
+        hasNextPage
+        startCursor
+        endCursor
+      }
     }
   }
 `;
