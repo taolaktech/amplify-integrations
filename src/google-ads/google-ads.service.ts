@@ -140,7 +140,7 @@ export class GoogleAdsService {
       return { text: txt, pinnedField };
     });
 
-    const descriptions = dto.headlines.map((txt) => {
+    const descriptions = dto.descriptions.map((txt) => {
       return { text: txt };
     });
 
