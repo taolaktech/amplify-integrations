@@ -1,4 +1,6 @@
 import {
+  GoogleAdsAssetFieldType,
+  GoogleAdsAssetType,
   GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
@@ -69,4 +71,25 @@ export type UpdateCampaignBody = {
 export type CreateConversionActionBody = {
   name: string;
   customerId: string;
+};
+
+export type CreateCustomerAssetBody = {
+  customerId: string;
+  assetResourceName: string;
+  assetFieldType: GoogleAdsAssetFieldType;
+};
+
+export type CreateCampaignAssetBody = {
+  campaignResourceName: string;
+  assetResourceName: string;
+  assetFieldType: GoogleAdsAssetFieldType;
+};
+
+export type CreateAssetBody = {
+  customerId: string;
+  type: GoogleAdsAssetType;
+  name?: string;
+  finalUrls?: string[];
+  text?: string;
+  image?: string;
 };

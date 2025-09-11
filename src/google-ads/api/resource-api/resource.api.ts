@@ -35,14 +35,20 @@ import {
   SuggestGeoTargetConstantsResponse,
   GoogleAdsBiddingStrategy,
   GoogleAdsConversionAction,
+  GoogleAdsCustomerAsset,
+  GoogleAdsAsset,
+  GoogleAdsCampaignAsset,
 } from './types';
 import {
   AddGeoTargetingToCampaignBody,
   AddKeywordsToAdGroupBody,
   CreateAdGroupAdBody,
   CreateAdGroupBody,
+  CreateAssetBody,
+  CreateCampaignAssetBody,
   CreateCampaignBody,
   CreateConversionActionBody,
+  CreateCustomerAssetBody,
   CreateTargetRoasBiddingStrategyBody,
   GoogleAdsResourceRequestOptions,
   UpdateCampaignBody,
@@ -293,6 +299,48 @@ export class GoogleAdsResourceApiService {
   ) {
     const resource = 'conversionActions';
     return await this.mutateResourceOperation<GoogleAdsConversionAction>(
+      resource,
+      customerId,
+      operations,
+      options,
+    );
+  }
+
+  private async customerAssetsMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsCustomerAsset>[],
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const resource = 'customerAssets';
+    return await this.mutateResourceOperation<GoogleAdsCustomerAsset>(
+      resource,
+      customerId,
+      operations,
+      options,
+    );
+  }
+
+  private async campaignAssetsMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsCampaignAsset>[],
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const resource = 'campaignAssets';
+    return await this.mutateResourceOperation<GoogleAdsCampaignAsset>(
+      resource,
+      customerId,
+      operations,
+      options,
+    );
+  }
+
+  private async assetMutateOperation(
+    customerId: string,
+    operations: GoogleAdsOperation<GoogleAdsAsset>[],
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const resource = 'assets';
+    return await this.mutateResourceOperation<GoogleAdsAsset>(
       resource,
       customerId,
       operations,
@@ -702,6 +750,109 @@ export class GoogleAdsResourceApiService {
         throw error;
       }
       throw new InternalServerErrorException('Cannot create adGroup');
+    }
+  }
+
+  async createAsset(
+    body: CreateAssetBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      const asset: Partial<GoogleAdsAsset> = {
+        type: body.type,
+        finalUrls: body.finalUrls,
+        textAsset: body.text ? { text: body.text } : undefined,
+        imageAsset: body.image ? { data: body.image } : undefined,
+        name: body.name,
+      };
+
+      const operations = [{ create: asset }];
+
+      const res = await this.assetMutateOperation(
+        body.customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        asset.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, asset };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create customer asset');
+    }
+  }
+
+  async createCustomerAsset(
+    body: CreateCustomerAssetBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      const customerAsset: Partial<GoogleAdsCustomerAsset> = {
+        asset: body.assetResourceName,
+        fieldType: body.assetFieldType,
+        status: 'ENABLED',
+      };
+
+      const operations = [{ create: customerAsset }];
+
+      const res = await this.customerAssetsMutateOperation(
+        body.customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        customerAsset.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, customerAsset };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create customer asset');
+    }
+  }
+
+  async createCampaignAsset(
+    body: CreateCampaignAssetBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      const campaignAsset: Partial<GoogleAdsCampaignAsset> = {
+        asset: body.assetResourceName,
+        fieldType: body.assetFieldType,
+        status: 'ENABLED',
+        campaign: body.campaignResourceName,
+      };
+
+      const customerId = this.extractCustomerIdFromResourceName(
+        body.campaignResourceName,
+      );
+
+      const operations = [{ create: campaignAsset }];
+
+      const res = await this.campaignAssetsMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        campaignAsset.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, campaignAsset };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create customer asset');
     }
   }
 }

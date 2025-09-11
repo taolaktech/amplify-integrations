@@ -15,6 +15,9 @@ import {
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
+  CreateGoogleAdsCustomerAssetDto,
+  CreateGoogleAdsCampaignAssetDto,
+  CreateGoogleAdsAssetDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -76,7 +79,7 @@ export class GoogleAdsService {
   ) {
     const body = {
       name: dto.campaignBudgetName,
-      amountMicros: dto.amount * this.ONE_CURRENCY_UNIT,
+      amountMicros: Math.floor(dto.amount * this.ONE_CURRENCY_UNIT),
     };
     const response = await this.googleAdsResourceApi.createBudget(
       dto.customerId,
@@ -373,5 +376,32 @@ export class GoogleAdsService {
         name!,
       );
     }
+  }
+
+  async createGoogleAdsAsset(
+    dto: CreateGoogleAdsAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createAsset(body, options);
+  }
+
+  async createGoogleAdsCustomerAsset(
+    dto: CreateGoogleAdsCustomerAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCustomerAsset(body, options);
+  }
+
+  async createGoogleAdsCampaignAsset(
+    dto: CreateGoogleAdsCampaignAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCampaignAsset(body, options);
   }
 }
