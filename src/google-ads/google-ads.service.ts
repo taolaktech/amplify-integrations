@@ -57,8 +57,10 @@ export class GoogleAdsService {
     const body = {
       name: dto.biddingStrategyName,
       targetRoas: dto.targetRoas,
-      cpcBidCeilingMicros: dto.cpcBidCeiling * this.ONE_CURRENCY_UNIT,
-      cpcBidFloorMicros: dto.cpcBidFloor * this.ONE_CURRENCY_UNIT,
+      cpcBidCeilingMicros: Math.floor(
+        dto.cpcBidCeiling * this.ONE_CURRENCY_UNIT,
+      ),
+      cpcBidFloorMicros: Math.floor(dto.cpcBidFloor * this.ONE_CURRENCY_UNIT),
     };
 
     const response =
@@ -76,7 +78,7 @@ export class GoogleAdsService {
   ) {
     const body = {
       name: dto.campaignBudgetName,
-      amountMicros: dto.amount * this.ONE_CURRENCY_UNIT,
+      amountMicros: Math.floor(dto.amount * this.ONE_CURRENCY_UNIT),
     };
     const response = await this.googleAdsResourceApi.createBudget(
       dto.customerId,
