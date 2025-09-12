@@ -22,6 +22,7 @@ import {
   GoogleAdsKeywordMatchType,
   GoogleAdsResponseContentType,
   GoogleAdsServedAssetFieldType,
+  GoogleCampaignContainsEuPoliticalAdvertising,
 } from './enums';
 
 export type GoogleTokensResult = {
@@ -116,6 +117,7 @@ export interface GoogleAdsCampaign {
   optimizationScore: number;
   urlExpansionOptOut: boolean;
   brandGuidelinesEnabled: boolean;
+  containsEuPoliticalAdvertising: GoogleCampaignContainsEuPoliticalAdvertising;
 }
 
 export interface GoogleAdsBiddingStrategy {

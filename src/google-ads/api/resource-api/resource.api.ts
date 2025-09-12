@@ -18,6 +18,7 @@ import {
   GoogleAdsBiddingStrategyStatus,
   GoogleAdsCampaignStatus,
   GoogleAdsResponseContentType,
+  GoogleCampaignContainsEuPoliticalAdvertising,
 } from './enums';
 import {
   GoogleAdsAdGroup,
@@ -408,6 +409,8 @@ export class GoogleAdsResourceApiService {
         startDate: body.startDate.toISOString().split('T')[0],
         endDate: body.endDate.toISOString().split('T')[0],
         biddingStrategy: body.biddingStrategy,
+        containsEuPoliticalAdvertising:
+          GoogleCampaignContainsEuPoliticalAdvertising.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING,
         networkSettings: {
           targetPartnerSearchNetwork: false,
           targetGoogleSearch: true,

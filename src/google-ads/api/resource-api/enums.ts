@@ -14,6 +14,13 @@ export enum GoogleAdsCampaignStatus {
   UNKNOWN = 'UNKNOWN',
 }
 
+export enum GoogleCampaignContainsEuPoliticalAdvertising {
+  UNSPECIFIED = 'UNSPECIFIED', // Not specified.
+  UNKNOWN = 'UNKNOWN', // Value unknown in this version.
+  CONTAINS_EU_POLITICAL_ADVERTISING = 'CONTAINS_EU_POLITICAL_ADVERTISING', // Campaign contains political advertising targeted towards the EU.
+  DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING = 'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING', // Campaign does not contain political advertising targeted towards the EU.
+}
+
 export enum GoogleAdsCampaignServingStatus {
   UNSPECIFIED = 'UNSPECIFIED',
   UNKNOWN = 'UNKNOWN',
