@@ -323,3 +323,20 @@ export class GetAdGroupByNameOrIdDto {
   @IsString()
   id?: string;
 }
+
+export class GetAdGroupMetricsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  campaignResourceName: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  adGroupId: string;
+}

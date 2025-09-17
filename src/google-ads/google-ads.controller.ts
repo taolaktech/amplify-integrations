@@ -24,6 +24,7 @@ import {
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
+  GetAdGroupMetricsDto,
 } from './dto';
 
 class Result {
@@ -235,12 +236,23 @@ export class GoogleAdsController {
 
   @ApiOperation({
     summary: 'Get adGroup by name or ID',
-    description: 'Retrieves a adGroup by its name or ID for a customer.',
+    description:
+      'Retrieves a adGroup by its name or ID for a customer and campaign.',
   })
   @Post('/ad-groups/get-by-name-or-id')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async getAdGroupByNameOrId(@Body() dto: GetAdGroupByNameOrIdDto) {
     return await this.googleAdsService.getAdGroupByNameOrId(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Get adGroup by id with metrics',
+    description: 'Retrieves a adGroup by its ID for a customer and campaign.',
+  })
+  @Post('/ad-groups/metrics')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async getAdgroupMetrics(@Body() dto: GetAdGroupMetricsDto) {
+    return await this.googleAdsService.getAdGroupMetrics(dto);
   }
 
   @ApiOperation({

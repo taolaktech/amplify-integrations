@@ -15,6 +15,7 @@ import {
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
+  GetAdGroupMetricsDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -375,5 +376,15 @@ export class GoogleAdsService {
         name!,
       );
     }
+  }
+
+  async getAdGroupMetrics(dto: GetAdGroupMetricsDto) {
+    const { adGroupId, customerId, campaignResourceName } = dto;
+
+    return await this.googleAdsSearchApi.getAdGroupMetrics(
+      customerId,
+      campaignResourceName,
+      adGroupId,
+    );
   }
 }
