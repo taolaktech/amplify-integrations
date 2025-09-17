@@ -108,7 +108,38 @@ export enum GoogleAdsAdType {
 }
 
 export enum GoogleAdsAssetType {
-  TEXT = 'TEXT',
+  UNSPECIFIED = 'UNSPECIFIED', // Not specified
+  UNKNOWN = 'UNKNOWN', // Used for return value only, represents value unknown in this version
+  YOUTUBE_VIDEO = 'YOUTUBE_VIDEO', // YouTube video asset
+  MEDIA_BUNDLE = 'MEDIA_BUNDLE', // Media bundle asset
+  IMAGE = 'IMAGE', // Image asset
+  TEXT = 'TEXT', // Text asset
+  LEAD_FORM = 'LEAD_FORM', // Lead form asset
+  BOOK_ON_GOOGLE = 'BOOK_ON_GOOGLE', // Book on Google asset
+  PROMOTION = 'PROMOTION', // Promotion asset
+  CALLOUT = 'CALLOUT', // Callout asset
+  STRUCTURED_SNIPPET = 'STRUCTURED_SNIPPET', // Structured Snippet asset
+  SITELINK = 'SITELINK', // Sitelink asset
+  PAGE_FEED = 'PAGE_FEED', // Page Feed asset
+  DYNAMIC_EDUCATION = 'DYNAMIC_EDUCATION', // Dynamic Education asset
+  MOBILE_APP = 'MOBILE_APP', // Mobile app asset
+  HOTEL_CALLOUT = 'HOTEL_CALLOUT', // Hotel callout asset
+  CALL = 'CALL', // Call asset
+  PRICE = 'PRICE', // Price asset
+  CALL_TO_ACTION = 'CALL_TO_ACTION', // Call to action asset
+  DYNAMIC_REAL_ESTATE = 'DYNAMIC_REAL_ESTATE', // Dynamic real estate asset
+  DYNAMIC_CUSTOM = 'DYNAMIC_CUSTOM', // Dynamic custom asset
+  DYNAMIC_HOTELS_AND_RENTALS = 'DYNAMIC_HOTELS_AND_RENTALS', // Dynamic hotels and rentals asset
+  DYNAMIC_FLIGHTS = 'DYNAMIC_FLIGHTS', // Dynamic flights asset
+  DYNAMIC_TRAVEL = 'DYNAMIC_TRAVEL', // Dynamic travel asset
+  DYNAMIC_LOCAL = 'DYNAMIC_LOCAL', // Dynamic local asset
+  DYNAMIC_JOBS = 'DYNAMIC_JOBS', // Dynamic jobs asset
+  LOCATION = 'LOCATION', // Location asset
+  HOTEL_PROPERTY = 'HOTEL_PROPERTY', // Hotel property asset
+  DEMAND_GEN_CAROUSEL_CARD = 'DEMAND_GEN_CAROUSEL_CARD', // Demand Gen Carousel Card asset
+  BUSINESS_MESSAGE = 'BUSINESS_MESSAGE', // Business message asset
+  APP_DEEP_LINK = 'APP_DEEP_LINK', // App deep link asset
+  YOUTUBE_VIDEO_LIST = 'YOUTUBE_VIDEO_LIST', // YouTube video list asset
 }
 
 export enum GoogleAdsAssetSource {
@@ -250,3 +281,49 @@ export enum ConversionActionStatus {
   REMOVED = 'REMOVED', // Conversions will not be recorded.
   HIDDEN = 'HIDDEN', // Conversions will not be recorded and the conversion action will not appear in the UI.
 }
+
+export enum GoogleAdsAssetFieldType {
+  UNSPECIFIED = 'UNSPECIFIED', // Not specified
+  UNKNOWN = 'UNKNOWN', // Value unknown in this version
+  HEADLINE = 'HEADLINE', // Headline
+  DESCRIPTION = 'DESCRIPTION', // Description
+  MANDATORY_AD_TEXT = 'MANDATORY_AD_TEXT', // Mandatory ad text
+  MARKETING_IMAGE = 'MARKETING_IMAGE', // Marketing image
+  MEDIA_BUNDLE = 'MEDIA_BUNDLE', // Media bundle
+  YOUTUBE_VIDEO = 'YOUTUBE_VIDEO', // YouTube video
+  BOOK_ON_GOOGLE = 'BOOK_ON_GOOGLE', // Book on Google enabled (Hotels)
+  LEAD_FORM = 'LEAD_FORM', // Lead Form extension
+  PROMOTION = 'PROMOTION', // Promotion extension
+  CALLOUT = 'CALLOUT', // Callout extension
+  STRUCTURED_SNIPPET = 'STRUCTURED_SNIPPET', // Structured Snippet extension
+  SITELINK = 'SITELINK', // Sitelink
+  MOBILE_APP = 'MOBILE_APP', // Mobile App extension
+  HOTEL_CALLOUT = 'HOTEL_CALLOUT', // Hotel Callout extension
+  CALL = 'CALL', // Call extension
+  PRICE = 'PRICE', // Price extension
+  LONG_HEADLINE = 'LONG_HEADLINE', // Long headline
+  BUSINESS_NAME = 'BUSINESS_NAME', // Business name
+  SQUARE_MARKETING_IMAGE = 'SQUARE_MARKETING_IMAGE', // Square marketing image
+  PORTRAIT_MARKETING_IMAGE = 'PORTRAIT_MARKETING_IMAGE', // Portrait marketing image
+  LOGO = 'LOGO', // Logo
+  LANDSCAPE_LOGO = 'LANDSCAPE_LOGO', // Landscape logo
+  VIDEO = 'VIDEO', // Non-YouTube video
+  CALL_TO_ACTION_SELECTION = 'CALL_TO_ACTION_SELECTION', // Call-to-action selection
+  AD_IMAGE = 'AD_IMAGE', // Ad image
+  BUSINESS_LOGO = 'BUSINESS_LOGO', // Business logo
+  HOTEL_PROPERTY = 'HOTEL_PROPERTY', // Hotel property (Performance Max travel goals)
+  DEMAND_GEN_CAROUSEL_CARD = 'DEMAND_GEN_CAROUSEL_CARD', // Demand Gen carousel card
+  BUSINESS_MESSAGE = 'BUSINESS_MESSAGE', // Business Message
+  TALL_PORTRAIT_MARKETING_IMAGE = 'TALL_PORTRAIT_MARKETING_IMAGE', // Tall portrait marketing image
+  RELATED_YOUTUBE_VIDEOS = 'RELATED_YOUTUBE_VIDEOS', // Related YouTube videos
+}
+
+export type GoogleAdsAssetLinkPrimaryStatus =
+  | 'UNSPECIFIED'
+  | 'ELIGIBLE'
+  | 'NOT_ELIGIBLE'
+  | 'LIMITED'
+  | 'UNKNOWN'
+  | 'PAUSED'
+  | 'REMOVED'
+  | 'PENDING';

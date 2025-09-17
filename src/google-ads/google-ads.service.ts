@@ -16,6 +16,9 @@ import {
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
   GetAdGroupMetricsDto,
+  CreateGoogleAdsCustomerAssetDto,
+  CreateGoogleAdsCampaignAssetDto,
+  CreateGoogleAdsAssetDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -386,5 +389,32 @@ export class GoogleAdsService {
       campaignResourceName,
       adGroupId,
     );
+  }
+  
+  async createGoogleAdsAsset(
+    dto: CreateGoogleAdsAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createAsset(body, options);
+  }
+
+  async createGoogleAdsCustomerAsset(
+    dto: CreateGoogleAdsCustomerAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCustomerAsset(body, options);
+  }
+
+  async createGoogleAdsCampaignAsset(
+    dto: CreateGoogleAdsCampaignAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCampaignAsset(body, options);
   }
 }

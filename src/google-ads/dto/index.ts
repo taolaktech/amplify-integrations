@@ -12,7 +12,11 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { GoogleAdsCampaignStatus } from '../api/resource-api/enums';
+import {
+  GoogleAdsAssetFieldType,
+  GoogleAdsAssetType,
+  GoogleAdsCampaignStatus,
+} from '../api/resource-api/enums';
 import { Type } from 'class-transformer';
 
 export class CreateTargetRoasBiddingStrategyDto {
@@ -322,6 +326,88 @@ export class GetAdGroupByNameOrIdDto {
   @IsOptional()
   @IsString()
   id?: string;
+}
+
+export class CreateGoogleAdsCustomerAssetDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty({
+    example: 'customers/5820552756/assets/287049553063',
+  })
+  @IsString()
+  @IsNotEmpty()
+  assetResourceName: string;
+
+  @ApiProperty({
+    enum: GoogleAdsAssetFieldType,
+    example: GoogleAdsAssetFieldType.BUSINESS_NAME,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(GoogleAdsAssetFieldType)
+  assetFieldType: GoogleAdsAssetFieldType;
+}
+
+export class CreateGoogleAdsCampaignAssetDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  campaignResourceName: string;
+
+  @ApiProperty({
+    example: 'customers/5820552756/assets/287049553063',
+  })
+  @IsString()
+  @IsNotEmpty()
+  assetResourceName: string;
+
+  @ApiProperty({
+    enum: GoogleAdsAssetFieldType,
+    example: GoogleAdsAssetFieldType.BUSINESS_NAME,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(GoogleAdsAssetFieldType)
+  assetFieldType: GoogleAdsAssetFieldType;
+}
+
+export class CreateGoogleAdsAssetDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({
+    enum: GoogleAdsAssetType,
+    example: GoogleAdsAssetType.TEXT,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(GoogleAdsAssetType)
+  type: GoogleAdsAssetType;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  text?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  image?: string;
 }
 
 export class GetAdGroupMetricsDto {

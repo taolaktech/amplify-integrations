@@ -25,6 +25,9 @@ import {
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
   GetAdGroupMetricsDto,
+  CreateGoogleAdsCustomerAssetDto,
+  CreateGoogleAdsCampaignAssetDto,
+  CreateGoogleAdsAssetDto,
 } from './dto';
 
 class Result {
@@ -81,6 +84,69 @@ export class GoogleAdsController {
   ) {
     const validateOnly = query.validateOnly === '1';
     return await this.googleAdsService.createCustomer(dto, { validateOnly });
+  }
+
+  @ApiOperation({
+    summary: 'Create an asset',
+    description: 'Creates a new asset.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createAsset(
+    @Body() dto: CreateGoogleAdsAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsAsset(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create a customer asset',
+    description: 'Creates a new customer asset like logo, business name etc.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Customer Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/customer-asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createCustomerAsset(
+    @Body() dto: CreateGoogleAdsCustomerAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsCustomerAsset(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create a campaign asset',
+    description: 'Creates a campaign asset like logo, business name etc.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Campaign Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/campaign-asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createCampaignAsset(
+    @Body() dto: CreateGoogleAdsCampaignAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsCampaignAsset(dto, {
+      validateOnly,
+    });
   }
 
   @ApiOperation({

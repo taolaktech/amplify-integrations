@@ -13,6 +13,8 @@ import {
   GoogleAdsAdGroupType,
   GoogleAdsAdType,
   GoogleAdsAdvertisingChannelType,
+  GoogleAdsAssetFieldType,
+  GoogleAdsAssetLinkPrimaryStatus,
   GoogleAdsAssetSource,
   GoogleAdsAssetType,
   GoogleAdsBiddingStrategyStatus,
@@ -44,7 +46,9 @@ export type GoogleAdsResource =
   | 'campaignCriteria'
   | 'conversionActions'
   | 'biddingStrategies'
-  | 'assets';
+  | 'assets'
+  | 'customerAssets'
+  | 'campaignAssets';
 
 export interface ResourceCreationResponse {
   results: Result[] | undefined;
@@ -174,13 +178,16 @@ export interface GoogleAdsAd {
   }>;
 }
 
-export interface GoogleAdsAssets {
+export interface GoogleAdsAsset {
   resourceName: string;
   type: GoogleAdsAssetType;
   finalUrls: string[];
   finalMobileUrls: string[];
   textAsset: {
     text: string;
+  };
+  imageAsset: {
+    data: string;
   };
   id: string;
   name: string;
@@ -294,3 +301,41 @@ export interface GoogleAdsConversionAction {
   //   object (GoogleAnalytics4Settings)
   // },
 }
+
+export type GoogleAdsCustomerAsset = {
+  resourceName: string; // customers/{customer_id}/customerAssets/{asset_id}~{field_type}
+
+  asset: string; // resource name of the asset linked to the customer
+
+  fieldType: GoogleAdsAssetFieldType; // role that the asset takes
+
+  source?: 'UNSPECIFIED' | 'ADVERTISER' | 'AUTOMATICALLY_CREATED' | 'UNKNOWN'; // output only
+
+  status: 'ENABLED' | 'PAUSED' | 'REMOVED'; // enabled, paused, removed
+
+  primaryStatus?: GoogleAdsAssetLinkPrimaryStatus; // output only, serving state
+
+  primaryStatusDetails?: string[]; // output only
+
+  primaryStatusReasons?: string[]; // output only
+};
+
+export type GoogleAdsCampaignAsset = {
+  resourceName: string; // customers/{customer_id}/customerAssets/{asset_id}~{field_type}
+
+  asset: string; // resource name of the asset linked to the customer
+
+  fieldType: GoogleAdsAssetFieldType; // role that the asset takes
+
+  source?: 'UNSPECIFIED' | 'ADVERTISER' | 'AUTOMATICALLY_CREATED' | 'UNKNOWN'; // output only
+
+  status: 'ENABLED' | 'PAUSED' | 'REMOVED'; // enabled, paused, removed
+
+  primaryStatus?: GoogleAdsAssetLinkPrimaryStatus; // output only, serving state
+
+  primaryStatusDetails?: string[]; // output only
+
+  primaryStatusReasons?: string[]; // output only
+
+  campaign: string;
+};
