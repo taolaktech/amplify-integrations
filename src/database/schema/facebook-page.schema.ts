@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
 export type FacebookPageDocument = FacebookPage & Document;
 
@@ -22,6 +22,10 @@ export class FacebookPage {
 
   @Prop({ default: false })
   isPrimaryPage: boolean; // In case user connects multiple pages
+
+  //
+  @Prop({ type: mongoose.Types.ObjectId, ref: 'instagram-accounts' })
+  connectedInstagramAccountId?: string;
 }
 
 export const FacebookPageSchema = SchemaFactory.createForClass(FacebookPage);

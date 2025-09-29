@@ -95,6 +95,18 @@ export class FacebookAdAccount {
 
   @Prop({ default: Date.now })
   fetchedAt: Date;
+
+  @Prop({
+    type: String,
+  })
+  metaPixelId: string;
+
+  /**
+   * Link to the selected Facebook Page to be used for advertising.
+   * This page must be owned by or have permissions granted by the user.
+   */
+  @Prop({ type: mongoose.Types.ObjectId, ref: 'facebook-pages' })
+  selectedPrimaryFacebookPageId?: string;
 }
 
 export const FacebookAdAccountSchema =
