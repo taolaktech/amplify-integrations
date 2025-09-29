@@ -22,5 +22,6 @@ import { FacebookBusinessManagerService } from '../services/facebook-business-ma
     FacebookBusinessManagerService,
   ],
   controllers: [FacebookAuthController],
+  exports: [FacebookAuthService],
 })
 export class FacebookAuthModule {}

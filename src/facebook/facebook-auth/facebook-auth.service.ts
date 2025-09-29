@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -11,12 +12,13 @@ import axios from 'axios';
 import { Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FacebookPage } from '../../database/schema/facebook-page.schema';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import {
   FacebookAdAccount,
   FacebookAdAccountDocument,
   UserToken,
+  InstagramAccount,
 } from 'src/database/schema';
 import { FacebookTokenService } from '../services/facebook-token.service';
 import { SelectPrimaryAdAccountDto } from './dtos/select-primary-ad-account.dto';
@@ -41,33 +43,51 @@ export class FacebookAuthService {
     private facebookAdAccountModel: Model<FacebookAdAccount>,
     @InjectModel('user-tokens')
     private userTokenModel: Model<UserToken>,
+    @InjectModel('instagram-accounts')
+    private instagramAccountModel: Model<InstagramAccount>,
     private config: ConfigService,
     private jwtService: JwtService,
     private facebookTokenService: FacebookTokenService,
     private facebookBusinessManagerService: FacebookBusinessManagerService,
   ) {}
 
-  getAuthRedirectURL(state: string): string {
+  getAuthRedirectURL(
+    state: string,
+    platforms: string[] = ['facebook'],
+  ): string {
     const FACEBOOK_APP_ID = this.config.get<string>(
       'FACEBOOK_APP_ID',
     ) as string;
     const FACEBOOK_REDIRECT_URI = this.config.get<string>(
       'FACEBOOK_REDIRECT_URI',
     ) as string;
+
+    // Base permissions always required
+    const basePermissions = [
+      'email',
+      'public_profile',
+      'pages_show_list',
+      'pages_manage_ads',
+      'ads_management',
+      'ads_read',
+      'business_management',
+      'pages_read_engagement',
+    ];
+
+    // Add Instagram permissions only if requested
+    if (platforms.includes('instagram')) {
+      basePermissions.push(
+        'instagram_basic', // Add Instagram permissions
+        'instagram_content_publish', // For creating Instagram content
+        'instagram_manage_comments', // For managing comments
+        'instagram_manage_insights', // For insights
+      );
+    }
+
     const query = new URLSearchParams({
       client_id: FACEBOOK_APP_ID,
       redirect_uri: FACEBOOK_REDIRECT_URI,
-      scope: [
-        // 'pages_show_list', // unavailable for now, until App is approved
-        'email',
-        'public_profile',
-        'pages_show_list',
-        'pages_manage_ads',
-        'ads_management',
-        'ads_read',
-        'business_management',
-        'pages_read_engagement',
-      ].join(','),
+      scope: basePermissions.join(','),
       response_type: 'code',
       state,
       auth_type: 'rerequest',
@@ -172,9 +192,12 @@ export class FacebookAuthService {
     }
   }
 
-  generateStateToken(userId: string): string {
+  generateStateToken(
+    userId: string,
+    platforms: string[] = ['facebook'],
+  ): string {
     return this.jwtService.sign(
-      { userId },
+      { userId, platforms },
       {
         secret: this.config.get<string>('OAUTH_STATE_SECRET') as string,
         expiresIn: '10m',
@@ -182,7 +205,7 @@ export class FacebookAuthService {
     );
   }
 
-  verifyStateToken(token: string): { userId: string } {
+  verifyStateToken(token: string): { userId: string; platforms: string[] } {
     try {
       this.logger.debug('::: Verifying state token :::');
       return this.jwtService.verify(token, {
@@ -231,6 +254,11 @@ export class FacebookAuthService {
     //1. Verify state token
     const payload = this.verifyStateToken(state);
     const userId = payload.userId;
+    const requestedPlatforms = payload.platforms || ['facebook'];
+
+    let adAccounts = [] as any;
+    let pages = [] as any;
+    let instagramAccounts = [] as any;
 
     // 2. Exchange code for SHORT_LIVED token
     const tokenData = await this.exchangeCodeForToken(code);
@@ -256,21 +284,51 @@ export class FacebookAuthService {
     //   tokenData.access_token,
     //   tokenData.expires_in,
     // );
+    //
 
-    // 5. Fetch user's ad accounts and pages (for analytics)
-    const adAccounts = await this.fetchUserAdAccounts(
-      longTokenData.access_token,
-    );
-    const pages = await this.fetchUserPages(longTokenData.access_token);
+    // Always need pages for Instagram (since Instagram accounts are connected to pages)
+    if (
+      requestedPlatforms.includes('instagram') ||
+      requestedPlatforms.includes('facebook')
+    ) {
+      pages = await this.fetchUserPages(longTokenData.access_token);
+      await this.saveUserPages(payload.userId, pages);
+    }
 
-    // 6. Store user's pages and ad accounts (for analytics)
-    await this.saveUserAdAccounts(payload.userId, adAccounts);
-    await this.saveUserPages(payload.userId, pages);
+    // Only fetch Facebook ad accounts if requested
+    if (requestedPlatforms.includes('facebook')) {
+      adAccounts = await this.fetchUserAdAccounts(longTokenData.access_token);
+      await this.saveUserAdAccounts(payload.userId, adAccounts);
+    }
+
+    // 7. Only fetch Instagram accounts if explicitly requested
+    if (requestedPlatforms.includes('instagram')) {
+      instagramAccounts = await this.fetchInstagramAccounts(
+        longTokenData.access_token,
+        pages,
+      );
+      await this.saveInstagramAccounts(payload.userId, instagramAccounts);
+    }
 
     return {
-      adAccounts,
+      adAccounts: requestedPlatforms.includes('facebook')
+        ? adAccounts
+        : undefined,
       pages,
+      instagramAccounts: requestedPlatforms.includes('instagram')
+        ? instagramAccounts
+        : undefined,
+      requestedPlatforms,
       needsAdAccountSelection: adAccounts.length > 1,
+      needsInstagramAccountSelection:
+        requestedPlatforms.includes('instagram') &&
+        instagramAccounts.length > 1,
+      hasInstagramAccounts: requestedPlatforms.includes('instagram')
+        ? instagramAccounts.length > 0
+        : undefined,
+      pagesWithoutInstagram: requestedPlatforms.includes('instagram')
+        ? pages.length - instagramAccounts.length
+        : undefined,
     };
   }
 
@@ -1113,12 +1171,20 @@ export class FacebookAuthService {
   async selectPrimaryAdAccountWithPermissions(
     userId: string,
     adAccountId: string,
+    pageId: string,
+    metaPixelId: string | undefined,
+    instagramAccountId?: string,
   ): Promise<{
     message: string;
     adAccountId: string;
     assignmentStatus: string;
     canCreateCampaigns: boolean;
     grantedTasks: string[];
+    instagramSetup?: {
+      hasInstagramAccount: boolean;
+      instagramAccountId?: string;
+      instagramUsername?: string;
+    };
   }> {
     try {
       // 1. Validate access
@@ -1130,7 +1196,76 @@ export class FacebookAuthService {
       // 2. Set as primary
       await this.setPrimaryAdAccount(userId, adAccountId);
 
-      // 3. Initialize system user permission tracking
+      // 2. Find and atomically update the selected page to primary in our DB to ensure it belongs to the user
+      const selectedPage = await this.facebookPageModel.findOneAndUpdate(
+        {
+          userId,
+          pageId,
+        },
+        {
+          $set: {
+            isPrimaryPage: true,
+          },
+        },
+      );
+
+      if (!selectedPage) {
+        throw new NotFoundException(
+          'Selected Facebook Page not found or does not belong to the user.',
+        );
+      }
+
+      // 3. If Instagram account is provided, set it as primary
+      if (instagramAccountId) {
+        // Validate that the Instagram account belongs to the user
+        const instagramAccount = await this.instagramAccountModel.findOne({
+          userId,
+          instagramAccountId,
+        });
+
+        if (!instagramAccount) {
+          throw new NotFoundException(
+            'Selected Instagram account not found or does not belong to the user.',
+          );
+        }
+
+        // Set the Instagram account as primary
+        await this.instagramAccountModel.updateMany(
+          { userId },
+          { $set: { isPrimary: false } },
+        );
+
+        await this.instagramAccountModel.updateOne(
+          { userId, instagramAccountId },
+          { $set: { isPrimary: true, updatedAt: new Date() } },
+        );
+
+        // Update the ad account with the selected Instagram account
+        await this.facebookAdAccountModel.updateOne(
+          { userId, accountId: adAccountId },
+          {
+            $set: {
+              selectedPrimaryInstagramAccountId:
+                instagramAccount._id.toString(),
+            },
+          },
+        );
+      } else {
+        // Check if user has any Instagram accounts at all
+        const userInstagramAccounts = await this.instagramAccountModel.find({
+          userId,
+        });
+
+        // If user has Instagram accounts but didn't select one, that's okay
+        // If user has no Instagram accounts, we'll note that in the response
+        if (userInstagramAccounts.length === 0) {
+          this.logger.debug(
+            `User ${userId} has no Instagram accounts connected`,
+          );
+        }
+      }
+
+      // 4. Initialize system user permission tracking
       await this.facebookAdAccountModel.updateOne(
         { userId, accountId: adAccountId },
         {
@@ -1144,6 +1279,8 @@ export class FacebookAuthService {
             },
             integrationStatus: 'SETUP_INCOMPLETE',
             updatedAt: new Date(),
+            metaPixelId: metaPixelId,
+            selectedPrimaryFacebookPageId: selectedPage._id.toString(),
           },
         },
       );
@@ -1244,6 +1381,16 @@ export class FacebookAuthService {
           );
         }
 
+        // Prepare response with Instagram setup info
+        const instagramSetup = {
+          hasInstagramAccount: !!instagramAccountId,
+          instagramAccountId: instagramAccountId || undefined,
+          instagramUsername: instagramAccountId
+            ? (await this.instagramAccountModel.findOne({ instagramAccountId }))
+                ?.username
+            : undefined,
+        };
+
         return {
           message: verification.isAssigned
             ? capabilities.canCreateCampaigns
@@ -1256,6 +1403,7 @@ export class FacebookAuthService {
             : 'ASSIGNMENT_FAILED',
           canCreateCampaigns: capabilities.canCreateCampaigns,
           grantedTasks: verification.grantedTasks,
+          instagramSetup,
         };
       } catch (assignmentError) {
         // Handle assignment or verification errors properly
@@ -1657,6 +1805,441 @@ export class FacebookAuthService {
         error,
       );
       throw new InternalServerErrorException('Failed to refresh ad accounts');
+    }
+  }
+
+  // Add this method to fetch Instagram accounts connected to pages
+  async fetchInstagramAccounts(
+    accessToken: string,
+    pages: any[],
+  ): Promise<any[]> {
+    try {
+      this.logger.debug('::: Fetching Instagram accounts :::');
+
+      const instagramAccounts: any[] = [];
+
+      for (const page of pages) {
+        try {
+          // Get Instagram account connected to this page
+          const response = await this.graph.get(`/${page.id}`, {
+            params: {
+              access_token: accessToken,
+              fields: 'instagram_business_account',
+            },
+          });
+
+          if (response.data.instagram_business_account) {
+            // Get Instagram account details
+            const igResponse = await this.graph.get(
+              `/${response.data.instagram_business_account.id}`,
+              {
+                params: {
+                  access_token: accessToken,
+                  fields: 'id,username,account_type,followers_count',
+                },
+              },
+            );
+
+            instagramAccounts.push({
+              ...igResponse.data,
+              pageId: page.id,
+              pageName: page.name,
+            });
+          } else {
+            // Log that this page has no Instagram account
+            this.logger.debug(
+              `Page ${page.name} (${page.id}) has no Instagram Business account connected`,
+            );
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Failed to fetch Instagram account for page ${page.id}: ${error.message}`,
+          );
+        }
+      }
+
+      return instagramAccounts;
+    } catch (error) {
+      this.logger.error('Failed to fetch Instagram accounts', error);
+      throw new InternalServerErrorException(
+        'Failed to fetch Instagram accounts',
+      );
+    }
+  }
+
+  async saveInstagramAccounts(
+    userId: string,
+    instagramAccounts: any[],
+  ): Promise<void> {
+    try {
+      for (const account of instagramAccounts) {
+        const existing = await this.instagramAccountModel.findOne({
+          instagramAccountId: account.id,
+        });
+
+        if (existing) {
+          await this.instagramAccountModel.updateOne(
+            { instagramAccountId: account.id },
+            {
+              $set: {
+                username: account.username,
+                accountType: account.account_type,
+                followersCount: account.followers_count,
+                pageId: account.pageId,
+                updatedAt: new Date(),
+              },
+            },
+          );
+        } else {
+          await this.instagramAccountModel.create({
+            userId,
+            instagramAccountId: account.id,
+            username: account.username,
+            accountType: account.account_type,
+            followersCount: account.followers_count,
+            pageId: account.pageId,
+          });
+        }
+
+        // Update the Facebook page with the connected Instagram account
+        await this.facebookPageModel.updateOne(
+          { pageId: account.pageId },
+          {
+            $set: {
+              connectedInstagramAccountId: account.id,
+            },
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Failed to persist Instagram accounts', error);
+      throw new InternalServerErrorException('Error saving Instagram accounts');
+    }
+  }
+
+  async getUserInstagramAccountsWithStatus(userId: string): Promise<{
+    instagramAccounts: any[];
+    hasPrimary: boolean;
+    total: number;
+  }> {
+    try {
+      const instagramAccounts = await this.instagramAccountModel
+        .find({ userId })
+        .sort({ isPrimary: -1, username: 1 })
+        .populate('pageId', 'pageName pageId')
+        .lean();
+
+      const hasPrimary = instagramAccounts.some((account) => account.isPrimary);
+
+      return {
+        instagramAccounts,
+        hasPrimary,
+        total: instagramAccounts.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get user Instagram accounts', error);
+      throw new InternalServerErrorException(
+        'Failed to fetch Instagram accounts',
+      );
+    }
+  }
+
+  async selectPrimaryInstagramAccount(
+    userId: string,
+    instagramAccountId: string,
+  ): Promise<any> {
+    try {
+      // Validate that the Instagram account belongs to the user
+      const instagramAccount = await this.instagramAccountModel.findOne({
+        userId,
+        instagramAccountId,
+      });
+
+      if (!instagramAccount) {
+        throw new BadRequestException(
+          'Instagram account not found or does not belong to user',
+        );
+      }
+
+      // Remove primary flag from all user's Instagram accounts
+      await this.instagramAccountModel.updateMany(
+        { userId },
+        { $set: { isPrimary: false } },
+      );
+
+      // Set the selected account as primary
+      await this.instagramAccountModel.updateOne(
+        { userId, instagramAccountId },
+        { $set: { isPrimary: true, updatedAt: new Date() } },
+      );
+
+      // Get the page connected to this Instagram account
+      const page = await this.facebookPageModel.findOne({
+        pageId: instagramAccount.pageId,
+      });
+
+      return {
+        instagramAccountId,
+        username: instagramAccount.username,
+        pageId: page?.pageId,
+        pageName: page?.pageName,
+      };
+    } catch (error) {
+      this.logger.error('Failed to select primary Instagram account', error);
+      throw new InternalServerErrorException(
+        'Failed to select primary Instagram account',
+      );
+    }
+  }
+
+  async getPrimaryInstagramAccount(userId: string): Promise<any> {
+    try {
+      let primaryAccount = await this.instagramAccountModel
+        .findOne({ userId, isPrimary: true })
+        .populate('pageId', 'pageName pageId')
+        .lean();
+
+      // If no primary is set, return the first one (if any)
+      if (!primaryAccount) {
+        const firstAccount = await this.instagramAccountModel
+          .findOne({ userId })
+          .populate('pageId', 'pageName pageId')
+          .lean();
+
+        if (firstAccount) {
+          // Auto-set it as primary
+          await this.selectPrimaryInstagramAccount(
+            userId,
+            firstAccount.instagramAccountId,
+          );
+          primaryAccount = { ...firstAccount, isPrimary: true };
+        }
+      }
+
+      return primaryAccount;
+    } catch (error) {
+      this.logger.error('Failed to get primary Instagram account', error);
+      throw new InternalServerErrorException(
+        'Failed to get primary Instagram account',
+      );
+    }
+  }
+
+  // Add this method to get the primary Instagram account for campaigns
+  async getPrimaryInstagramAccountForCampaigns(userId: string): Promise<{
+    instagramAccountId: string;
+    username: string;
+    pageId: string;
+  }> {
+    try {
+      const primaryAccount = await this.instagramAccountModel
+        .findOne({
+          userId,
+          isPrimary: true,
+        })
+        .populate('pageId', 'pageName pageId')
+        .lean();
+
+      if (!primaryAccount) {
+        throw new NotFoundException(
+          `User ${userId} has no primary Instagram account. Please select an Instagram account first.`,
+        );
+      }
+
+      return {
+        instagramAccountId: primaryAccount.instagramAccountId,
+        username: primaryAccount.username,
+        pageId: primaryAccount.pageId,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get primary Instagram account for campaigns: user ${userId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async getInstagramSetupStatus(userId: string): Promise<{
+    hasInstagramAccounts: boolean;
+    instagramAccountCount: number;
+    pagesWithInstagramCount: number;
+    pagesWithoutInstagramCount: number;
+    pagesWithoutInstagram: Array<{
+      pageId: string;
+      pageName: string;
+    }>;
+    instagramAccounts: Array<{
+      instagramAccountId: string;
+      username: string;
+      pageId: string;
+      pageName?: string;
+      isPrimary: boolean;
+    }>;
+  }> {
+    try {
+      // Get user's Instagram accounts
+      const instagramAccounts = await this.instagramAccountModel.find({
+        userId,
+      });
+
+      // Get user's Facebook pages
+      const pages = await this.facebookPageModel.find({ userId });
+
+      // Check which pages have Instagram accounts
+      const pagesWithInstagram = new Set(
+        instagramAccounts.map((ig) => ig.pageId),
+      );
+
+      const pagesWithoutInstagram = pages.filter(
+        (page) => !pagesWithInstagram.has(page.pageId),
+      );
+
+      return {
+        hasInstagramAccounts: instagramAccounts.length > 0,
+        instagramAccountCount: instagramAccounts.length,
+        pagesWithInstagramCount: pagesWithInstagram.size,
+        pagesWithoutInstagramCount: pagesWithoutInstagram.length,
+        pagesWithoutInstagram: pagesWithoutInstagram.map((p) => ({
+          pageId: p.pageId,
+          pageName: p.pageName,
+        })),
+        instagramAccounts: instagramAccounts.map((ig) => ({
+          instagramAccountId: ig.instagramAccountId,
+          username: ig.username,
+          pageId: ig.pageId,
+          pageName: pages.find((p) => p.pageId === ig.pageId)?.pageName,
+          isPrimary: ig.isPrimary,
+        })),
+      };
+    } catch (error) {
+      this.logger.error('Failed to get Instagram setup status', error);
+      throw new InternalServerErrorException(
+        'Failed to get Instagram setup status',
+      );
+    }
+  }
+
+  async generateMetaPixelId(
+    adAccountId: string,
+    userId: string,
+    metaPixelName: string,
+  ): Promise<string> {
+    try {
+      // first check if ad account exists and belongs to the user
+      const adAccount = await this.facebookAdAccountModel.findOne({
+        accountId: adAccountId,
+        userId: userId,
+      });
+
+      if (!adAccount) {
+        throw new NotFoundException('Ad account not found');
+      }
+
+      const query = new URLSearchParams({
+        name: metaPixelName,
+      });
+
+      const pixelResponse = await this.graph.post<{ id: string }>(
+        `/${adAccountId}/adspixel?${query.toString()}`,
+      );
+
+      const metaPixelId = pixelResponse.data.id;
+
+      // update ad account model with the pixel id on the metaPixelId field
+      await this.facebookAdAccountModel.updateOne(
+        {
+          accountId: adAccountId,
+          userId: userId,
+        },
+        {
+          metaPixelId: metaPixelId,
+        },
+      );
+
+      return metaPixelId;
+    } catch (error) {
+      const message = error?.message ?? 'Something went wrong';
+      this.logger.error(`::: Error generating MetaPixel Id => ${error} :::`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Get user's primary ad account that's ready for campaign creation
+   * Used by Lambda functions for campaign creation
+   */
+  async getPrimaryAdAccountForCampaigns(userId: string): Promise<{
+    accountId: string;
+    pageId: string;
+    metaPixelId: string;
+    name?: string;
+    currency?: string;
+    integrationStatus: string;
+  }> {
+    try {
+      this.logger.debug(
+        `Getting primary ad account for campaigns: user ${userId}`,
+      );
+
+      // Get primary ad account that's ready for campaigns
+      const primaryAdAccount = await this.facebookAdAccountModel
+        .findOne({
+          userId,
+          isPrimary: true,
+          integrationStatus: 'READY_FOR_CAMPAIGNS', // Must be ready for campaigns
+        })
+        .lean();
+
+      // also fetch primary page for the campaign
+      const primaryPage = await this.facebookPageModel
+        .findOne({
+          userId,
+          _id: new mongoose.Types.ObjectId(
+            primaryAdAccount?.selectedPrimaryFacebookPageId,
+          ),
+          isPrimaryPage: true,
+        })
+        .lean();
+
+      // throw individual errors for clarity
+
+      if (!primaryAdAccount) {
+        throw new NotFoundException(
+          `User ${userId} has no ready Facebook ad account for campaigns. Please set up ad account first.`,
+        );
+      }
+
+      if (!primaryAdAccount.metaPixelId) {
+        throw new BadRequestException(
+          `User ${userId} has no configured Meta Pixel ID for ad account ${primaryAdAccount.accountId}.`,
+        );
+      }
+
+      if (!primaryPage) {
+        throw new NotFoundException(
+          `User ${userId} has no ready Facebook page for campaigns. Please select a page for Ads`,
+        );
+      }
+
+      return {
+        accountId: primaryAdAccount.accountId,
+        pageId: primaryPage._id.toString(),
+        metaPixelId: primaryAdAccount.metaPixelId,
+        name: primaryAdAccount.name,
+        currency: primaryAdAccount.currency,
+        integrationStatus: primaryAdAccount.integrationStatus,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to get primary ad account for campaigns: user ${userId}`,
+        error,
+      );
+      throw error;
     }
   }
 }

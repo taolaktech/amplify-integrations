@@ -5,3 +5,5 @@ export * from './facebook-page.schema';
 export * from './business.schema';
 export * from './facebook-ad-account.schema';
 export * from './user-token.schema';
+export * from './facebook-campaign.schema';
+export * from './instagram-account.schema';
