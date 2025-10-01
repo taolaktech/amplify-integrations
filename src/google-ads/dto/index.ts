@@ -273,6 +273,18 @@ export class GetCampaignByNameOrIdDto {
   id?: string;
 }
 
+export class GetCampaignMetricsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  campaignId: string;
+}
+
 export class GetConversionActionByNameOrIdDto {
   @ApiProperty()
   @IsString()

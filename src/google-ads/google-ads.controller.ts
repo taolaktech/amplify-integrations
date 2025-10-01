@@ -28,6 +28,7 @@ import {
   CreateGoogleAdsCustomerAssetDto,
   CreateGoogleAdsCampaignAssetDto,
   CreateGoogleAdsAssetDto,
+  GetCampaignMetricsDto,
 } from './dto';
 
 class Result {
@@ -205,6 +206,15 @@ export class GoogleAdsController {
   @Post('/campaigns/get-by-name-or-id')
   async getCampaignByNameOrId(@Body() dto: GetConversionActionByNameOrIdDto) {
     return await this.googleAdsService.getCampaignByNameOrId(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Get campaign metrics',
+    description: 'Retrieves campaign metrics.',
+  })
+  @Post('/campaigns/get-metrics')
+  async getCampaignMetrics(@Body() dto: GetCampaignMetricsDto) {
+    return await this.googleAdsService.getCampaignMetrics(dto);
   }
 
   @ApiOperation({

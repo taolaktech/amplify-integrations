@@ -12,6 +12,7 @@ import {
   CreateConversionActionDto,
   GenerateKeywordIdeasDto,
   GetCampaignByNameOrIdDto,
+  GetCampaignMetricsDto,
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
@@ -360,6 +361,13 @@ export class GoogleAdsService {
     }
   }
 
+  async getCampaignMetrics(dto: GetCampaignMetricsDto) {
+    return await this.googleAdsSearchApi.getCampaignMetrics(
+      dto.customerId,
+      dto.campaignId,
+    );
+  }
+
   async getAdGroupByNameOrId(dto: GetAdGroupByNameOrIdDto) {
     const { name, id, customerId, campaignResourceName } = dto;
     if (!name && !id) {
@@ -390,7 +398,7 @@ export class GoogleAdsService {
       adGroupId,
     );
   }
-  
+
   async createGoogleAdsAsset(
     dto: CreateGoogleAdsAssetDto,
     options?: GoogleAdsResourceRequestOptions,
