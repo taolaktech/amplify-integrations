@@ -259,7 +259,6 @@ export class GoogleAdsSearchApiService {
         metrics.conversions,
         metrics.conversions_value,
         metrics.cost_micros,
-        metrics.clicks,
         metrics.ctr,
         metrics.average_cpc,
         metrics.conversions_from_interactions_rate,
