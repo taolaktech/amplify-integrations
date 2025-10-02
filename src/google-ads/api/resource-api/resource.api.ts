@@ -451,7 +451,7 @@ export class GoogleAdsResourceApiService {
 
       const campaign: Partial<GoogleAdsCampaign> = {
         name: body.name,
-        status: GoogleAdsCampaignStatus.PAUSED,
+        status: GoogleAdsCampaignStatus.ENABLED,
         campaignBudget: body.campaignBudget,
         advertisingChannelType: GoogleAdsAdvertisingChannelType.SEARCH,
         startDate: body.startDate.toISOString().split('T')[0],
