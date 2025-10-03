@@ -11,6 +11,11 @@ export class GetShopifyOAuthUrlDto {
   @IsString()
   @IsNotEmpty()
   userId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  redirect?: string;
 }
 
 export class GetProductsDto {
@@ -75,6 +80,22 @@ export class GetShopDto {
 }
 
 export class GetShopBrandingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  shop: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  scope: string;
+}
+export class GetOrdersDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

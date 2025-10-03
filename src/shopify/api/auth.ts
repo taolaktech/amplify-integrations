@@ -19,10 +19,14 @@ export class ShopifyAuthService {
     this.SHOPIFY_CLIENT_SECRET = this.config.get('SHOPIFY_CLIENT_SECRET');
   }
 
-  getShopifyOAuthUrl(params: { shop: string; userId: string }) {
-    const { userId } = params;
+  getShopifyOAuthUrl(params: {
+    shop: string;
+    userId: string;
+    redirect?: string;
+  }) {
+    const { userId, redirect } = params;
     const shop = this.parseShopStrToLongName(params.shop);
-    const state = this.generateState(userId);
+    const state = this.generateState({ userId, redirect });
     const clientId = this.config.get('SHOPIFY_CLIENT_ID');
     const API_URL = this.config.get('API_URL');
     const redirectUri = `${API_URL}/api/shopify/auth/callback`;
@@ -99,10 +103,16 @@ export class ShopifyAuthService {
     return isValid;
   }
 
-  private generateState(userId: string) {
+  private generateState({
+    userId,
+    redirect,
+  }: {
+    userId: string;
+    redirect?: string;
+  }) {
     // sign jwt with the customerId
     const token = this.jwtService.sign(
-      { userId },
+      { userId, redirect },
       {
         secret: this.config.get('JWT_SECRET'),
       },
@@ -112,7 +122,10 @@ export class ShopifyAuthService {
 
   private verifyState(state: string) {
     try {
-      const decoded = this.jwtService.verify<{ userId: string }>(state, {
+      const decoded = this.jwtService.verify<{
+        userId: string;
+        redirect?: string;
+      }>(state, {
         secret: this.config.get('JWT_SECRET'),
       });
 
