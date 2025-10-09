@@ -23,6 +23,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BusinessDoc, ShopifyAccountDoc, UserDoc } from 'src/database/schema';
 import {
+  getOrdersCountQuery,
+  getOrdersQuery,
   getProductsByIdQuery,
   getProductsQuery,
   getShopQuery,
@@ -231,6 +233,150 @@ export class ShopifyGraphqlAdminApi {
         throw new BadRequestException(error.message);
       }
       throw error;
+    }
+  }
+
+  async getOrders(
+    params: {
+      shop: string;
+      accessToken: string;
+      scope: string;
+    },
+    query?: {
+      first?: number;
+      after?: string;
+      last?: number;
+      before?: string;
+      query?: string;
+    },
+  ) {
+    try {
+      if (query?.first && query?.last) {
+        throw new BadRequestException('Cannot use first and last together');
+      }
+
+      const { shop, accessToken, scope } = params;
+
+      let first = 10;
+      let paramsDefinition = '';
+      let ordersParams = '';
+
+      if (!query?.first && !query?.last) {
+        first = 10;
+        paramsDefinition = '$first: Int!';
+        ordersParams = 'first: $first';
+      }
+
+      const variables: {
+        first?: number;
+        after?: string;
+        last?: number;
+        before?: string;
+        query?: string;
+      } = { first };
+
+      if (query?.first) {
+        first = query.first;
+        variables['first'] = query.first;
+        paramsDefinition = '$first: Int!';
+        ordersParams = 'first: $first';
+      }
+
+      if (query?.after) {
+        variables['after'] = query.after;
+        paramsDefinition = `${paramsDefinition}, $after: String`;
+        ordersParams = `${ordersParams}, after: $after`;
+      }
+
+      if (query?.last) {
+        variables['last'] = query.last;
+        variables['first'] = undefined;
+        paramsDefinition = `$last: Int`;
+        ordersParams = `last: $last`;
+      }
+
+      if (query?.before) {
+        variables['before'] = query.before;
+        paramsDefinition = `${paramsDefinition}, $before: String`;
+        ordersParams = `${ordersParams}, before: $before`;
+      }
+
+      if (query?.query) {
+        variables['query'] = query.query;
+        paramsDefinition = `${paramsDefinition}, $query: String`;
+        ordersParams = `${ordersParams}, query: $query`;
+      }
+
+      const client = this.createShopifyClientSession({
+        shop,
+        accessToken,
+        scope,
+      });
+
+      const q = getOrdersQuery(paramsDefinition, ordersParams);
+
+      const data = await client.query<{ data: any }>({
+        data: {
+          query: q,
+          variables,
+        },
+      });
+
+      return data;
+    } catch (error: unknown) {
+      if (error instanceof GraphqlQueryError) {
+        throw new BadRequestException(error.message);
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async getOrdersCount(
+    params: {
+      shop: string;
+      accessToken: string;
+      scope: string;
+    },
+    query?: {
+      query?: string;
+    },
+  ) {
+    try {
+      const { shop, accessToken, scope } = params;
+      let paramsDefinition = '';
+      let ordersParams = '';
+
+      const variables: {
+        query?: string;
+      } = {};
+
+      if (query?.query) {
+        variables['query'] = query?.query;
+        paramsDefinition = `($query: String)`;
+        ordersParams = `(query: $query)`;
+      }
+
+      const client = this.createShopifyClientSession({
+        shop,
+        accessToken,
+        scope,
+      });
+
+      const q = getOrdersCountQuery(paramsDefinition, ordersParams);
+
+      const data = await client.query<{ data: any }>({
+        data: {
+          query: q,
+          variables,
+        },
+      });
+
+      return data;
+    } catch (error: unknown) {
+      if (error instanceof GraphqlQueryError) {
+        throw new BadRequestException(error.message);
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
     }
   }
 }
