@@ -19,6 +19,7 @@ import {
 } from './facebook-campaign-data.service';
 import * as countries from 'i18n-iso-countries';
 import { FacebookPage, FacebookAdAccount } from 'src/database/schema';
+import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 
 @Injectable()
 export class FacebookCampaignService {
@@ -36,6 +37,7 @@ export class FacebookCampaignService {
     private facebookAdAccountModel: Model<FacebookAdAccount>,
     private facebookMarketingApiService: FacebookBusinessManagerService,
     private facebookCampaignDataService: FacebookCampaignDataService,
+    private facebookAuthService: FacebookAuthService,
   ) {
     this.sandboxAdAccountId = process.env.SANDBOX_AD_ACCOUNT_ID as string; //Load sandbox ID
   }
@@ -220,7 +222,20 @@ export class FacebookCampaignService {
       const dailyBudgetInCents = facebookCampaign.dailyBudget; // Use the already calculated daily budget in cents
 
       // Build targeting object from original campaign data
-      const targeting = this.buildFacebookTargeting(originalCampaignData);
+      const targeting = this.buildFacebookTargeting(
+        originalCampaignData,
+        originalCampaignData.platforms,
+      );
+
+      // If Instagram is included, get the Instagram actor ID for later use
+      let instagramActorId;
+      if (originalCampaignData.platforms.includes('INSTAGRAM')) {
+        const primaryInstagramAccount =
+          await this.facebookAuthService.getPrimaryInstagramAccountForCampaigns(
+            facebookCampaign.userId,
+          );
+        instagramActorId = primaryInstagramAccount.instagramAccountId;
+      }
 
       // Create the single Ad Set via API
       const adSetResponse = await this.facebookMarketingApiService.createAdSet(
@@ -230,6 +245,8 @@ export class FacebookCampaignService {
         dailyBudgetInCents,
         targeting,
         userMetaPixelId, //  Pass the user's pixel ID here
+        originalCampaignData.startDate,
+        originalCampaignData.endDate,
       );
 
       this.logger.debug(
@@ -253,6 +270,7 @@ export class FacebookCampaignService {
         {
           $set: {
             adSets: [adSetData], // Store as an array with one element
+            instagramActorId,
             processingStatus: 'ADSETS_CREATED', // Mark this step as complete
             failedStep: null,
             errorMessage: null,
@@ -292,7 +310,10 @@ export class FacebookCampaignService {
    * Helper method to build Facebook targeting object from CampaignDataFromLambda.
    * This is where we interpret the `location` data.
    */
-  private buildFacebookTargeting(campaignData: CampaignDataFromLambda): any {
+  private buildFacebookTargeting(
+    campaignData: CampaignDataFromLambda,
+    platforms: string[],
+  ): any {
     const normalizedCountryCodes = campaignData.location
       .map((loc) => this.normalizeCountryCode(loc.country))
       .filter((code) => code !== null);
@@ -311,7 +332,7 @@ export class FacebookCampaignService {
       // For now, stick to countries.
     };
 
-    return {
+    const targeting: any = {
       geo_locations: geoLocations,
       // age_min: 18, // Default min age
       // age_max: 65, // Default max age
@@ -320,6 +341,29 @@ export class FacebookCampaignService {
       // behavior targeting can also be added here
       // For Advantage+ Creative, often broader targeting is preferred initially.
     };
+
+    if (platforms.map((plt) => plt.toUpperCase()).includes('INSTAGRAM')) {
+      targeting.publisher_platforms = targeting.publisher_platforms || [];
+      targeting.publisher_platforms.push('instagram');
+      targeting.instagram_positions = [
+        'stream',
+        'story',
+        'explore',
+        'reels',
+        'explore_home',
+      ];
+    }
+
+    // If no platforms specified, default to Facebook
+    if (
+      !targeting.publisher_platforms ||
+      targeting.publisher_platforms.length === 0
+    ) {
+      targeting.publisher_platforms = ['facebook'];
+      targeting.facebook_positions = ['feed', 'right_hand_column'];
+    }
+
+    return targeting;
   }
 
   /**
@@ -395,6 +439,19 @@ export class FacebookCampaignService {
           (c) => c.channel.toLowerCase() === 'facebook',
         );
 
+        const instagramCreatives = product.creatives.filter(
+          (c) => c.channel.toLowerCase() === 'instagram',
+        );
+
+        for (const creative of instagramCreatives) {
+          this.logger.debug(`"creatives to parse`, {
+            initialCreatives: product.creatives,
+            creativeToParse: creative,
+          });
+          const url = this.parseCreativeDataUrl(creative.data);
+          if (url) allImageUrls.add(url);
+        }
+
         for (const creative of facebookCreatives) {
           this.logger.debug(`"creatives to parse`, {
             initialCreatives: product.creatives,
@@ -433,6 +490,28 @@ export class FacebookCampaignService {
 
       // TODO: Fetch and add instagram_user_id here for Instagram placements
 
+      // ==================== INSTAGRAM SUPPORT ====================
+      // Check if Instagram is included in the campaign platforms
+      let instagramActorId;
+      if (
+        campaignData.platforms &&
+        campaignData.platforms.includes('INSTAGRAM')
+      ) {
+        // Get Instagram actor ID from the campaign document (stored during ad set creation)
+        instagramActorId = facebookCampaign.instagramActorId;
+
+        if (!instagramActorId) {
+          throw new BadRequestException(
+            'Instagram is selected as a platform but no Instagram actor ID was found in the campaign.',
+          );
+        }
+
+        this.logger.debug(
+          `Using Instagram actor ID: ${instagramActorId} for creative creation`,
+        );
+      }
+      // ==================== END ====================
+
       // 4. Call the API to create the single flexible creative
       const creativeName = `Amplify Flexible Creative - ${campaignData.campaignId}`;
       const creativeResponse =
@@ -441,6 +520,7 @@ export class FacebookCampaignService {
           creativeName,
           assetFeedSpec,
           pageId as string,
+          instagramActorId,
         );
 
       this.logger.debug(

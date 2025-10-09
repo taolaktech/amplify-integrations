@@ -239,6 +239,9 @@ export class FacebookCampaign {
     required: String,
   })
   metaPixelId: string;
+
+  @Prop({ required: false })
+  instagramActorId?: string;
 }
 
 export const FacebookCampaignSchema =

@@ -414,6 +414,7 @@ export class FacebookAuthController {
         body.adAccountId,
         body.pageId,
         body.metaPixelId,
+        body.instagramAccountId,
       );
 
     return {

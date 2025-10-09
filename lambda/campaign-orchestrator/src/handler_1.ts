@@ -94,7 +94,6 @@ interface CampaignDataRequest {
       data: string[];
     }>;
   }>;
-  instagramAccountId: string; // Required for Instagram-only campaigns
 }
 
 interface CampaignDataResponse {
@@ -103,16 +102,18 @@ interface CampaignDataResponse {
   success: boolean;
 }
 
-interface InstagramAccountData {
-  instagramAccountId: string;
-  username: string;
+interface AdAccountData {
+  accountId: string;
   pageId: string;
-  adAccountId: string; // The Facebook Ad Account associated with this Instagram account
+  metaPixelId: string;
+  name: string;
+  currency: string;
+  integrationStatus: string;
 }
 
-interface InstagramAccountDataResponse {
-  success: boolean;
-  data: InstagramAccountData;
+interface AdAccountDataResponse {
+  sucees: boolean;
+  data: AdAccountData;
 }
 
 interface SqsBody {
@@ -138,12 +139,10 @@ async function getCampaignData(campaignId: string): Promise<CampaignData> {
   return response.data.data;
 }
 
-async function getInstagramAccount(
-  userId: string,
-): Promise<InstagramAccountData> {
-  console.log(`Fetching Instagram account for userId: ${userId}`);
-  const response = await integrationsApi.get<InstagramAccountDataResponse>(
-    `/facebook/internal/users/${userId}/primary-instagram-account`,
+async function getAdAccount(userId: string): Promise<AdAccountData> {
+  console.log(`Fetching ad account for userId: ${userId}`);
+  const response = await integrationsApi.get<AdAccountDataResponse>(
+    `/facebook/internal/users/${userId}/primary-ad-account`,
   );
   return response.data.data;
 }
@@ -151,9 +150,8 @@ async function getInstagramAccount(
 async function callInitializeStep(payload: {
   campaignData: CampaignDataRequest;
   userAdAccountId: string;
-  instagramAccountId: string;
 }): Promise<StepResponse> {
-  console.log('Executing STEP: INITIALIZE for Instagram campaign');
+  console.log('Executing STEP: INITIALIZE');
   const response = await integrationsApi.post(
     '/facebook-campaigns/initialize',
     payload,
@@ -163,7 +161,7 @@ async function callInitializeStep(payload: {
 }
 
 async function callCreateAdsetsStep(campaignId: string): Promise<StepResponse> {
-  console.log('Executing STEP: CREATE_ADSETS for Instagram campaign');
+  console.log('Executing STEP: CREATE_ADSETS');
   const response = await integrationsApi.post(
     `/facebook-campaigns/${campaignId}/create-adsets`,
   );
@@ -174,7 +172,7 @@ async function callCreateAdsetsStep(campaignId: string): Promise<StepResponse> {
 async function callCreateCreativesStep(
   campaignId: string,
 ): Promise<StepResponse> {
-  console.log('Executing STEP: CREATE_CREATIVES for Instagram campaign');
+  console.log('Executing STEP: CREATE_CREATIVES');
   const response = await integrationsApi.post(
     `/facebook-campaigns/${campaignId}/create-creatives`,
   );
@@ -183,7 +181,7 @@ async function callCreateCreativesStep(
 }
 
 async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
-  console.log('Executing STEP: CREATE_ADS for Instagram campaign');
+  console.log('Executing STEP: CREATE_ADS');
   const response = await integrationsApi.post(
     `/facebook-campaigns/${campaignId}/create-ads`,
   );
@@ -192,7 +190,7 @@ async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
 }
 
 async function callLaunchStep(campaignId: string): Promise<StepResponse> {
-  console.log('Executing STEP: LAUNCH for Instagram campaign');
+  console.log('Executing STEP: LAUNCH');
   const response = await integrationsApi.post(
     `/facebook-campaigns/${campaignId}/launch`,
   );
@@ -203,17 +201,14 @@ async function callLaunchStep(campaignId: string): Promise<StepResponse> {
 // --- Lambda Handler ---
 
 export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
-  console.log(
-    'Received SQS event for Instagram campaign orchestration with records:',
-    event.Records.length,
-  );
+  console.log('Received SQS event with records:', event.Records.length);
 
   for (const record of event.Records) {
     let campaignId: string | null = null;
     try {
       console.log('Processing message:', record.messageId);
       const body: SqsBody = JSON.parse(record.body);
-      campaignId = body.campaignId;
+      campaignId = body.campaignId; // Assign campaignId for logging in catch block
 
       if (!campaignId) {
         throw new Error('Message is missing required "campaignId" field.');
@@ -233,25 +228,12 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
           `Campaign data not found for campaignId: ${campaignId}`,
         );
       }
+      const adAccountData = await getAdAccount(campaignData.createdBy);
 
-      // 2. Get Instagram account for the user
-      const instagramAccount = await getInstagramAccount(
-        campaignData.createdBy,
-      );
-      if (!instagramAccount) {
-        throw new Error(
-          `No Instagram account found for user ${campaignData.createdBy}`,
-        );
+      if (Object.keys(adAccountData).length < 1) {
+        throw new Error('User has no ad account');
       }
 
-      console.log(
-        `Found Instagram account: ${instagramAccount.instagramAccountId} (${instagramAccount.username})`,
-      );
-      console.log(
-        `Associated Facebook Ad Account: ${instagramAccount.adAccountId}`,
-      );
-
-      // 3. Prepare campaign data for Instagram-only campaign
       const {
         _id,
         createdBy,
@@ -263,33 +245,28 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
         ...rest
       } = campaignData;
 
-      // 4. Build the initialize payload for Instagram campaign
+      // strip out other values from platforms leaving only facebook
+      // let platformWithFacebookOnly = [];
+
       const initializePayload = {
         campaignData: {
           ...rest,
-          platforms: ['INSTAGRAM'], // Force Instagram-only
-          type: `Instagram Market Launch`,
+          platforms: ['FACEBOOK'],
+          // set a random name on property type on each run
+          type: `Market Launch`,
           campaignId: _id,
           userId: createdBy,
-          pageId: instagramAccount.pageId, // Facebook Page associated with Instagram account
-          metaPixelId: '', // Instagram campaigns may not use Meta Pixel, or we can get it from the ad account
-          instagramAccountId: instagramAccount.instagramAccountId, // Required for Instagram campaigns
+          pageId: adAccountData.pageId,
+          metaPixelId: adAccountData.metaPixelId,
         },
-        userAdAccountId: instagramAccount.adAccountId, // Facebook Ad Account associated with Instagram account
-        instagramAccountId: instagramAccount.instagramAccountId,
+        userAdAccountId: adAccountData.accountId,
       };
 
-      // 5. Log the payload for debugging
+      // 2. Begin Sequential Step Execution
+      console.log('Beginning sequential step execution...');
       console.log(
-        `Initializing Instagram campaign with the following request body => ${JSON.stringify(initializePayload, null, 2)}`,
+        `Initializing campaign with the following request body => ${JSON.stringify(initializePayload, null, 2)}`,
       );
-
-      // 6. Begin Sequential Step Execution for Instagram campaign
-      console.log(
-        'Beginning sequential step execution for Instagram campaign...',
-      );
-      console.log(`Campaign platforms: ${JSON.stringify(['INSTAGRAM'])}`);
-
       await callInitializeStep(initializePayload);
       await callCreateAdsetsStep(campaignId);
       await callCreateCreativesStep(campaignId);
@@ -297,12 +274,12 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
       await callLaunchStep(campaignId);
 
       console.log(
-        `Successfully completed all steps for Instagram campaign ${campaignId}.`,
+        `Successfully completed all steps for campaign ${campaignId}.`,
       );
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message;
       console.error(
-        `Error processing Instagram campaign ${campaignId || record.messageId}:`,
+        `Error processing campaign ${campaignId || record.messageId}:`,
         errorMessage,
       );
       console.error(
