@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { FacebookCampaignService } from '../services/facebook-campaign.service';
@@ -17,6 +18,7 @@ import {
 import { RetryStepDto } from '../dtos/retry-step.dto';
 import { Public } from '../../auth/decorators';
 import { InitializeCampaignDto } from '../dtos/campaign.dto';
+import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 
 // DTOs for request/response
 // export class InitializeCampaignDto {
@@ -42,6 +44,7 @@ export class FacebookCampaignController {
   constructor(
     private readonly facebookCampaignService: FacebookCampaignService,
     private readonly facebookCampaignDataService: FacebookCampaignDataService,
+    private readonly facebookAuthService: FacebookAuthService,
   ) {}
 
   @Post('initialize')
@@ -66,6 +69,31 @@ export class FacebookCampaignController {
     this.logger.debug(
       `Initializing Facebook campaign: ${dto.campaignData.campaignId}`,
     );
+
+    // Validate that the user has the required platforms integrated
+    if (dto.campaignData.platforms.includes('INSTAGRAM')) {
+      const instagramSetup =
+        await this.facebookAuthService.getInstagramSetupStatus(
+          dto.campaignData.userId,
+        );
+      if (!instagramSetup.hasInstagramAccounts) {
+        throw new BadRequestException(
+          'User has no Instagram accounts connected. Please connect an Instagram account first.',
+        );
+      }
+    }
+
+    if (dto.campaignData.platforms.includes('FACEBOOK')) {
+      const primaryAdAccount =
+        await this.facebookAuthService.getPrimaryAdAccountForCampaigns(
+          dto.campaignData.userId,
+        );
+      if (!primaryAdAccount) {
+        throw new BadRequestException(
+          'User has no primary Facebook ad account. Please select an ad account first.',
+        );
+      }
+    }
 
     // Step 1: Get or create the Facebook campaign tracking document in our DB.
     // This is idempotent and safe to call multiple times.

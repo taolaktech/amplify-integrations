@@ -314,6 +314,8 @@ export class FacebookBusinessManagerService {
     dailyBudget: number,
     targeting: any,
     userMetaPixelId: string,
+    startDate: string,
+    endDate: string,
   ): Promise<any> {
     try {
       // adAccountId = this.getEffectiveAdAccountId(adAccountId);
@@ -341,6 +343,8 @@ export class FacebookBusinessManagerService {
         // No bid_amount is needed with LOWEST_COST_WITHOUT_CAP
         // tells facebook this Ad set is configured to handle dynamic creative
         is_dynamic_creative: true,
+        start_time: startDate,
+        end_time: endDate,
       });
       return response.data;
     } catch (error) {
@@ -545,58 +549,47 @@ export class FacebookBusinessManagerService {
     instagramAccountId?: string, // optional parameter
   ): Promise<any> {
     try {
-      // adAccountId = this.getEffectiveAdAccountId(adAccountId);
+      this.logger.debug(`Creating flexible creative '${name}'`);
 
       const nodeEnv = process.env.NODE_ENV || 'development';
+      const creativePayload: any = { name };
 
-      // let creativePayload: any;
+      if (nodeEnv === 'development') {
+        this.logger.debug(
+          'In development mode, creating creative from existing post ID.',
+        );
+        if (instagramAccountId) {
+          // For Instagram dev campaigns, use the provided ID of a manually created Instagram post.
+          this.logger.debug('Using Instagram post ID for creative.');
+          creativePayload.source_instagram_media_id = '18069086954226562';
+          creativePayload.page_id = pageId;
+          creativePayload.instagram_user_id = instagramAccountId;
+        } else {
+          // For Facebook-only dev campaigns, use the existing hardcoded Page post ID.
+          this.logger.debug('Using Facebook Page post ID for creative.');
+          creativePayload.object_story_id =
+            '712111348642385_122138947832873268';
+        }
+      } else {
+        // For production, build the creative from scratch using the asset feed and object story spec.
+        this.logger.debug('In production mode, creating creative from spec.');
+        const objectStorySpec: Record<string, any> = {
+          page_id: pageId,
+        };
 
-      // if (nodeEnv === 'development' || nodeEnv === 'test') {
-      //   // Simplified payload for sandbox - no object_story_spec
-      //   creativePayload = {
-      //     name,
-      //     asset_feed_spec: assetFeedSpec,
-      //   };
-      // } else {
-      //   // Full payload for production
-      //   const objectStorySpec: Record<string, any> = {
-      //     page_id: pageId,
-      //   };
-
-      //   if (instagramAccountId) {
-      //     objectStorySpec.instagram_user_id = instagramAccountId;
-      //   }
-
-      //   creativePayload = {
-      //     name,
-      //     asset_feed_spec: assetFeedSpec,
-      //     object_story_spec: objectStorySpec,
-      //   };
-      // }
-
-      this.logger.debug(`Creating flexible creative '${name}'`);
-      const objectStorySpec: Record<string, any> = {
-        page_id: pageId,
-      };
-
-      if (instagramAccountId) {
-        objectStorySpec.instagram_user_id = instagramAccountId;
+        if (instagramAccountId) {
+          objectStorySpec.instagram_user_id = instagramAccountId;
+        }
+        creativePayload.asset_feed_spec = assetFeedSpec;
+        creativePayload.object_story_spec = objectStorySpec;
       }
 
-      const response = await this.graph.post(`/${adAccountId}/adcreatives`, {
-        name,
-        asset_feed_spec: assetFeedSpec,
-        ...(nodeEnv === 'development'
-          ? {
-              object_story_id: '712111348642385_122138947832873268',
-            }
-          : {
-              object_story_spec: objectStorySpec,
-            }),
+      this.logger.debug('Creative Payload:', creativePayload);
 
-        // object_story_spec: objectStorySpec,
-        // ...creativePayload,
-      });
+      const response = await this.graph.post(
+        `/${adAccountId}/adcreatives`,
+        creativePayload,
+      );
       return response.data;
     } catch (error) {
       this.logger.error(
@@ -608,6 +601,81 @@ export class FacebookBusinessManagerService {
       );
     }
   }
+
+  /**
+   * Creates a single "flexible" ad creative using asset_feed_spec.
+   */
+  // async createFlexibleCreative(
+  //   adAccountId: string,
+  //   name: string,
+  //   assetFeedSpec: any,
+  //   pageId: string,
+  //   instagramAccountId?: string, // optional parameter
+  // ): Promise<any> {
+  //   try {
+  //     // adAccountId = this.getEffectiveAdAccountId(adAccountId);
+
+  //     const nodeEnv = process.env.NODE_ENV || 'development';
+
+  //     // let creativePayload: any;
+
+  //     // if (nodeEnv === 'development' || nodeEnv === 'test') {
+  //     //   // Simplified payload for sandbox - no object_story_spec
+  //     //   creativePayload = {
+  //     //     name,
+  //     //     asset_feed_spec: assetFeedSpec,
+  //     //   };
+  //     // } else {
+  //     //   // Full payload for production
+  //     //   const objectStorySpec: Record<string, any> = {
+  //     //     page_id: pageId,
+  //     //   };
+
+  //     //   if (instagramAccountId) {
+  //     //     objectStorySpec.instagram_user_id = instagramAccountId;
+  //     //   }
+
+  //     //   creativePayload = {
+  //     //     name,
+  //     //     asset_feed_spec: assetFeedSpec,
+  //     //     object_story_spec: objectStorySpec,
+  //     //   };
+  //     // }
+
+  //     this.logger.debug(`Creating flexible creative '${name}'`);
+  //     const objectStorySpec: Record<string, any> = {
+  //       page_id: pageId,
+  //     };
+
+  //     if (instagramAccountId) {
+  //       objectStorySpec.instagram_user_id = instagramAccountId;
+  //     }
+
+  //     const response = await this.graph.post(`/${adAccountId}/adcreatives`, {
+  //       name,
+  //       asset_feed_spec: assetFeedSpec,
+  //       ...(nodeEnv === 'development' && !instagramAccountId
+  //         ? {
+  //             object_story_id: '712111348642385_122138947832873268',
+  //           }
+  //         : {
+  //             object_story_spec: objectStorySpec,
+  //           }),
+
+  //       // object_story_spec: objectStorySpec,
+  //       // ...creativePayload,
+  //     });
+  //     return response.data;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       'Facebook API Error: Failed to create flexible creative',
+  //       error.response?.data,
+  //     );
+  //     throw new InternalServerErrorException(
+  //       `Facebook API Error: ${error.response?.data?.error?.message}`,
+  //     );
+  //   }
+  // }
 
   /**
    * Creates an Ad by linking an Ad Set and a Creative.

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
+import { Industry } from 'src/enums/industry';
 
 export type BusinessDoc = HydratedDocument<Business>;
 
@@ -58,12 +59,75 @@ class ShippingLocations {
 }
 
 @Schema({ _id: false })
-class Colors {
+class ShopifyIntegration {
+  @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
+  shopifyAccount: Types.ObjectId;
+}
+
+@Schema({ _id: false })
+class GoogleAdsConversionAction {
   @Prop()
-  primary: string[];
+  resourceName: string;
 
   @Prop()
-  secondary: string[];
+  id: string;
+
+  @Prop()
+  tag?: string;
+
+  @Prop()
+  label?: string;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  tagSnippets: any[];
+}
+
+@Schema({ _id: false })
+class GoogleAdsIntegration {
+  @Prop()
+  customerId: string;
+
+  @Prop()
+  customerName: string;
+
+  @Prop()
+  customerResourceName: string;
+
+  @Prop()
+  conversionAction: GoogleAdsConversionAction;
+}
+
+@Schema({ _id: false })
+class FacebookIntegration {
+  @Prop()
+  adAccountId: string;
+
+  @Prop()
+  pageId: string;
+}
+
+@Schema({ _id: false })
+class InstagramIntegration {
+  @Prop()
+  adAccountId: string;
+
+  @Prop()
+  instagramAccountId: string;
+}
+
+@Schema({ _id: false })
+class Integrations {
+  @Prop()
+  shopify: ShopifyIntegration;
+
+  @Prop()
+  googleAds: GoogleAdsIntegration;
+
+  @Prop()
+  facebook: FacebookIntegration;
+
+  @Prop()
+  instagram: InstagramIntegration;
 }
 
 @Schema({ timestamps: true })
@@ -81,19 +145,22 @@ export class Business {
   website: string;
 
   @Prop()
-  logo: string;
+  logo?: string;
 
   @Prop()
-  coverImage: string;
+  logoKey?: string;
 
   @Prop()
-  colors: Colors;
-
-  @Prop()
-  industry: string;
+  industry: Industry;
 
   @Prop()
   companyRole: string;
+
+  @Prop()
+  contactEmail: string;
+
+  @Prop()
+  contactPhone: string;
 
   @Prop()
   teamSize: Range;
@@ -110,11 +177,20 @@ export class Business {
   @Prop()
   businessGoals: BusinessGoal;
 
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  shopifyBrandAssets: { [k: string]: any };
+
+  @Prop({ ref: 'brand-assets', type: [Types.ObjectId] })
+  brandAssets: Types.ObjectId[];
+
   @Prop()
   shippingLocations: ShippingLocations;
 
   @Prop({ ref: 'shopify-accounts', type: [Types.ObjectId], default: [] })
   shopifyAccounts: Types.ObjectId[];
+
+  @Prop()
+  integrations: Integrations;
 }
 
 export const BusinessSchema = SchemaFactory.createForClass(Business);

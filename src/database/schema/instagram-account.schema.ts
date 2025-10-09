@@ -1,6 +1,6 @@
 // instagram-account.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, HydratedDocument } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 export type InstagramAccountDocument = HydratedDocument<InstagramAccount>;
 
@@ -29,6 +29,10 @@ export class InstagramAccount {
 
   @Prop()
   accessToken?: string; // If needed for direct API calls
+
+  // field to store the associated Facebook Ad Account
+  @Prop()
+  associatedAdAccountId?: string;
 }
 
 export const InstagramAccountSchema =
