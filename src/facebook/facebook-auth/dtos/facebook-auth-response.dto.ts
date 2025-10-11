@@ -84,6 +84,32 @@ export class TokenStatusDto {
   daysUntilExpiry?: number;
 }
 
+export class InstagramAccountDto {
+  @ApiProperty({ example: '17841400000000000' })
+  instagramAccountId: string;
+
+  @ApiProperty({ example: 'mybusiness' })
+  username: string;
+
+  @ApiProperty({ example: 'BUSINESS', enum: ['BUSINESS', 'CREATOR'] })
+  accountType?: string;
+
+  @ApiProperty({ example: 1500 })
+  followersCount?: number;
+
+  @ApiProperty({ example: 42 })
+  mediaCount?: number;
+
+  @ApiProperty({ example: '123456789012345' })
+  pageId: string;
+
+  @ApiProperty({ example: 'My Business Page' })
+  pageName: string;
+
+  @ApiProperty({ example: false })
+  isPrimary: boolean;
+}
+
 export class OAuthCallbackDataDto {
   @ApiProperty({ type: [FacebookAdAccountDto] })
   adAccounts: FacebookAdAccountDto[];
@@ -91,11 +117,23 @@ export class OAuthCallbackDataDto {
   @ApiProperty({ type: [Object], description: 'Facebook pages data' })
   pages: any[];
 
+  @ApiProperty({ type: [InstagramAccountDto], required: false })
+  instagramAccounts?: InstagramAccountDto[];
+
   @ApiProperty({ example: true })
   tokenStored: boolean;
 
   @ApiProperty({ example: true })
   needsAdAccountSelection: boolean;
+
+  @ApiProperty({ example: false })
+  needsInstagramAccountSelection?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  hasInstagramAccounts?: boolean;
+
+  @ApiProperty({ example: 2, required: false })
+  pagesWithoutInstagram?: number;
 }
 
 export class AdAccountsListDataDto {
@@ -362,4 +400,117 @@ export class RemoveAccountResponse {
 
   @ApiProperty({ example: 'Ad account removed successfully' })
   message: string;
+}
+
+export class InstagramAccountsListDataDto {
+  @ApiProperty({ type: [InstagramAccountDto] })
+  instagramAccounts: InstagramAccountDto[];
+
+  @ApiProperty({ example: true })
+  hasPrimary: boolean;
+
+  @ApiProperty({ example: 2 })
+  total: number;
+}
+
+export class InstagramAccountsListResponse {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Instagram accounts retrieved successfully' })
+  message: string;
+
+  @ApiProperty({ type: InstagramAccountsListDataDto })
+  data: InstagramAccountsListDataDto;
+}
+
+export class PrimaryInstagramAccountDataDto {
+  @ApiProperty({ type: InstagramAccountDto })
+  account: InstagramAccountDto;
+}
+
+export class SelectPrimaryInstagramAccountDataDto {
+  @ApiProperty({ example: '17841400000000000' })
+  instagramAccountId: string;
+
+  @ApiProperty({ example: 'mybusiness' })
+  username: string;
+
+  @ApiProperty({ example: '123456789012345' })
+  pageId: string;
+
+  @ApiProperty({ example: 'My Business Page' })
+  pageName: string;
+}
+
+export class SelectPrimaryInstagramAccountResponse {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Primary Instagram account selected successfully' })
+  message: string;
+
+  @ApiProperty({ type: SelectPrimaryInstagramAccountDataDto })
+  data: SelectPrimaryInstagramAccountDataDto;
+}
+
+export class InstagramSetupStatusDataDto {
+  @ApiProperty({ example: true })
+  hasInstagramAccounts: boolean;
+
+  @ApiProperty({ example: 2 })
+  instagramAccountCount: number;
+
+  @ApiProperty({ example: 2 })
+  pagesWithInstagramCount: number;
+
+  @ApiProperty({ example: 1 })
+  pagesWithoutInstagramCount: number;
+
+  @ApiProperty({
+    type: [Object],
+    example: [
+      {
+        pageId: '123456789012345',
+        pageName: 'My Business Page',
+      },
+    ],
+  })
+  pagesWithoutInstagram: Array<{
+    pageId: string;
+    pageName: string;
+  }>;
+
+  @ApiProperty({
+    type: [Object],
+    example: [
+      {
+        instagramAccountId: '17841400000000000',
+        username: 'mybusiness',
+        pageId: '123456789012345',
+        pageName: 'My Business Page',
+        isPrimary: true,
+      },
+    ],
+  })
+  instagramAccounts: Array<{
+    instagramAccountId: string;
+    username: string;
+    pageId: string;
+    pageName?: string;
+    isPrimary: boolean;
+  }>;
+}
+
+export class InstagramSetupStatusResponse {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({
+    example: 'Found 2 Instagram account(s)',
+  })
+  message: string;
+
+  @ApiProperty({ type: InstagramSetupStatusDataDto })
+  data: InstagramSetupStatusDataDto;
 }

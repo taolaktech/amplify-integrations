@@ -38,6 +38,7 @@
     "axios": "^1.10.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "i18n-iso-countries": "^7.14.0",
     "googleapis": "^148.0.0",
     "luxon": "^3.6.1",
     "mongoose": "^8.13.2",

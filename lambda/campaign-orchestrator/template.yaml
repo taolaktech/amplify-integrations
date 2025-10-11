@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  campaign-orchestrator
+
+  AWS Lambda to orchestrate the creation of Facebook campaigns.
+
+Globals:
+  Function:
+    Timeout: 300 # 5 minutes, to accommodate the sequential workflow
+
+Parameters:
+  SqsQueueArn:
+    Type: String
+    Description: The ARN of the existing SQS queue to consume from (e.g., arn:aws:sqs:us-east-2:123456789012:facebook-campaign-queue).
+  AmplifyManagerApiUrl:
+    Type: String
+    Description: The base URL for the Amplify Manager internal API.
+  AmplifyIntegrationsApiUrl:
+    Type: String
+    Description: The base URL for the Amplify Integrations internal API.
+  InternalApiKey:
+    Type: String
+    Description: The shared internal API key for authenticating with the services.
+    NoEcho: true # This hides the value in the AWS console for security.
+
+Resources:
+  CampaignOrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: .
+      Handler: handler.main
+      Runtime: nodejs20.x
+      Architectures:
+        - arm64
+      MemorySize: 256
+      Environment:
+        Variables:
+          AMPLIFY_MANAGER_API_URL: !Ref AmplifyManagerApiUrl
+          AMPLIFY_INTEGRATIONS_API_URL: !Ref AmplifyIntegrationsApiUrl
+          INTERNAL_API_KEY: !Ref InternalApiKey
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !Ref SqsQueueArn
+            BatchSize: 1
+            Enabled: true
+      Policies:
+        - Statement:
+            - Effect: "Allow"
+              Action:
+                - "sqs:ReceiveMessage"
+                - "sqs:DeleteMessage"
+                - "sqs:GetQueueAttributes"
+              Resource: !Ref SqsQueueArn
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: ['src/handler.ts']
+        Format: cjs # Use CommonJS format for compatibility with axios
+        Minify: true
+
+Outputs:
+  CampaignOrchestratorFunctionName:
+    Description: 'The name of the Campaign Orchestrator Lambda function'
+    Value: !Ref CampaignOrchestratorFunction
+  CampaignOrchestratorFunctionArn:
+    Description: 'The ARN of the Campaign Orchestrator Lambda function'
+    Value: !GetAtt CampaignOrchestratorFunction.Arn
