@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SelectPrimaryAdAccountDto {
@@ -9,4 +9,15 @@ export class SelectPrimaryAdAccountDto {
   @IsString()
   @IsNotEmpty()
   adAccountId: string;
+
+  @IsString()
+  pageId: string; // The Facebook Page ID
+
+  @IsOptional()
+  @IsString()
+  metaPixelId?: string; // user provides this after generating metaPixelId
+
+  @IsString()
+  @IsOptional()
+  instagramAccountId?: string; // instagram Account ID
 }

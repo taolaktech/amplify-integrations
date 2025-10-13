@@ -1,0 +1,20 @@
+{
+  "name": "campaign-orchestrator",
+  "version": "1.0.0",
+  "description": "AWS Lambda to orchestrate Facebook campaign creation.",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Nathaniel Babalola",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "esbuild": "^0.17.19"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.138",
+    "@types/node": "^20.14.2",
+    "typescript": "^5.4.5"
+  }
+}

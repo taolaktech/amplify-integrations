@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+import { Industry } from 'src/enums/industry';
 
 export type BusinessDoc = HydratedDocument<Business>;
 
@@ -97,12 +98,36 @@ class GoogleAdsIntegration {
 }
 
 @Schema({ _id: false })
+class FacebookIntegration {
+  @Prop()
+  adAccountId: string;
+
+  @Prop()
+  pageId: string;
+}
+
+@Schema({ _id: false })
+class InstagramIntegration {
+  @Prop()
+  adAccountId: string;
+
+  @Prop()
+  instagramAccountId: string;
+}
+
+@Schema({ _id: false })
 class Integrations {
   @Prop()
   shopify: ShopifyIntegration;
 
   @Prop()
   googleAds: GoogleAdsIntegration;
+
+  @Prop()
+  facebook: FacebookIntegration;
+
+  @Prop()
+  instagram: InstagramIntegration;
 }
 
 @Schema({ timestamps: true })
@@ -126,7 +151,7 @@ export class Business {
   logoKey?: string;
 
   @Prop()
-  industry: string;
+  industry: Industry;
 
   @Prop()
   companyRole: string;
