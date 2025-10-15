@@ -90,6 +90,29 @@ export class GoogleAdsSearchApiService {
     return await this.googleAdsSearch(customerId, query);
   }
 
+  async getCampaignMetrics(customerId: string, campaignId: string) {
+    const query = `
+      SELECT
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.conversions,
+        metrics.conversions_value,
+        metrics.cost_micros,
+        metrics.clicks,
+        metrics.ctr,
+        metrics.average_cpc,
+        metrics.conversions_from_interactions_rate,
+        metrics.value_per_conversion
+      FROM campaign
+      WHERE campaign.id='${campaignId}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
   async getConversionActions(customerId: string) {
     const query = `
       SELECT
@@ -198,6 +221,48 @@ export class GoogleAdsSearchApiService {
         ad_group.name,
         ad_group.status,
         ad_group.campaign
+      FROM ad_group
+      WHERE ad_group.campaign = '${campaignResourceName}'
+      AND ad_group.id = '${adGroupId}'
+    `;
+
+    return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getAdGroupMetrics(
+    customerId: string,
+    campaignResourceName: string,
+    adGroupId: string,
+  ) {
+    const query = `
+      SELECT
+        ad_group.id,
+        ad_group.name,
+        ad_group.status,
+        ad_group.campaign,
+        ad_group.type,
+        ad_group.ad_rotation_mode,
+        ad_group.cpc_bid_micros,
+        ad_group.effective_cpc_bid_micros,
+        ad_group.tracking_url_template,
+        ad_group.cpm_bid_micros,
+        ad_group.target_cpa_micros,
+        ad_group.cpv_bid_micros,
+        ad_group.target_cpm_micros,
+        ad_group.percent_cpc_bid_micros,
+        ad_group.fixed_cpm_micros,
+        ad_group.target_cpv_micros,
+        ad_group.effective_target_cpa_micros,
+        ad_group.effective_target_roas,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.conversions,
+        metrics.conversions_value,
+        metrics.cost_micros,
+        metrics.ctr,
+        metrics.average_cpc,
+        metrics.conversions_from_interactions_rate,
+        metrics.value_per_conversion
       FROM ad_group
       WHERE ad_group.campaign = '${campaignResourceName}'
       AND ad_group.id = '${adGroupId}'

@@ -12,9 +12,14 @@ import {
   CreateConversionActionDto,
   GenerateKeywordIdeasDto,
   GetCampaignByNameOrIdDto,
+  GetCampaignMetricsDto,
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
+  GetAdGroupMetricsDto,
+  CreateGoogleAdsCustomerAssetDto,
+  CreateGoogleAdsCampaignAssetDto,
+  CreateGoogleAdsAssetDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -356,6 +361,13 @@ export class GoogleAdsService {
     }
   }
 
+  async getCampaignMetrics(dto: GetCampaignMetricsDto) {
+    return await this.googleAdsSearchApi.getCampaignMetrics(
+      dto.customerId,
+      dto.campaignId,
+    );
+  }
+
   async getAdGroupByNameOrId(dto: GetAdGroupByNameOrIdDto) {
     const { name, id, customerId, campaignResourceName } = dto;
     if (!name && !id) {
@@ -375,5 +387,42 @@ export class GoogleAdsService {
         name!,
       );
     }
+  }
+
+  async getAdGroupMetrics(dto: GetAdGroupMetricsDto) {
+    const { adGroupId, customerId, campaignResourceName } = dto;
+
+    return await this.googleAdsSearchApi.getAdGroupMetrics(
+      customerId,
+      campaignResourceName,
+      adGroupId,
+    );
+  }
+
+  async createGoogleAdsAsset(
+    dto: CreateGoogleAdsAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createAsset(body, options);
+  }
+
+  async createGoogleAdsCustomerAsset(
+    dto: CreateGoogleAdsCustomerAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCustomerAsset(body, options);
+  }
+
+  async createGoogleAdsCampaignAsset(
+    dto: CreateGoogleAdsCampaignAssetDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = dto;
+
+    return await this.googleAdsResourceApi.createCampaignAsset(body, options);
   }
 }

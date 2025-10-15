@@ -24,6 +24,11 @@ import {
   GetConversionActionByNameOrIdDto,
   GetBiddingStrategyByNameOrIdDto,
   GetAdGroupByNameOrIdDto,
+  GetAdGroupMetricsDto,
+  CreateGoogleAdsCustomerAssetDto,
+  CreateGoogleAdsCampaignAssetDto,
+  CreateGoogleAdsAssetDto,
+  GetCampaignMetricsDto,
 } from './dto';
 
 class Result {
@@ -83,6 +88,69 @@ export class GoogleAdsController {
   }
 
   @ApiOperation({
+    summary: 'Create an asset',
+    description: 'Creates a new asset.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createAsset(
+    @Body() dto: CreateGoogleAdsAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsAsset(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create a customer asset',
+    description: 'Creates a new customer asset like logo, business name etc.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Customer Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/customer-asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createCustomerAsset(
+    @Body() dto: CreateGoogleAdsCustomerAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsCustomerAsset(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create a campaign asset',
+    description: 'Creates a campaign asset like logo, business name etc.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Campaign Asset Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/campaign-asset/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createCampaignAsset(
+    @Body() dto: CreateGoogleAdsCampaignAssetDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createGoogleAdsCampaignAsset(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
     summary: 'Create a conversion action',
     description: 'Creates a new conversion action for tracking conversions.',
   })
@@ -138,6 +206,15 @@ export class GoogleAdsController {
   @Post('/campaigns/get-by-name-or-id')
   async getCampaignByNameOrId(@Body() dto: GetConversionActionByNameOrIdDto) {
     return await this.googleAdsService.getCampaignByNameOrId(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Get campaign metrics',
+    description: 'Retrieves campaign metrics.',
+  })
+  @Post('/campaigns/get-metrics')
+  async getCampaignMetrics(@Body() dto: GetCampaignMetricsDto) {
+    return await this.googleAdsService.getCampaignMetrics(dto);
   }
 
   @ApiOperation({
@@ -235,12 +312,23 @@ export class GoogleAdsController {
 
   @ApiOperation({
     summary: 'Get adGroup by name or ID',
-    description: 'Retrieves a adGroup by its name or ID for a customer.',
+    description:
+      'Retrieves a adGroup by its name or ID for a customer and campaign.',
   })
   @Post('/ad-groups/get-by-name-or-id')
   @ApiQuery({ name: 'validateOnly', required: false, type: Number })
   async getAdGroupByNameOrId(@Body() dto: GetAdGroupByNameOrIdDto) {
     return await this.googleAdsService.getAdGroupByNameOrId(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Get adGroup by id with metrics',
+    description: 'Retrieves a adGroup by its ID for a customer and campaign.',
+  })
+  @Post('/ad-groups/metrics')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async getAdgroupMetrics(@Body() dto: GetAdGroupMetricsDto) {
+    return await this.googleAdsService.getAdGroupMetrics(dto);
   }
 
   @ApiOperation({
