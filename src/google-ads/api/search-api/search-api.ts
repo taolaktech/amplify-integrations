@@ -6,6 +6,7 @@ import {
 import { AxiosError } from 'axios';
 
 import { GoogleAdsSharedMethodsService } from '../shared';
+import { GetBatchGoogleCampaignMetricsResponse } from './types';
 
 @Injectable()
 export class GoogleAdsSearchApiService {
@@ -111,6 +112,35 @@ export class GoogleAdsSearchApiService {
     `;
 
     return await this.googleAdsSearch(customerId, query);
+  }
+
+  async getCampaignMetricsBatch(customerId: string, campaignIds: string[]) {
+    const ids = campaignIds.join(',');
+    const query = `
+    SELECT
+      campaign.id,
+      campaign.name,
+      campaign.status,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.conversions,
+      metrics.conversions_value,
+      metrics.cost_micros,
+      metrics.clicks,
+      metrics.ctr,
+      metrics.average_cpc,
+      metrics.conversions_from_interactions_rate,
+      metrics.value_per_conversion
+    FROM campaign
+    WHERE campaign.id IN (${ids})
+  `;
+
+    const streamResponse =
+      await this.googleAdsSearchStream<GetBatchGoogleCampaignMetricsResponse>(
+        customerId,
+        query,
+      );
+    return streamResponse;
   }
 
   async getConversionActions(customerId: string) {

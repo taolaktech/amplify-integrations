@@ -20,6 +20,7 @@ import {
   CreateGoogleAdsCustomerAssetDto,
   CreateGoogleAdsCampaignAssetDto,
   CreateGoogleAdsAssetDto,
+  GetCampaignBatchMetricsDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -365,6 +366,13 @@ export class GoogleAdsService {
     return await this.googleAdsSearchApi.getCampaignMetrics(
       dto.customerId,
       dto.campaignId,
+    );
+  }
+
+  async getCampaignBatchMetrics(dto: GetCampaignBatchMetricsDto) {
+    return await this.googleAdsSearchApi.getCampaignMetricsBatch(
+      dto.customerId,
+      dto.campaignIds,
     );
   }
 

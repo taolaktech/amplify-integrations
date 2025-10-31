@@ -29,6 +29,7 @@ import {
   CreateGoogleAdsCampaignAssetDto,
   CreateGoogleAdsAssetDto,
   GetCampaignMetricsDto,
+  GetCampaignBatchMetricsDto,
 } from './dto';
 
 class Result {
@@ -215,6 +216,15 @@ export class GoogleAdsController {
   @Post('/campaigns/get-metrics')
   async getCampaignMetrics(@Body() dto: GetCampaignMetricsDto) {
     return await this.googleAdsService.getCampaignMetrics(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Get batch campaign metrics',
+    description: 'Retrieves campaign metrics.',
+  })
+  @Post('/campaigns/get-metrics/batch')
+  async getCampaignBatchMetrics(@Body() dto: GetCampaignBatchMetricsDto) {
+    return await this.googleAdsService.getCampaignBatchMetrics(dto);
   }
 
   @ApiOperation({

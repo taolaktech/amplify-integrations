@@ -1,4 +1,5 @@
 import {
+  ArrayNotEmpty,
   IsArray,
   IsDate,
   IsEnum,
@@ -283,6 +284,19 @@ export class GetCampaignMetricsDto {
   @IsNotEmpty()
   @IsString()
   campaignId: string;
+}
+
+export class GetCampaignBatchMetricsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @ArrayNotEmpty()
+  @IsArray()
+  @IsString({ each: true })
+  campaignIds: string[];
 }
 
 export class GetConversionActionByNameOrIdDto {
