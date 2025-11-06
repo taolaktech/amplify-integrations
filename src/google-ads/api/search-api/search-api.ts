@@ -65,6 +65,7 @@ export class GoogleAdsSearchApiService {
         campaign.id,
         campaign.name,
         campaign.campaign_budget,
+        campaign.primary_status,
         campaign.status,
         campaign.bidding_strategy,
         campaign.bidding_strategy_type
