@@ -20,6 +20,8 @@ import {
   CreateGoogleAdsCustomerAssetDto,
   CreateGoogleAdsCampaignAssetDto,
   CreateGoogleAdsAssetDto,
+  GetCampaignBatchMetricsDto,
+  CreateMaxConversionsBiddingStrategyDto,
 } from './dto';
 
 import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
@@ -77,6 +79,28 @@ export class GoogleAdsService {
     return response;
   }
 
+  async createMaxConversionsBiddingStrategy(
+    dto: CreateMaxConversionsBiddingStrategyDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    const body = {
+      name: dto.biddingStrategyName,
+      targetCpaMicros: Math.floor(dto.targetCpa * this.ONE_CURRENCY_UNIT),
+      cpcBidCeilingMicros: Math.floor(
+        dto.cpcBidCeiling * this.ONE_CURRENCY_UNIT,
+      ),
+      cpcBidFloorMicros: Math.floor(dto.cpcBidFloor * this.ONE_CURRENCY_UNIT),
+    };
+
+    const response =
+      await this.googleAdsResourceApi.createMaxConversionsBiddingStrategy(
+        dto.customerId,
+        body,
+        options,
+      );
+    return response;
+  }
+
   async createBudget(
     dto: CreateBudgetDto,
     options?: GoogleAdsResourceRequestOptions,
@@ -84,6 +108,7 @@ export class GoogleAdsService {
     const body = {
       name: dto.campaignBudgetName,
       amountMicros: Math.floor(dto.amount * this.ONE_CURRENCY_UNIT),
+      explicitlyShared: dto.explicitlyShared,
     };
     const response = await this.googleAdsResourceApi.createBudget(
       dto.customerId,
@@ -97,7 +122,7 @@ export class GoogleAdsService {
     dto: CreateSearchCampaignDto,
     options?: GoogleAdsResourceRequestOptions,
   ) {
-    if (dto.endDate < dto.startDate) {
+    if (dto.startDate && dto.endDate < dto.startDate) {
       throw new BadRequestException('endDate must be greater than startDate');
     }
     const body = {
@@ -112,6 +137,29 @@ export class GoogleAdsService {
       body,
       options,
     );
+    return response;
+  }
+
+  async createPerformanceMaxCampaign(
+    dto: CreateSearchCampaignDto,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    if (dto.startDate && dto.endDate < dto.startDate) {
+      throw new BadRequestException('endDate must be greater than startDate');
+    }
+    const body = {
+      campaignBudget: dto.budgetResourceName,
+      name: dto.campaignName,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      biddingStrategy: dto.biddingStrategy,
+    };
+    const response =
+      await this.googleAdsResourceApi.createPerformanceMaxCampaign(
+        dto.customerId,
+        body,
+        options,
+      );
     return response;
   }
 
@@ -365,6 +413,13 @@ export class GoogleAdsService {
     return await this.googleAdsSearchApi.getCampaignMetrics(
       dto.customerId,
       dto.campaignId,
+    );
+  }
+
+  async getCampaignBatchMetrics(dto: GetCampaignBatchMetricsDto) {
+    return await this.googleAdsSearchApi.getCampaignMetricsBatch(
+      dto.customerId,
+      dto.campaignIds,
     );
   }
 

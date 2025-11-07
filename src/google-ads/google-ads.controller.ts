@@ -15,6 +15,7 @@ import {
   CreateAdGroupDto,
   CreateBudgetDto,
   CreateTargetRoasBiddingStrategyDto,
+  CreateMaxConversionsBiddingStrategyDto,
   CreateSearchCampaignDto,
   UpdateGoogleCampaignDto,
   CreateCustomerDto,
@@ -29,6 +30,7 @@ import {
   CreateGoogleAdsCampaignAssetDto,
   CreateGoogleAdsAssetDto,
   GetCampaignMetricsDto,
+  GetCampaignBatchMetricsDto,
 } from './dto';
 
 class Result {
@@ -218,6 +220,15 @@ export class GoogleAdsController {
   }
 
   @ApiOperation({
+    summary: 'Get batch campaign metrics',
+    description: 'Retrieves campaign metrics.',
+  })
+  @Post('/campaigns/get-metrics/batch')
+  async getCampaignBatchMetrics(@Body() dto: GetCampaignBatchMetricsDto) {
+    return await this.googleAdsService.getCampaignBatchMetrics(dto);
+  }
+
+  @ApiOperation({
     summary: 'Create campaign budget',
     description: 'Creates a new campaign budget in Google Ads.',
   })
@@ -258,6 +269,31 @@ export class GoogleAdsController {
   }
 
   @ApiOperation({
+    summary: 'Create Maximize conversions bidding strategy',
+    description:
+      'Creates a new Maximize conversions bidding strategy for campaigns.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Bidding Strategy Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/bidding-strategy/max-conversions/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createMaxConversionsBiddingStrategy(
+    @Body() dto: CreateMaxConversionsBiddingStrategyDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createMaxConversionsBiddingStrategy(
+      dto,
+      {
+        validateOnly,
+      },
+    );
+  }
+
+  @ApiOperation({
     summary: 'Get bidding strategy by name or ID',
     description:
       'Retrieves a bidding strategy by its name or ID for a customer.',
@@ -287,6 +323,27 @@ export class GoogleAdsController {
   ) {
     const validateOnly = query.validateOnly === '1';
     return await this.googleAdsService.createSearchCampaign(dto, {
+      validateOnly,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Create performance max campaign',
+    description: 'Creates a new performance max campaign in Google Ads.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Camapign Created Successfully',
+    type: CreateResourceResponse,
+  })
+  @Post('/campaigns/performance-max-campaign/create')
+  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
+  async createPerformanceMaxCampaign(
+    @Body() dto: CreateSearchCampaignDto,
+    @Query() query: { [k: string]: string },
+  ) {
+    const validateOnly = query.validateOnly === '1';
+    return await this.googleAdsService.createPerformanceMaxCampaign(dto, {
       validateOnly,
     });
   }

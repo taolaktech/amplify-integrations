@@ -50,6 +50,7 @@ import {
   CreateCampaignBody,
   CreateConversionActionBody,
   CreateCustomerAssetBody,
+  CreateMaximizeConversionsBiddingStrategyBody,
   CreateTargetRoasBiddingStrategyBody,
   GoogleAdsResourceRequestOptions,
   UpdateCampaignBody,
@@ -373,13 +374,14 @@ export class GoogleAdsResourceApiService {
 
   async createBudget(
     customerId: string,
-    body: { name: string; amountMicros: number },
+    body: { name: string; amountMicros: number; explicitlyShared?: boolean },
     options?: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const budget: Partial<GoogleAdsBudget> = {
         name: body.name,
         amountMicros: body.amountMicros,
+        explicitlyShared: body.explicitlyShared ?? undefined,
       };
 
       const operations = [{ create: budget }];
@@ -439,6 +441,42 @@ export class GoogleAdsResourceApiService {
       );
     }
   }
+  async createMaxConversionsBiddingStrategy(
+    customerId: string,
+    body: CreateMaximizeConversionsBiddingStrategyBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      const biddingStrategy: Partial<GoogleAdsBiddingStrategy> = {
+        name: body.name,
+        status: GoogleAdsBiddingStrategyStatus.ENABLED,
+        maximizeConversions: {
+          targetCpaMicros: body.targetCpaMicros,
+          cpcBidCeilingMicros: body.cpcBidCeilingMicros,
+          cpcBidFloorMicros: body.cpcBidFloorMicros,
+        },
+      };
+      const operations = [{ create: biddingStrategy }];
+      const res = await this.biddingStrategiesMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        biddingStrategy.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, biddingStrategy };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Cannot create target ROAS bidding strategy',
+      );
+    }
+  }
 
   async createSearchCampaign(
     customerId: string,
@@ -454,9 +492,58 @@ export class GoogleAdsResourceApiService {
         status: GoogleAdsCampaignStatus.PAUSED,
         campaignBudget: body.campaignBudget,
         advertisingChannelType: GoogleAdsAdvertisingChannelType.SEARCH,
-        startDate: body.startDate.toISOString().split('T')[0],
+        startDate: body.startDate?.toISOString().split('T')[0],
         endDate: body.endDate.toISOString().split('T')[0],
         biddingStrategy: body.biddingStrategy,
+        containsEuPoliticalAdvertising:
+          GoogleCampaignContainsEuPoliticalAdvertising.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING,
+        networkSettings: {
+          targetPartnerSearchNetwork: false,
+          targetGoogleSearch: true,
+          targetSearchNetwork: true,
+          targetContentNetwork: true,
+        },
+      };
+      const operations = [{ create: campaign }];
+
+      const res = await this.campaignMutateOperation(
+        customerId,
+        operations,
+        options,
+      );
+
+      if (res.results?.length) {
+        campaign.resourceName = res.results[0].resourceName;
+      }
+
+      return { response: res, campaign };
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Cannot create search campaign');
+    }
+  }
+
+  async createPerformanceMaxCampaign(
+    customerId: string,
+    body: CreateCampaignBody,
+    options?: GoogleAdsResourceRequestOptions,
+  ) {
+    try {
+      this.checkResourceAgainstAccount(customerId, body.campaignBudget);
+      this.checkResourceAgainstAccount(customerId, body.biddingStrategy);
+
+      const campaign: Partial<any> = {
+        name: body.name,
+        status: GoogleAdsCampaignStatus.PAUSED,
+        campaignBudget: body.campaignBudget,
+        advertisingChannelType: GoogleAdsAdvertisingChannelType.PERFORMANCE_MAX,
+        startDate: body.startDate?.toISOString().split('T')[0],
+        endDate: body.endDate.toISOString().split('T')[0],
+
+        maximizeConversionValue: {},
+
         containsEuPoliticalAdvertising:
           GoogleCampaignContainsEuPoliticalAdvertising.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING,
         networkSettings: {

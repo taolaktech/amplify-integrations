@@ -33,6 +33,7 @@ export enum GoogleAdsCampaignServingStatus {
 
 export enum GoogleAdsAdvertisingChannelType {
   SEARCH = 'SEARCH',
+  PERFORMANCE_MAX = 'PERFORMANCE_MAX',
 }
 
 export enum GoogleAdsBiddingStrategyType {

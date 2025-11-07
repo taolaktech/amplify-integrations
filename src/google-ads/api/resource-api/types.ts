@@ -86,7 +86,9 @@ export interface GoogleAdsRemoveOperation<T> {
 export interface GoogleAdsBudget {
   name: string;
   amountMicros: number;
+  totalAmountMicros: number;
   resourceName: string;
+  explicitlyShared: boolean;
 }
 
 export interface GoogleAdsCampaign {
@@ -138,6 +140,11 @@ export interface GoogleAdsBiddingStrategy {
     targetCpaMicros: number;
     cpcBidCeilingMicros: string;
     cpcBidFloorMicros: string;
+  };
+  maximizeConversions: {
+    targetCpaMicros: number;
+    cpcBidCeilingMicros: number;
+    cpcBidFloorMicros: number;
   };
 }
 

@@ -19,10 +19,17 @@ export type CreateTargetRoasBiddingStrategyBody = {
   cpcBidFloorMicros: number;
 };
 
+export type CreateMaximizeConversionsBiddingStrategyBody = {
+  name: string;
+  targetCpaMicros: number;
+  cpcBidCeilingMicros: number;
+  cpcBidFloorMicros: number;
+};
+
 export type CreateCampaignBody = {
   name: string;
   campaignBudget: string;
-  startDate: Date;
+  startDate?: Date;
   endDate: Date;
   biddingStrategy: string;
 };

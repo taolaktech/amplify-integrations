@@ -1,5 +1,7 @@
 import {
+  ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsDate,
   IsEnum,
   IsNotEmpty,
@@ -48,6 +50,33 @@ export class CreateTargetRoasBiddingStrategyDto {
   cpcBidFloor: number;
 }
 
+export class CreateMaxConversionsBiddingStrategyDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  biddingStrategyName: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  targetCpa: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  cpcBidCeiling: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber()
+  cpcBidFloor: number;
+}
+
 export class CreateBudgetDto {
   @ApiProperty()
   @IsString()
@@ -64,6 +93,11 @@ export class CreateBudgetDto {
   @IsString()
   @IsNotEmpty()
   campaignBudgetName: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  explicitlyShared?: boolean;
 }
 
 export class CreateSearchCampaignDto {
@@ -88,10 +122,10 @@ export class CreateSearchCampaignDto {
   campaignName: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @Type(() => Date)
   @IsDate()
-  startDate: Date;
+  startDate?: Date;
 
   @ApiProperty()
   @IsNotEmpty()
@@ -283,6 +317,19 @@ export class GetCampaignMetricsDto {
   @IsNotEmpty()
   @IsString()
   campaignId: string;
+}
+
+export class GetCampaignBatchMetricsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerId: string;
+
+  @ApiProperty()
+  @ArrayNotEmpty()
+  @IsArray()
+  @IsString({ each: true })
+  campaignIds: string[];
 }
 
 export class GetConversionActionByNameOrIdDto {
