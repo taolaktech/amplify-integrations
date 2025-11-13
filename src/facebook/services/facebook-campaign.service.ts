@@ -370,17 +370,224 @@ export class FacebookCampaignService {
    * Step 3: Create a single "Flexible" Ad Creative
    * Gathers all assets (images, texts, etc.) into one dynamic creative via asset_feed_spec.
    */
+  // async createCreatives(campaignId: string): Promise<{
+  //   creativesCreated: number;
+  //   creativeIds: string[];
+  // }> {
+  //   try {
+  //     this.logger.debug(
+  //       `Step 3: Creating flexible creative for Amplify campaign: ${campaignId}`,
+  //     );
+
+  //     const facebookCampaign = await this.getFacebookCampaign(campaignId);
+  //     //  Get the user's primary ad account details, which now includes the selected page
+  //     const primaryAdAccount = await this.facebookAdAccountModel
+  //       .findOne({
+  //         userId: facebookCampaign.userId,
+  //         isPrimary: true,
+  //       })
+  //       .lean();
+
+  //     if (!primaryAdAccount?.selectedPrimaryFacebookPageId) {
+  //       throw new BadRequestException(
+  //         'Primary ad account has no selected Facebook Page. Please configure it first.',
+  //       );
+  //     }
+
+  //     const page = await this.facebookPageModel
+  //       .findById(primaryAdAccount.selectedPrimaryFacebookPageId)
+  //       .lean();
+
+  //     const pageId = page?.pageId;
+  //     const campaignData =
+  //       facebookCampaign.originalCampaignData as CampaignDataFromLambda;
+
+  //     // Prevent re-running if already completed
+  //     if (
+  //       facebookCampaign.processingStatus === 'CREATIVES_CREATED' &&
+  //       facebookCampaign.creatives.length > 0
+  //     ) {
+  //       this.logger.warn(
+  //         `Creatives for campaign ${campaignId} have already been created. Skipping.`,
+  //       );
+  //       return {
+  //         creativesCreated: facebookCampaign.creatives.length,
+  //         creativeIds: facebookCampaign.creatives.map((c) => c.creativeId),
+  //       };
+  //     }
+
+  //     await this.updateProcessingStatus(campaignId, 'CREATING_CREATIVES');
+
+  //     // 1. Gather all unique assets from all products
+  //     const allImageUrls = new Set<string>();
+  //     const allPrimaryTexts = new Set<string>();
+  //     const allHeadlines = new Set<string>();
+  //     const allDescriptions = new Set<string>();
+  //     const allLinkUrls = new Set<string>();
+
+  //     const isFacebook = campaignData.platforms.includes('FACEBOOK');
+  //     const isInstagram = campaignData.platforms.includes('INSTAGRAM');
+
+  //     for (const product of campaignData.products) {
+  //       allLinkUrls.add(product.productLink);
+
+  //       for (const creative of product.creatives) {
+  //         // TODO: Per user request, image handling is temporarily commented out
+  //         // until the data source for S3 links is finalized.
+  //         // if (creative.productUrl) {
+  //         //   allImageUrls.add(creative.productUrl);
+  //         // }
+
+  //         if (isInstagram && 'caption' in creative) {
+  //           allPrimaryTexts.add(creative.caption);
+  //           // For Instagram, we can use the product title as a headline for the asset feed
+  //           allHeadlines.add(product.title);
+  //         }
+
+  //         if (isFacebook) {
+  //           if ('bodyText' in creative) {
+  //             allPrimaryTexts.add(creative.bodyText);
+  //           }
+  //           if ('title' in creative) {
+  //             allHeadlines.add(creative.title);
+  //           }
+  //           if ('description' in creative) {
+  //             allDescriptions.add(creative.description);
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     this.logger.debug(
+  //       `Gathered unique assets: ${allPrimaryTexts.size} texts, ${allHeadlines.size} headlines, ${allDescriptions.size} descriptions.`,
+  //     );
+
+  //     // Per user request, image handling is temporarily disabled.
+  //     const imageHashes = [];
+  //     // if (allImageUrls.size > 0) {
+  //     //   imageHashes = await this.uploadImagesToFacebook(
+  //     //     facebookCampaign.userAdAccountId,
+  //     //     Array.from(allImageUrls),
+  //     //   );
+  //     // }
+
+  //     /**
+  //      * 3. Build the asset_feed_spec for the flexible creative
+  //      * @see https://developers.facebook.com/docs/marketing-api/ad-creative/asset-feed-spec/
+  //      */
+  //     const assetFeedSpec: any = {
+  //       bodies: Array.from(allPrimaryTexts).map((text) => ({ text })),
+  //       titles: Array.from(allHeadlines).map((text) => ({ text })),
+  //       descriptions: Array.from(allDescriptions).map((text) => ({ text })),
+  //       link_urls: Array.from(allLinkUrls).map((url) => ({ website_url: url })),
+  //       call_to_action_types: ['SHOP_NOW'],
+  //       /**
+  //        *  Array of Facebook ad formats we should create the ads in. Supported formats are: SINGLE_IMAGE, CAROUSEL, SINGLE_VIDEO, AUTOMATIC_FORMAT.
+  //        */
+  //       ad_formats: ['SINGLE_IMAGE'],
+  //     };
+
+  //     if (imageHashes.length > 0) {
+  //       assetFeedSpec.images = imageHashes.map((hash) => ({ hash }));
+  //     }
+
+  //     // ==================== INSTAGRAM SUPPORT ====================
+  //     // Check if Instagram is included in the campaign platforms
+  //     let instagramActorId;
+  //     if (
+  //       campaignData.platforms &&
+  //       campaignData.platforms.includes('INSTAGRAM')
+  //     ) {
+  //       // Get Instagram actor ID from the campaign document (stored during ad set creation)
+  //       instagramActorId = facebookCampaign.instagramActorId;
+
+  //       if (!instagramActorId) {
+  //         throw new BadRequestException(
+  //           'Instagram is selected as a platform but no Instagram actor ID was found in the campaign.',
+  //         );
+  //       }
+
+  //       this.logger.debug(
+  //         `Using Instagram actor ID: ${instagramActorId} for creative creation`,
+  //       );
+  //     }
+  //     // ==================== END ====================
+
+  //     // 4. Call the API to create the single flexible creative
+  //     const creativeName = `Amplify Flexible Creative - ${campaignData.campaignId}`;
+  //     const creativeResponse =
+  //       await this.facebookMarketingApiService.createFlexibleCreative(
+  //         facebookCampaign.userAdAccountId,
+  //         creativeName,
+  //         assetFeedSpec,
+  //         pageId as string,
+  //         instagramActorId,
+  //       );
+
+  //     this.logger.debug(
+  //       `Flexible creative created successfully via API. ID: ${creativeResponse.id}`,
+  //     );
+
+  //     // 5. Prepare the creative data for our database
+  //     const newCreative: FacebookCreativeAsset = {
+  //       creativeId: creativeResponse.id,
+  //       name: creativeName,
+  //       // For simplicity, we can store the first image/link as representative
+  //       imageUrl: Array.from(allImageUrls)[0] || '',
+  //       destinationUrl: Array.from(allLinkUrls)[0],
+  //       primaryText: Array.from(allPrimaryTexts)[0],
+  //       headline: Array.from(allHeadlines)[0],
+  //       callToAction: 'SHOP_NOW',
+  //       approvalStatus: 'PENDING',
+  //       createdAt: new Date(),
+  //     };
+
+  //     // 6. Update the tracking document
+  //     await this.facebookCampaignModel.updateOne(
+  //       { campaignId },
+  //       {
+  //         $set: {
+  //           creatives: [newCreative], // We only have one flexible creative
+  //           processingStatus: 'CREATIVES_CREATED',
+  //           failedStep: null,
+  //           errorMessage: null,
+  //           lastProcessedAt: new Date(),
+  //         },
+  //       },
+  //     );
+
+  //     this.logger.debug(
+  //       `Successfully stored flexible creative ID ${creativeResponse.id} in the database.`,
+  //     );
+
+  //     return {
+  //       creativesCreated: 1,
+  //       creativeIds: [creativeResponse.id],
+  //     };
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create flexible creative for campaign: ${campaignId}`,
+  //       error,
+  //     );
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'FAILED',
+  //       `Flexible creative creation failed: ${error.message}`,
+  //       'CREATING_CREATIVES',
+  //     );
+  //     throw error;
+  //   }
+  // }
   async createCreatives(campaignId: string): Promise<{
     creativesCreated: number;
     creativeIds: string[];
   }> {
     try {
       this.logger.debug(
-        `Step 3: Creating flexible creative for Amplify campaign: ${campaignId}`,
+        `Step 3: Creating product-level flexible creatives for campaign: ${campaignId}`,
       );
 
       const facebookCampaign = await this.getFacebookCampaign(campaignId);
-      //  Get the user's primary ad account details, which now includes the selected page
       const primaryAdAccount = await this.facebookAdAccountModel
         .findOne({
           userId: facebookCampaign.userId,
@@ -399,10 +606,15 @@ export class FacebookCampaignService {
         .lean();
 
       const pageId = page?.pageId;
+      if (!pageId) {
+        throw new BadRequestException(
+          'Could not find Page ID for the selected primary page.',
+        );
+      }
+
       const campaignData =
         facebookCampaign.originalCampaignData as CampaignDataFromLambda;
 
-      // Prevent re-running if already completed
       if (
         facebookCampaign.processingStatus === 'CREATIVES_CREATED' &&
         facebookCampaign.creatives.length > 0
@@ -418,135 +630,93 @@ export class FacebookCampaignService {
 
       await this.updateProcessingStatus(campaignId, 'CREATING_CREATIVES');
 
-      // 1. Gather all unique assets from all products
-      const allImageUrls = new Set<string>();
-      const allPrimaryTexts = new Set<string>();
-      const allHeadlines = new Set<string>();
-      const allLinkUrls = new Set<string>();
+      const allCreatedCreatives: FacebookCreativeAsset[] = [];
+      const isFacebook = campaignData.platforms.includes('FACEBOOK');
+      const isInstagram = campaignData.platforms.includes('INSTAGRAM');
 
+      // Loop per Product
       for (const product of campaignData.products) {
-        // Add product link to be used as a destination
-        allLinkUrls.add(product.productLink);
+        this.logger.debug(`Processing product: ${product.title}`);
 
-        // Generate unique ad copy and headline for each product
-        allPrimaryTexts.add(
-          this.generateAdCopy(product, campaignData.tone ?? 'professional'),
-        );
-        allHeadlines.add(this.generateHeadline(product));
+        const productImages = new Set<string>();
+        const productTexts = new Set<string>();
+        const productHeadlines = new Set<string>();
+        const productDescriptions = new Set<string>();
 
-        // Gather unique image URLs from creative data
-        const facebookCreatives = product.creatives.filter(
-          (c) => c.channel.toLowerCase() === 'facebook',
-        );
+        for (const creativeSet of product.creatives) {
+          const parsedData = this.parseCreativeData(creativeSet.data);
 
-        const instagramCreatives = product.creatives.filter(
-          (c) => c.channel.toLowerCase() === 'instagram',
-        );
+          for (const creative of parsedData) {
+            if (creative.url) {
+              productImages.add(creative.url);
+            }
 
-        for (const creative of instagramCreatives) {
-          this.logger.debug(`"creatives to parse`, {
-            initialCreatives: product.creatives,
-            creativeToParse: creative,
-          });
-          const url = this.parseCreativeDataUrl(creative.data);
-          if (url) allImageUrls.add(url);
+            if (isInstagram && creative.caption) {
+              productTexts.add(creative.caption);
+            }
+
+            if (isFacebook) {
+              if (creative.bodyText) productTexts.add(creative.bodyText);
+              if (creative.title) productHeadlines.add(creative.title);
+              if (creative.description)
+                productDescriptions.add(creative.description);
+            }
+          }
         }
 
-        for (const creative of facebookCreatives) {
-          this.logger.debug(`"creatives to parse`, {
-            initialCreatives: product.creatives,
-            creativeToParse: creative,
-          });
-          const url = this.parseCreativeDataUrl(creative.data);
-          if (url) allImageUrls.add(url);
-        }
-      }
-
-      this.logger.debug(
-        `Gathered unique assets: ${allImageUrls.size} images, ${allPrimaryTexts.size} texts, ${allHeadlines.size} headlines.`,
-      );
-
-      // 2. Upload images to Facebook to get their hashes
-      const imageHashes = await this.uploadImagesToFacebook(
-        facebookCampaign.userAdAccountId,
-        Array.from(allImageUrls),
-      );
-
-      /**
-       * 3. Build the asset_feed_spec for the flexible creative
-       * @see https://developers.facebook.com/docs/marketing-api/ad-creative/asset-feed-spec/
-       */
-      const assetFeedSpec = {
-        images: imageHashes.map((hash) => ({ hash: hash })),
-        bodies: Array.from(allPrimaryTexts).map((text) => ({ text })),
-        titles: Array.from(allHeadlines).map((text) => ({ text })),
-        link_urls: Array.from(allLinkUrls).map((url) => ({ website_url: url })),
-        call_to_action_types: ['SHOP_NOW'],
-        /**
-         *  Array of Facebook ad formats we should create the ads in. Supported formats are: SINGLE_IMAGE, CAROUSEL, SINGLE_VIDEO, AUTOMATIC_FORMAT.
-         */
-        ad_formats: ['SINGLE_IMAGE'],
-      };
-
-      // TODO: Fetch and add instagram_user_id here for Instagram placements
-
-      // ==================== INSTAGRAM SUPPORT ====================
-      // Check if Instagram is included in the campaign platforms
-      let instagramActorId;
-      if (
-        campaignData.platforms &&
-        campaignData.platforms.includes('INSTAGRAM')
-      ) {
-        // Get Instagram actor ID from the campaign document (stored during ad set creation)
-        instagramActorId = facebookCampaign.instagramActorId;
-
-        if (!instagramActorId) {
-          throw new BadRequestException(
-            'Instagram is selected as a platform but no Instagram actor ID was found in the campaign.',
-          );
+        if (productHeadlines.size === 0) {
+          productHeadlines.add(product.title);
         }
 
-        this.logger.debug(
-          `Using Instagram actor ID: ${instagramActorId} for creative creation`,
-        );
-      }
-      // ==================== END ====================
-
-      // 4. Call the API to create the single flexible creative
-      const creativeName = `Amplify Flexible Creative - ${campaignData.campaignId}`;
-      const creativeResponse =
-        await this.facebookMarketingApiService.createFlexibleCreative(
+        const imageHashes = await this.uploadImagesToFacebook(
           facebookCampaign.userAdAccountId,
-          creativeName,
-          assetFeedSpec,
-          pageId as string,
-          instagramActorId,
+          Array.from(productImages),
         );
 
+        const assetFeedSpec: any = {
+          images: imageHashes.map((hash) => ({ hash })),
+          bodies: Array.from(productTexts).map((text) => ({ text })),
+          titles: Array.from(productHeadlines).map((text) => ({ text })),
+          descriptions: Array.from(productDescriptions).map((text) => ({
+            text,
+          })),
+          link_urls: [{ website_url: product.productLink }],
+          call_to_action_types: ['SHOP_NOW'],
+        };
+
+        const creativeName = `Product-Level Creative - ${product.title}`;
+        const creativeResponse =
+          await this.facebookMarketingApiService.createFlexibleCreative(
+            facebookCampaign.userAdAccountId,
+            creativeName,
+            assetFeedSpec,
+            pageId,
+            facebookCampaign.instagramActorId,
+          );
+
+        allCreatedCreatives.push({
+          creativeId: creativeResponse.id,
+          name: creativeName,
+          imageUrl: Array.from(productImages)[0] || '',
+          destinationUrl: product.productLink,
+          primaryText: Array.from(productTexts)[0],
+          headline: Array.from(productHeadlines)[0],
+          callToAction: 'SHOP_NOW',
+          approvalStatus: 'PENDING',
+          createdAt: new Date(),
+          productId: product.shopifyId, // Associate creative with product
+        });
+      }
+
       this.logger.debug(
-        `Flexible creative created successfully via API. ID: ${creativeResponse.id}`,
+        `Successfully created ${allCreatedCreatives.length} product-level creative assets.`,
       );
 
-      // 5. Prepare the creative data for our database
-      const newCreative: FacebookCreativeAsset = {
-        creativeId: creativeResponse.id,
-        name: creativeName,
-        // For simplicity, we can store the first image/link as representative
-        imageUrl: Array.from(allImageUrls)[0],
-        destinationUrl: Array.from(allLinkUrls)[0],
-        primaryText: Array.from(allPrimaryTexts)[0],
-        headline: Array.from(allHeadlines)[0],
-        callToAction: 'SHOP_NOW',
-        approvalStatus: 'PENDING',
-        createdAt: new Date(),
-      };
-
-      // 6. Update the tracking document
       await this.facebookCampaignModel.updateOne(
         { campaignId },
         {
           $set: {
-            creatives: [newCreative], // We only have one flexible creative
+            creatives: allCreatedCreatives,
             processingStatus: 'CREATIVES_CREATED',
             failedStep: null,
             errorMessage: null,
@@ -555,23 +725,19 @@ export class FacebookCampaignService {
         },
       );
 
-      this.logger.debug(
-        `Successfully stored flexible creative ID ${creativeResponse.id} in the database.`,
-      );
-
       return {
-        creativesCreated: 1,
-        creativeIds: [creativeResponse.id],
+        creativesCreated: allCreatedCreatives.length,
+        creativeIds: allCreatedCreatives.map((c) => c.creativeId),
       };
     } catch (error) {
       this.logger.error(
-        `Failed to create flexible creative for campaign: ${campaignId}`,
+        `Failed to create product-level creatives for campaign: ${campaignId}`,
         error,
       );
       await this.updateProcessingStatus(
         campaignId,
         'FAILED',
-        `Flexible creative creation failed: ${error.message}`,
+        `Distinct creative creation failed: ${error.message}`,
         'CREATING_CREATIVES',
       );
       throw error;
@@ -579,16 +745,138 @@ export class FacebookCampaignService {
   }
 
   /**
+   * Parses an array of stringified JSON objects into an array of objects.
+   */
+  private parseCreativeData(data: string[]): any[] {
+    const parsedData = [];
+    for (const item of data) {
+      try {
+        // The data is a stringified JSON, so we need to parse it.
+        parsedData.push(JSON.parse(item));
+      } catch (error) {
+        this.logger.warn(`Failed to parse creative data item: ${item}`, error);
+      }
+    }
+    return parsedData;
+  }
+
+  /**
    * Step 4: Create a Single Ad
    * Links the single Ad Set and the single flexible Creative together.
    */
+  // async createAds(campaignId: string): Promise<{
+  //   adsCreated: number;
+  //   adIds: string[];
+  // }> {
+  //   try {
+  //     this.logger.debug(
+  //       `Step 4: Creating single ad for Amplify campaign: ${campaignId}`,
+  //     );
+
+  //     const facebookCampaign = await this.getFacebookCampaign(campaignId);
+
+  //     // Prevent re-running if already completed
+  //     if (
+  //       facebookCampaign.processingStatus === 'ADS_CREATED' &&
+  //       facebookCampaign.ads.length > 0
+  //     ) {
+  //       this.logger.warn(
+  //         `Ad for campaign ${campaignId} has already been created. Skipping.`,
+  //       );
+  //       return {
+  //         adsCreated: facebookCampaign.ads.length,
+  //         adIds: facebookCampaign.ads.map((ad) => ad.adId),
+  //       };
+  //     }
+
+  //     // Validate that previous steps are complete
+  //     if (
+  //       facebookCampaign.adSets.length === 0 ||
+  //       facebookCampaign.creatives.length === 0
+  //     ) {
+  //       throw new BadRequestException(
+  //         'Cannot create ad: Ad Set or Creative is missing. Please run previous steps first.',
+  //       );
+  //     }
+
+  //     await this.updateProcessingStatus(campaignId, 'CREATING_ADS');
+
+  //     // Get the IDs from the single Ad Set and Creative
+  //     const adSetId = facebookCampaign.adSets[0].adSetId;
+  //     const creativeId = facebookCampaign.creatives[0].creativeId;
+
+  //     const adName = `Amplify Ad - ${facebookCampaign.originalCampaignData.campaignId}`;
+
+  //     // Call the API service to create the single ad
+  //     const adResponse = await this.facebookMarketingApiService.createAd(
+  //       facebookCampaign.userAdAccountId,
+  //       adSetId,
+  //       creativeId,
+  //       adName,
+  //     );
+
+  //     this.logger.debug(
+  //       `Facebook Ad created successfully via API. ID: ${adResponse.id}`,
+  //     );
+
+  //     // Prepare the Ad data for our database
+  //     const newAd: FacebookAd = {
+  //       adId: adResponse.id,
+  //       adSetId,
+  //       creativeId,
+  //       name: adName,
+  //       status: adResponse.status || 'PAUSED',
+  //       // We can link to the first product as a representative
+  //       productId: (
+  //         facebookCampaign.originalCampaignData as CampaignDataFromLambda
+  //       ).products[0]?.shopifyId,
+  //       createdAt: new Date(),
+  //     };
+
+  //     // Update the tracking document with the new Ad
+  //     await this.facebookCampaignModel.updateOne(
+  //       { campaignId },
+  //       {
+  //         $set: {
+  //           ads: [newAd], // We only have one ad
+  //           processingStatus: 'ADS_CREATED',
+  //           failedStep: null,
+  //           errorMessage: null,
+  //           lastProcessedAt: new Date(),
+  //         },
+  //       },
+  //     );
+
+  //     this.logger.debug(
+  //       `Successfully stored Ad ID ${adResponse.id} in the database.`,
+  //     );
+
+  //     return {
+  //       adsCreated: 1,
+  //       adIds: [adResponse.id],
+  //     };
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create ad for campaign: ${campaignId}`,
+  //       error,
+  //     );
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'FAILED',
+  //       `Ad creation failed: ${error.message}`,
+  //       'CREATING_ADS',
+  //     );
+  //     throw error;
+  //   }
+  // }
+
   async createAds(campaignId: string): Promise<{
     adsCreated: number;
     adIds: string[];
   }> {
     try {
       this.logger.debug(
-        `Step 4: Creating single ad for Amplify campaign: ${campaignId}`,
+        `Step 4: Creating distinct ads for campaign: ${campaignId}`,
       );
 
       const facebookCampaign = await this.getFacebookCampaign(campaignId);
@@ -599,7 +887,7 @@ export class FacebookCampaignService {
         facebookCampaign.ads.length > 0
       ) {
         this.logger.warn(
-          `Ad for campaign ${campaignId} has already been created. Skipping.`,
+          `Ads for campaign ${campaignId} have already been created. Skipping.`,
         );
         return {
           adsCreated: facebookCampaign.ads.length,
@@ -613,50 +901,47 @@ export class FacebookCampaignService {
         facebookCampaign.creatives.length === 0
       ) {
         throw new BadRequestException(
-          'Cannot create ad: Ad Set or Creative is missing. Please run previous steps first.',
+          'Cannot create ads: Ad Set or Creatives are missing. Please run previous steps first.',
         );
       }
 
       await this.updateProcessingStatus(campaignId, 'CREATING_ADS');
 
-      // Get the IDs from the single Ad Set and Creative
+      const createdAds: FacebookAd[] = [];
       const adSetId = facebookCampaign.adSets[0].adSetId;
-      const creativeId = facebookCampaign.creatives[0].creativeId;
 
-      const adName = `Amplify Ad - ${facebookCampaign.originalCampaignData.campaignId}`;
+      // Loop through each product-level creative
+      for (const creative of facebookCampaign.creatives) {
+        const adName = `Ad for ${creative.name}`; // e.g., "Ad for Product-Level Creative - Voyager Jacket"
 
-      // Call the API service to create the single ad
-      const adResponse = await this.facebookMarketingApiService.createAd(
-        facebookCampaign.userAdAccountId,
-        adSetId,
-        creativeId,
-        adName,
-      );
+        const adResponse = await this.facebookMarketingApiService.createAd(
+          facebookCampaign.userAdAccountId,
+          adSetId,
+          creative.creativeId,
+          adName,
+        );
+
+        createdAds.push({
+          adId: adResponse.id,
+          adSetId,
+          creativeId: creative.creativeId,
+          name: adName,
+          status: adResponse.status || 'PAUSED',
+          productId: creative.productId, // Pass this along from the creative
+          createdAt: new Date(),
+        });
+      }
 
       this.logger.debug(
-        `Facebook Ad created successfully via API. ID: ${adResponse.id}`,
+        `Successfully created ${createdAds.length} distinct ads.`,
       );
 
-      // Prepare the Ad data for our database
-      const newAd: FacebookAd = {
-        adId: adResponse.id,
-        adSetId,
-        creativeId,
-        name: adName,
-        status: adResponse.status || 'PAUSED',
-        // We can link to the first product as a representative
-        productId: (
-          facebookCampaign.originalCampaignData as CampaignDataFromLambda
-        ).products[0]?.shopifyId,
-        createdAt: new Date(),
-      };
-
-      // Update the tracking document with the new Ad
+      // Update the tracking document with the new list of Ads
       await this.facebookCampaignModel.updateOne(
         { campaignId },
         {
           $set: {
-            ads: [newAd], // We only have one ad
+            ads: createdAds,
             processingStatus: 'ADS_CREATED',
             failedStep: null,
             errorMessage: null,
@@ -665,17 +950,13 @@ export class FacebookCampaignService {
         },
       );
 
-      this.logger.debug(
-        `Successfully stored Ad ID ${adResponse.id} in the database.`,
-      );
-
       return {
-        adsCreated: 1,
-        adIds: [adResponse.id],
+        adsCreated: createdAds.length,
+        adIds: createdAds.map((ad) => ad.adId),
       };
     } catch (error) {
       this.logger.error(
-        `Failed to create ad for campaign: ${campaignId}`,
+        `Failed to create ads for campaign: ${campaignId}`,
         error,
       );
       await this.updateProcessingStatus(

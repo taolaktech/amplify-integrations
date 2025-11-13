@@ -1,18 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  campaign-orchestrator
-
-  AWS Lambda to orchestrate the creation of Facebook campaigns.
+  Manages the Facebook and Instagram campaign orchestration Lambda functions.
 
 Globals:
   Function:
-    Timeout: 300 # 5 minutes, to accommodate the sequential workflow
+    Timeout: 300
+    MemorySize: 256
+    Architectures: [arm64]
+    Runtime: nodejs20.x
 
 Parameters:
-  SqsQueueArn:
+  FacebookSqsQueueArn:
     Type: String
-    Description: The ARN of the existing SQS queue to consume from (e.g., arn:aws:sqs:us-east-2:123456789012:facebook-campaign-queue).
+    Description: The ARN of the SQS queue for Facebook campaigns.
+  InstagramSqsQueueArn:
+    Type: String
+    Description: The ARN of the SQS queue for Instagram campaigns.
   AmplifyManagerApiUrl:
     Type: String
     Description: The base URL for the Amplify Manager internal API.
@@ -22,19 +26,13 @@ Parameters:
   InternalApiKey:
     Type: String
     Description: The shared internal API key for authenticating with the services.
-    NoEcho: true # This hides the value in the AWS console for security.
+    NoEcho: true
 
 Resources:
-  CampaignOrchestratorFunction:
+  FacebookCampaignFunction:
     Type: AWS::Serverless::Function
     Properties:
-      PackageType: Zip
-      CodeUri: .
-      Handler: handler.main
-      Runtime: nodejs20.x
-      Architectures:
-        - arm64
-      MemorySize: 256
+      Handler: facebook.main
       Environment:
         Variables:
           AMPLIFY_MANAGER_API_URL: !Ref AmplifyManagerApiUrl
@@ -44,28 +42,41 @@ Resources:
         SQSTrigger:
           Type: SQS
           Properties:
-            Queue: !Ref SqsQueueArn
+            Queue: !Ref FacebookSqsQueueArn
             BatchSize: 1
-            Enabled: true
-      Policies:
-        - Statement:
-            - Effect: "Allow"
-              Action:
-                - "sqs:ReceiveMessage"
-                - "sqs:DeleteMessage"
-                - "sqs:GetQueueAttributes"
-              Resource: !Ref SqsQueueArn
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: ['src/handler.ts']
-        Format: cjs # Use CommonJS format for compatibility with axios
+        EntryPoints: ['src/facebook.ts']
+        Format: cjs
+        Minify: true
+
+  InstagramCampaignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: instagram.main
+      Environment:
+        Variables:
+          AMPLIFY_MANAGER_API_URL: !Ref AmplifyManagerApiUrl
+          AMPLIFY_INTEGRATIONS_API_URL: !Ref AmplifyIntegrationsApiUrl
+          INTERNAL_API_KEY: !Ref InternalApiKey
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !Ref InstagramSqsQueueArn
+            BatchSize: 1
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: ['src/instagram.ts']
+        Format: cjs
         Minify: true
 
 Outputs:
-  CampaignOrchestratorFunctionName:
-    Description: 'The name of the Campaign Orchestrator Lambda function'
-    Value: !Ref CampaignOrchestratorFunction
-  CampaignOrchestratorFunctionArn:
-    Description: 'The ARN of the Campaign Orchestrator Lambda function'
-    Value: !GetAtt CampaignOrchestratorFunction.Arn
+  FacebookFunctionName:
+    Description: 'The name of the Facebook Campaign Orchestrator Lambda function'
+    Value: !Ref FacebookCampaignFunction
+  InstagramFunctionName:
+    Description: 'The name of the Instagram Campaign Orchestrator Lambda function'
+    Value: !Ref InstagramCampaignFunction

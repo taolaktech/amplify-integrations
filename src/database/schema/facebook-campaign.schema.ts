@@ -90,6 +90,9 @@ export class FacebookCreativeAsset {
   @Prop()
   destinationUrl?: string; // Where ad clicks go
 
+  @Prop()
+  productId?: string; // Which product this ad promotes
+
   @Prop({
     enum: ['PENDING', 'APPROVED', 'REJECTED'],
     default: 'PENDING',
