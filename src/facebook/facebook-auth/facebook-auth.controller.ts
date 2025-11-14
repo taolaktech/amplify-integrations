@@ -63,7 +63,7 @@ export class FacebookAuthController {
       'Redirects user to Facebook OAuth consent page to authorize Amplify access to their ad accounts and pages.',
   })
   @ApiResponse({
-    status: 302,
+    status: 200,
     description: 'Redirect to Facebook OAuth consent page',
   })
   @ApiResponse({
@@ -89,7 +89,16 @@ export class FacebookAuthController {
       state,
       requestedPlatforms,
     );
-    return res.redirect(url);
+    // Do not redirect to prevent CORS issues
+    //  return res.redirect(url);
+    //
+    return {
+      success: true,
+      data: {
+        oauthUrl: url, // return url to client to handle redirect
+      },
+      message: 'Facebook OAuth URL generated successfully',
+    };
   }
 
   @Public()
