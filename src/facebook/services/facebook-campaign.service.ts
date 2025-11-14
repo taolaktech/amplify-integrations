@@ -748,7 +748,7 @@ export class FacebookCampaignService {
    * Parses an array of stringified JSON objects into an array of objects.
    */
   private parseCreativeData(data: string[]): any[] {
-    const parsedData = [];
+    const parsedData: any[] = [];
     for (const item of data) {
       try {
         // The data is a stringified JSON, so we need to parse it.
