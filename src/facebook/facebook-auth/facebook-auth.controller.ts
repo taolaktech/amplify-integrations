@@ -72,7 +72,6 @@ export class FacebookAuthController {
   })
   redirectToFacebook(
     @Req() request: ExtendedRequest,
-    @Res() res: Response,
     @Query('platforms') platforms?: string,
   ) {
     const user = request['authenticatedData'];
