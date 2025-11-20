@@ -19,6 +19,13 @@ async function bootstrap() {
     }),
   );
 
+  // cors
+  app.enableCors({
+    origin: '*', // allowing requests from all origins
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   // swagger
   const config = new DocumentBuilder()
     .setTitle('Amplify-Integrations Api')
