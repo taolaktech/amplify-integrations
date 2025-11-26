@@ -12,6 +12,8 @@ import { FacebookCampaign } from 'src/database/schema/facebook-campaign.schema';
 
 // DTO for campaign data coming from Amplify-Manager via Lambda
 export interface CampaignDataFromLambda {
+  name: string;
+  id: string;
   campaignId: string; // MongoDB ObjectId as string
   pageId: string;
   metaPixelId: string;
@@ -41,13 +43,12 @@ export interface CampaignDataFromLambda {
     occasion?: string;
     features: string[];
     category: string;
-    imageLink: string;
+    imageLinks: string[];
     productLink: string;
     creatives: Array<{
       // Facebook creatives for this product
-      id: string;
+      id?: string;
       channel: string; // 'facebook'
-      budget: number; // ?? Still unclear what this is for
       data: string[]; // ['{"url":"http://s3.image.com/fb-ad-1"}']
     }>;
   }>;
@@ -205,13 +206,16 @@ export class FacebookCampaignDataService {
    */
   async createFacebookCampaignFromLambda(
     campaignData: CampaignDataFromLambda,
+    platform: string,
     userAdAccountId?: string, // Make optional
     instagramAccountId?: string, // Add Instagram account ID
   ): Promise<FacebookCampaign> {
     try {
+      this.logger.log(arguments);
       const existing = await this.facebookCampaignModel
         .findOne({
           campaignId: campaignData.campaignId,
+          platform: platform.toUpperCase(),
         })
         .exec();
 
@@ -303,7 +307,7 @@ export class FacebookCampaignDataService {
       const { facebookBudget, dailyBudget } =
         this.processCampaignDataForFacebook(campaignData);
 
-      const facebookCampaign = await this.facebookCampaignModel.create({
+      const facebookCampaignModelData = {
         campaignId: campaignData.campaignId,
         userId: campaignData.userId,
         userAdAccountId: finalAdAccountId,
@@ -313,14 +317,20 @@ export class FacebookCampaignDataService {
         currency: 'USD',
         processingStatus: 'PENDING',
         metaPixelId: finalMetaPixelId,
-        platforms: campaignData.platforms, // Store the platforms
+        platform: platform.toUpperCase(), //campaignData.platforms, // Store the platforms
         /**
          * Storing the full original payload.
          * This makes our service stateless, as every subsequent step (create ad sets, creatives, etc.)
          * can re-read its instructions from this record without needing the data to be passed again.
          */
         originalCampaignData: campaignData,
-      });
+      };
+
+      this.logger.log(JSON.stringify(facebookCampaignModelData, null, 2));
+
+      const facebookCampaign = await this.facebookCampaignModel.create(
+        facebookCampaignModelData,
+      );
 
       this.logger.debug(
         `Created Facebook campaign tracking: ${facebookCampaign._id.toString()}`,

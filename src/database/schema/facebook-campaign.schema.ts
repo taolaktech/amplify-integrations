@@ -1,4 +1,3 @@
-// amplify-integrations/src/database/schema/facebook-campaign.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
@@ -144,7 +143,6 @@ export class FacebookCampaign {
     type: Types.ObjectId,
     ref: 'campaigns',
     required: true,
-    unique: true,
   })
   campaignId: string; //Types.ObjectId;
 
@@ -219,8 +217,16 @@ export class FacebookCampaign {
       'PAUSED',
     ],
     default: 'PENDING',
+    required: true,
   })
   processingStatus: string;
+
+  @Prop({
+    enum: ['FACEBOOK', 'INSTAGRAM'],
+    default: 'FACEBOOK',
+    required: true,
+  })
+  platform: string;
 
   @Prop()
   failedStep?: string;
@@ -251,6 +257,6 @@ export const FacebookCampaignSchema =
   SchemaFactory.createForClass(FacebookCampaign);
 
 // Create indexes for efficient queries
-FacebookCampaignSchema.index({ campaignId: 1 }); // Find by campaign ID
+FacebookCampaignSchema.index({ campaignId: 1, platform: 1 }, { unique: true }); // Find by campaign ID and platform
 FacebookCampaignSchema.index({ userId: 1 }); // Find user's Facebook campaigns
 FacebookCampaignSchema.index({ facebookStatus: 1 }); // Find campaigns by status

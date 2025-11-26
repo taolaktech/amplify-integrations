@@ -74,6 +74,7 @@ export class FacebookCampaignService {
   async initializeFacebookCampaign(
     campaignData: CampaignDataFromLambda,
     facebookCampaignDocument: FacebookCampaign, // Pass the MongoDB document
+    platform: string,
   ): Promise<{
     facebookCampaignId: string;
     facebookCampaignName: string | undefined;
@@ -103,9 +104,10 @@ export class FacebookCampaignService {
       await this.updateProcessingStatus(
         campaignData.campaignId,
         'INITIALIZING',
+        platform,
       );
 
-      const campaignName = `Amplify Campaign - ${campaignData.type} - ${campaignData.campaignId}`;
+      const campaignName = campaignData.name; //`Amplify Campaign - ${campaignData.type} - ${campaignData.campaignId}`;
 
       // Call the API service to create the campaign on Facebook
       const facebookCampaignResponse =
@@ -120,7 +122,7 @@ export class FacebookCampaignService {
 
       // Update our tracking document with the new Facebook Campaign ID
       await this.facebookCampaignModel.updateOne(
-        { campaignId: campaignData.campaignId },
+        { campaignId: campaignData.campaignId, platform: platform },
         {
           $set: {
             facebookCampaignId: facebookCampaignResponse.id,
@@ -152,6 +154,7 @@ export class FacebookCampaignService {
       await this.updateProcessingStatus(
         campaignData.campaignId,
         'FAILED',
+        platform,
         `Campaign initialization failed: ${error.message}`,
         'INITIALIZING', // Note the step that failed
       );
@@ -168,17 +171,23 @@ export class FacebookCampaignService {
    * Step 2: Create a single Facebook Ad Set for the campaign.
    * This Ad Set will utilize dynamic creative (via asset_feed_spec later).
    */
-  async createAdSets(campaignId: string): Promise<{
+  async createAdSets(
+    campaignId: string,
+    platform: string,
+  ): Promise<{
     adSetsCreated: number;
     adSetIds: string[];
     adSetName: string;
   }> {
     try {
       this.logger.debug(
-        `Step 2: Creating a single Ad Set for Amplify campaign: ${campaignId}`,
+        `Step 2: Creating a single Ad Set for Amplify campaign: ${campaignId} on platform ${platform}`,
       );
 
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
 
       // Ensure campaign has been initialized
       if (!facebookCampaign.facebookCampaignId) {
@@ -216,9 +225,13 @@ export class FacebookCampaignService {
       }
 
       // Update our internal status
-      await this.updateProcessingStatus(campaignId, 'CREATING_ADSETS');
+      await this.updateProcessingStatus(
+        campaignId,
+        'CREATING_ADSETS',
+        platform,
+      );
 
-      const adSetName = `Amplify AdSet - ${originalCampaignData.type} - ${campaignId}`;
+      const adSetName = `${originalCampaignData.type} AdSet - ${originalCampaignData.type} - ${campaignId}`;
       const dailyBudgetInCents = facebookCampaign.dailyBudget; // Use the already calculated daily budget in cents
 
       // Build targeting object from original campaign data
@@ -266,7 +279,7 @@ export class FacebookCampaignService {
 
       // Update Facebook campaign document with the new Ad Set
       await this.facebookCampaignModel.updateOne(
-        { campaignId },
+        { campaignId, platform },
         {
           $set: {
             adSets: [adSetData], // Store as an array with one element
@@ -578,7 +591,176 @@ export class FacebookCampaignService {
   //     throw error;
   //   }
   // }
-  async createCreatives(campaignId: string): Promise<{
+  // async createCreatives(campaignId: string): Promise<{
+  //   creativesCreated: number;
+  //   creativeIds: string[];
+  // }> {
+  //   try {
+  //     this.logger.debug(
+  //       `Step 3: Creating product-level flexible creatives for campaign: ${campaignId}`,
+  //     );
+
+  //     const facebookCampaign = await this.getFacebookCampaign(campaignId);
+  //     const primaryAdAccount = await this.facebookAdAccountModel
+  //       .findOne({
+  //         userId: facebookCampaign.userId,
+  //         isPrimary: true,
+  //       })
+  //       .lean();
+
+  //     if (!primaryAdAccount?.selectedPrimaryFacebookPageId) {
+  //       throw new BadRequestException(
+  //         'Primary ad account has no selected Facebook Page. Please configure it first.',
+  //       );
+  //     }
+
+  //     const page = await this.facebookPageModel
+  //       .findById(primaryAdAccount.selectedPrimaryFacebookPageId)
+  //       .lean();
+
+  //     const pageId = page?.pageId;
+  //     if (!pageId) {
+  //       throw new BadRequestException(
+  //         'Could not find Page ID for the selected primary page.',
+  //       );
+  //     }
+
+  //     const campaignData =
+  //       facebookCampaign.originalCampaignData as CampaignDataFromLambda;
+
+  //     if (
+  //       facebookCampaign.processingStatus === 'CREATIVES_CREATED' &&
+  //       facebookCampaign.creatives.length > 0
+  //     ) {
+  //       this.logger.warn(
+  //         `Creatives for campaign ${campaignId} have already been created. Skipping.`,
+  //       );
+  //       return {
+  //         creativesCreated: facebookCampaign.creatives.length,
+  //         creativeIds: facebookCampaign.creatives.map((c) => c.creativeId),
+  //       };
+  //     }
+
+  //     await this.updateProcessingStatus(campaignId, 'CREATING_CREATIVES');
+
+  //     const allCreatedCreatives: FacebookCreativeAsset[] = [];
+  //     const isFacebook = campaignData.platforms.includes('FACEBOOK');
+  //     const isInstagram = campaignData.platforms.includes('INSTAGRAM');
+
+  //     // Loop per Product
+  //     for (const product of campaignData.products) {
+  //       this.logger.debug(`Processing product: ${product.title}`);
+
+  //       const productImages = new Set<string>();
+  //       const productTexts = new Set<string>();
+  //       const productHeadlines = new Set<string>();
+  //       const productDescriptions = new Set<string>();
+
+  //       for (const creativeSet of product.creatives) {
+  //         const parsedData = this.parseCreativeData(creativeSet.data);
+
+  //         for (const creative of parsedData) {
+  //           if (creative.url) {
+  //             productImages.add(creative.url);
+  //           }
+
+  //           if (isInstagram && creative.caption) {
+  //             productTexts.add(creative.caption);
+  //           }
+
+  //           if (isFacebook) {
+  //             if (creative.bodyText) productTexts.add(creative.bodyText);
+  //             if (creative.title) productHeadlines.add(creative.title);
+  //             if (creative.description)
+  //               productDescriptions.add(creative.description);
+  //           }
+  //         }
+  //       }
+
+  //       if (productHeadlines.size === 0) {
+  //         productHeadlines.add(product.title);
+  //       }
+
+  //       const imageHashes = await this.uploadImagesToFacebook(
+  //         facebookCampaign.userAdAccountId,
+  //         Array.from(productImages),
+  //       );
+
+  //       const assetFeedSpec: any = {
+  //         images: imageHashes.map((hash) => ({ hash })),
+  //         bodies: Array.from(productTexts).map((text) => ({ text })),
+  //         titles: Array.from(productHeadlines).map((text) => ({ text })),
+  //         descriptions: Array.from(productDescriptions).map((text) => ({
+  //           text,
+  //         })),
+  //         link_urls: [{ website_url: product.productLink }],
+  //         call_to_action_types: ['SHOP_NOW'],
+  //       };
+
+  //       const creativeName = `Product-Level Creative - ${product.title}`;
+  //       const creativeResponse =
+  //         await this.facebookMarketingApiService.createFlexibleCreative(
+  //           facebookCampaign.userAdAccountId,
+  //           creativeName,
+  //           assetFeedSpec,
+  //           pageId,
+  //           facebookCampaign.instagramActorId,
+  //         );
+
+  //       allCreatedCreatives.push({
+  //         creativeId: creativeResponse.id,
+  //         name: creativeName,
+  //         imageUrl: Array.from(productImages)[0] || '',
+  //         destinationUrl: product.productLink,
+  //         primaryText: Array.from(productTexts)[0],
+  //         headline: Array.from(productHeadlines)[0],
+  //         callToAction: 'SHOP_NOW',
+  //         approvalStatus: 'PENDING',
+  //         createdAt: new Date(),
+  //         productId: product.shopifyId, // Associate creative with product
+  //       });
+  //     }
+
+  //     this.logger.debug(
+  //       `Successfully created ${allCreatedCreatives.length} product-level creative assets.`,
+  //     );
+
+  //     await this.facebookCampaignModel.updateOne(
+  //       { campaignId },
+  //       {
+  //         $set: {
+  //           creatives: allCreatedCreatives,
+  //           processingStatus: 'CREATIVES_CREATED',
+  //           failedStep: null,
+  //           errorMessage: null,
+  //           lastProcessedAt: new Date(),
+  //         },
+  //       },
+  //     );
+
+  //     return {
+  //       creativesCreated: allCreatedCreatives.length,
+  //       creativeIds: allCreatedCreatives.map((c) => c.creativeId),
+  //     };
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create product-level creatives for campaign: ${campaignId}`,
+  //       error,
+  //     );
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'FAILED',
+  //       `Distinct creative creation failed: ${error.message}`,
+  //       'CREATING_CREATIVES',
+  //     );
+  //     throw error;
+  //   }
+  // }
+
+  async createCreatives(
+    campaignId: string,
+    platform: string,
+  ): Promise<{
     creativesCreated: number;
     creativeIds: string[];
   }> {
@@ -587,7 +769,10 @@ export class FacebookCampaignService {
         `Step 3: Creating product-level flexible creatives for campaign: ${campaignId}`,
       );
 
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
       const primaryAdAccount = await this.facebookAdAccountModel
         .findOne({
           userId: facebookCampaign.userId,
@@ -628,13 +813,16 @@ export class FacebookCampaignService {
         };
       }
 
-      await this.updateProcessingStatus(campaignId, 'CREATING_CREATIVES');
+      await this.updateProcessingStatus(
+        campaignId,
+        'CREATING_CREATIVES',
+        platform,
+      );
 
-      const allCreatedCreatives: FacebookCreativeAsset[] = [];
+      const allCreatedCreatives: any[] = []; // Using any to accommodate productId
       const isFacebook = campaignData.platforms.includes('FACEBOOK');
       const isInstagram = campaignData.platforms.includes('INSTAGRAM');
 
-      // Loop per Product
       for (const product of campaignData.products) {
         this.logger.debug(`Processing product: ${product.title}`);
 
@@ -643,23 +831,33 @@ export class FacebookCampaignService {
         const productHeadlines = new Set<string>();
         const productDescriptions = new Set<string>();
 
-        for (const creativeSet of product.creatives) {
-          const parsedData = this.parseCreativeData(creativeSet.data);
+        // Filter creative sets for the correct channels before processing
+        const facebookCreativeSets = product.creatives.filter(
+          (c) => c.channel === 'facebook',
+        );
+        const instagramCreativeSets = product.creatives.filter(
+          (c) => c.channel === 'instagram',
+        );
 
-          for (const creative of parsedData) {
-            if (creative.url) {
-              productImages.add(creative.url);
-            }
-
-            if (isInstagram && creative.caption) {
-              productTexts.add(creative.caption);
-            }
-
-            if (isFacebook) {
+        if (isFacebook) {
+          for (const creativeSet of facebookCreativeSets) {
+            const parsedData = this.parseCreativeData(creativeSet.data);
+            for (const creative of parsedData) {
+              if (creative.url) productImages.add(creative.url);
               if (creative.bodyText) productTexts.add(creative.bodyText);
               if (creative.title) productHeadlines.add(creative.title);
               if (creative.description)
                 productDescriptions.add(creative.description);
+            }
+          }
+        }
+
+        if (isInstagram) {
+          for (const creativeSet of instagramCreativeSets) {
+            const parsedData = this.parseCreativeData(creativeSet.data);
+            for (const creative of parsedData) {
+              if (creative.url) productImages.add(creative.url);
+              if (creative.caption) productTexts.add(creative.caption);
             }
           }
         }
@@ -682,6 +880,7 @@ export class FacebookCampaignService {
           })),
           link_urls: [{ website_url: product.productLink }],
           call_to_action_types: ['SHOP_NOW'],
+          ad_formats: ['SINGLE_IMAGE'],
         };
 
         const creativeName = `Product-Level Creative - ${product.title}`;
@@ -704,7 +903,7 @@ export class FacebookCampaignService {
           callToAction: 'SHOP_NOW',
           approvalStatus: 'PENDING',
           createdAt: new Date(),
-          productId: product.shopifyId, // Associate creative with product
+          productId: product.shopifyId,
         });
       }
 
@@ -713,7 +912,7 @@ export class FacebookCampaignService {
       );
 
       await this.facebookCampaignModel.updateOne(
-        { campaignId },
+        { campaignId, platform },
         {
           $set: {
             creatives: allCreatedCreatives,
@@ -737,6 +936,7 @@ export class FacebookCampaignService {
       await this.updateProcessingStatus(
         campaignId,
         'FAILED',
+        platform,
         `Distinct creative creation failed: ${error.message}`,
         'CREATING_CREATIVES',
       );
@@ -870,7 +1070,10 @@ export class FacebookCampaignService {
   //   }
   // }
 
-  async createAds(campaignId: string): Promise<{
+  async createAds(
+    campaignId: string,
+    platform: string,
+  ): Promise<{
     adsCreated: number;
     adIds: string[];
   }> {
@@ -879,7 +1082,10 @@ export class FacebookCampaignService {
         `Step 4: Creating distinct ads for campaign: ${campaignId}`,
       );
 
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
 
       // Prevent re-running if already completed
       if (
@@ -905,7 +1111,7 @@ export class FacebookCampaignService {
         );
       }
 
-      await this.updateProcessingStatus(campaignId, 'CREATING_ADS');
+      await this.updateProcessingStatus(campaignId, 'CREATING_ADS', platform);
 
       const createdAds: FacebookAd[] = [];
       const adSetId = facebookCampaign.adSets[0].adSetId;
@@ -938,7 +1144,7 @@ export class FacebookCampaignService {
 
       // Update the tracking document with the new list of Ads
       await this.facebookCampaignModel.updateOne(
-        { campaignId },
+        { campaignId, platform },
         {
           $set: {
             ads: createdAds,
@@ -962,6 +1168,7 @@ export class FacebookCampaignService {
       await this.updateProcessingStatus(
         campaignId,
         'FAILED',
+        platform,
         `Ad creation failed: ${error.message}`,
         'CREATING_ADS',
       );
@@ -973,14 +1180,20 @@ export class FacebookCampaignService {
    * Step 5: Launch Campaign
    * Activates the Campaign, Ad Set, and Ad in the correct sequence.
    */
-  async launchCampaign(campaignId: string): Promise<{
+  async launchCampaign(
+    campaignId: string,
+    platform: string,
+  ): Promise<{
     facebookStatus: string;
     reviewStatus: string; // This is an effective status from Facebook's perspective
   }> {
     try {
       this.logger.debug(`Step 5: Launching Amplify campaign: ${campaignId}`);
 
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
 
       // Prevent re-launching
       if (
@@ -1007,7 +1220,7 @@ export class FacebookCampaignService {
         );
       }
 
-      await this.updateProcessingStatus(campaignId, 'LAUNCHING');
+      await this.updateProcessingStatus(campaignId, 'LAUNCHING', platform);
 
       // It's crucial to activate components in the correct order: Ad -> Ad Set -> Campaign
       const adId = facebookCampaign.ads[0].adId;
@@ -1039,7 +1252,7 @@ export class FacebookCampaignService {
 
       // Update the final status in our database
       await this.facebookCampaignModel.updateOne(
-        { campaignId },
+        { campaignId, platform },
         {
           $set: {
             'ads.$[].status': 'ACTIVE',
@@ -1066,6 +1279,7 @@ export class FacebookCampaignService {
       await this.updateProcessingStatus(
         campaignId,
         'FAILED',
+        platform,
         `Campaign launch failed: ${error.message}`,
         'LAUNCHING',
       );
@@ -1076,7 +1290,10 @@ export class FacebookCampaignService {
   /**
    * Get the current processing and Facebook status of a campaign.
    */
-  async getCampaignStatus(campaignId: string): Promise<{
+  async getCampaignStatus(
+    campaignId: string,
+    platform: string,
+  ): Promise<{
     processingStatus: string;
     facebookStatus?: string;
     failedStep?: string;
@@ -1089,7 +1306,10 @@ export class FacebookCampaignService {
   }> {
     try {
       this.logger.debug(`Getting status for Amplify campaign: ${campaignId}`);
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
 
       const statusMap = {
         PENDING: { next: 'INITIALIZE', ready: true },
@@ -1131,6 +1351,7 @@ export class FacebookCampaignService {
   async retryStep(
     campaignId: string,
     stepToRetry: string,
+    platform: string,
   ): Promise<{
     completedStep: string;
     nextStep: string | null;
@@ -1141,7 +1362,10 @@ export class FacebookCampaignService {
         `Retrying step '${stepToRetry}' for Amplify campaign: ${campaignId}`,
       );
 
-      const facebookCampaign = await this.getFacebookCampaign(campaignId);
+      const facebookCampaign = await this.getFacebookCampaign(
+        campaignId,
+        platform,
+      );
 
       // 1. Validate that the campaign is actually in a failed state
       if (
@@ -1162,7 +1386,7 @@ export class FacebookCampaignService {
 
       // 3. Increment retry counter and clear previous error
       await this.facebookCampaignModel.updateOne(
-        { campaignId },
+        { campaignId, platform },
         {
           $inc: { retryCount: 1 },
           $set: { errorMessage: null, failedStep: null },
@@ -1182,23 +1406,24 @@ export class FacebookCampaignService {
           result = await this.initializeFacebookCampaign(
             campaignData,
             facebookCampaign,
+            platform,
           );
           nextStep = 'CREATE_ADSETS';
           break;
         case 'CREATING_ADSETS':
-          result = await this.createAdSets(campaignId);
+          result = await this.createAdSets(campaignId, platform);
           nextStep = 'CREATE_CREATIVES';
           break;
         case 'CREATING_CREATIVES':
-          result = await this.createCreatives(campaignId);
+          result = await this.createCreatives(campaignId, platform);
           nextStep = 'CREATE_ADS';
           break;
         case 'CREATING_ADS':
-          result = await this.createAds(campaignId);
+          result = await this.createAds(campaignId, platform);
           nextStep = 'LAUNCH';
           break;
         case 'LAUNCHING':
-          result = await this.launchCampaign(campaignId);
+          result = await this.launchCampaign(campaignId, platform);
           nextStep = null; // Final step
           break;
         default:
@@ -1247,9 +1472,10 @@ export class FacebookCampaignService {
    */
   private async getFacebookCampaign(
     campaignId: string,
+    platform: string,
   ): Promise<FacebookCampaign> {
     const facebookCampaign = await this.facebookCampaignModel
-      .findOne({ campaignId })
+      .findOne({ campaignId, platform })
       .exec();
 
     if (!facebookCampaign) {
@@ -1279,6 +1505,7 @@ export class FacebookCampaignService {
   private async updateProcessingStatus(
     campaignId: string,
     status: string,
+    platform: string,
     errorMessage?: string,
     failedStep?: string,
   ): Promise<void> {
@@ -1295,7 +1522,7 @@ export class FacebookCampaignService {
     }
 
     await this.facebookCampaignModel.updateOne(
-      { campaignId },
+      { campaignId, platform },
       { $set: updatePayload },
     );
   }

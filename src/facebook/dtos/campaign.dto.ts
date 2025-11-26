@@ -48,7 +48,7 @@ export class CreativeDto {
     example: 'creative_123',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   id: string;
 
   @ApiProperty({
@@ -59,14 +59,6 @@ export class CreativeDto {
   @IsString()
   @IsEnum(['facebook', 'instagram', 'google'])
   channel: string;
-
-  @ApiProperty({
-    description: 'Budget allocated for this creative',
-    example: 100.5,
-  })
-  @IsNumber()
-  @Min(0)
-  budget: number;
 
   @ApiProperty({
     description: 'Creative data URLs',
@@ -146,11 +138,12 @@ export class ProductDto {
   category: string;
 
   @ApiProperty({
-    description: 'Product image URL',
-    example: 'https://example.com/images/product-123.jpg',
+    description: 'Product image URLs',
+    example: ['https://example.com/images/product-123.jpg'],
   })
-  @IsUrl()
-  imageLink: string;
+  @IsArray()
+  @IsUrl({}, { each: true })
+  imageLinks: string[];
 
   @ApiProperty({
     description: 'Product page URL',
@@ -171,12 +164,36 @@ export class ProductDto {
 
 export class CampaignDataFromLambdaClass {
   @ApiProperty({
+    description: 'Name of the Campaign',
+    example: 'Black Friday',
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({
+    description: 'ObjectId of the Shopify Account',
+    example: '68df9d74971b4143c38e00f7',
+  })
+  @IsString()
+  @IsNotEmpty()
+  shopifyAccountId: string;
+
+  @ApiProperty({
     description: 'MongoDB ObjectId as string',
     example: '507f1f77bcf86cd799439011',
   })
   @IsString()
   @IsNotEmpty()
   campaignId: string;
+
+  @ApiProperty({
+    description: 'MongoDB ObjectId as string',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
 
   @ApiProperty({
     description: 'Facebook Page ID',
@@ -295,6 +312,14 @@ export class CampaignDataFromLambdaClass {
   @Type(() => ProductDto)
   @ArrayMinSize(1)
   products: ProductDto[];
+
+  @ApiProperty({
+    description: 'User Instagram ID',
+    example: '17841476275533415',
+  })
+  @IsString()
+  @IsOptional()
+  instagramAccountId?: string;
 }
 
 export class InitializeCampaignDto {
@@ -314,6 +339,14 @@ export class InitializeCampaignDto {
   @IsString()
   @IsNotEmpty()
   userAdAccountId: string;
+
+  @ApiProperty({
+    description: 'User Instagram ID',
+    example: '17841476275533415',
+  })
+  @IsString()
+  @IsOptional()
+  instagramAccountId?: string;
 }
 
 // Keep the original interface for type compatibility if needed
