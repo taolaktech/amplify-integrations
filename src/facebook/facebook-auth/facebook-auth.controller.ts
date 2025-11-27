@@ -101,7 +101,8 @@ export class FacebookAuthController {
     };
   }
 
-  @Public()
+  // no longer public as Facebook will call a frontend url which will then call this
+  // @Public()
   @Get('callback')
   @ApiOperation({
     summary: 'Handle Facebook OAuth callback',

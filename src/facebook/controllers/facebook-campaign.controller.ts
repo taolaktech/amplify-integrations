@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Logger,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { FacebookCampaignService } from '../services/facebook-campaign.service';
@@ -70,6 +71,8 @@ export class FacebookCampaignController {
       `Initializing Facebook campaign: ${dto.campaignData.campaignId}`,
     );
 
+    const platform = dto.campaignData.platforms[0];
+
     // Validate that the user has the required platforms integrated
     if (dto.campaignData.platforms.includes('INSTAGRAM')) {
       const instagramSetup =
@@ -97,11 +100,28 @@ export class FacebookCampaignController {
 
     // Step 1: Get or create the Facebook campaign tracking document in our DB.
     // This is idempotent and safe to call multiple times.
-    const facebookCampaignDocument =
-      await this.facebookCampaignDataService.createFacebookCampaignFromLambda(
-        dto.campaignData,
-        dto.userAdAccountId,
-      );
+    let facebookCampaignDocument: Awaited<
+      ReturnType<
+        typeof this.facebookCampaignDataService.createFacebookCampaignFromLambda
+      >
+    >;
+
+    if (platform.toLowerCase() == 'instagram') {
+      facebookCampaignDocument =
+        await this.facebookCampaignDataService.createFacebookCampaignFromLambda(
+          dto.campaignData,
+          platform,
+          dto.userAdAccountId,
+          dto.instagramAccountId,
+        );
+    } else {
+      facebookCampaignDocument =
+        await this.facebookCampaignDataService.createFacebookCampaignFromLambda(
+          dto.campaignData,
+          platform,
+          dto.userAdAccountId,
+        );
+    }
 
     // Step 2: Call the service to perform the actual Facebook API interaction.
     // This will create the campaign on Facebook's side.
@@ -109,6 +129,7 @@ export class FacebookCampaignController {
       await this.facebookCampaignService.initializeFacebookCampaign(
         dto.campaignData,
         facebookCampaignDocument, // Pass the MongoDB document
+        platform,
       );
 
     return {
@@ -172,13 +193,18 @@ export class FacebookCampaignController {
   })
   async createAdSets(
     @Param('campaignId') campaignId: string,
+    //query for platform
+    @Query('platform') platform: string,
   ): Promise<CampaignStepResponse> {
     this.logger.debug(
       `Received request to create Ad Sets for Amplify campaign: ${campaignId}`,
     );
 
     // Call the service to create the Ad Set on Facebook
-    const result = await this.facebookCampaignService.createAdSets(campaignId);
+    const result = await this.facebookCampaignService.createAdSets(
+      campaignId,
+      platform,
+    );
 
     return {
       success: true,
@@ -203,14 +229,18 @@ export class FacebookCampaignController {
   @ApiParam({ name: 'campaignId', description: 'Amplify Campaign ID' })
   async createCreatives(
     @Param('campaignId') campaignId: string,
+    //query for platform
+    @Query('platform') platform: string,
   ): Promise<CampaignStepResponse> {
     this.logger.debug(
       `Received request to create creatives for campaign: ${campaignId}`,
     );
 
     // This service method now handles the creation of a single flexible creative.
-    const result =
-      await this.facebookCampaignService.createCreatives(campaignId);
+    const result = await this.facebookCampaignService.createCreatives(
+      campaignId,
+      platform,
+    );
 
     return {
       success: true,
@@ -233,13 +263,18 @@ export class FacebookCampaignController {
   })
   async createAds(
     @Param('campaignId') campaignId: string,
+    //query for platform
+    @Query('platform') platform: string,
   ): Promise<CampaignStepResponse> {
     this.logger.debug(
       `Received request to create ads for campaign: ${campaignId}`,
     );
 
     // This service method now handles the creation of the single ad.
-    const result = await this.facebookCampaignService.createAds(campaignId);
+    const result = await this.facebookCampaignService.createAds(
+      campaignId,
+      platform,
+    );
 
     return {
       success: true,
@@ -262,12 +297,16 @@ export class FacebookCampaignController {
   })
   async launchCampaign(
     @Param('campaignId') campaignId: string,
+    //query for platform
+    @Query('platform') platform: string,
   ): Promise<CampaignStepResponse> {
     this.logger.debug(`Received request to launch campaign: ${campaignId}`);
 
     // This service method now handles activating all components.
-    const result =
-      await this.facebookCampaignService.launchCampaign(campaignId);
+    const result = await this.facebookCampaignService.launchCampaign(
+      campaignId,
+      platform,
+    );
 
     return {
       success: true,
@@ -291,11 +330,17 @@ export class FacebookCampaignController {
   })
   @ApiResponse({ status: 200, description: 'Status retrieved successfully.' })
   @ApiResponse({ status: 404, description: 'Campaign not found.' })
-  async getCampaignStatus(@Param('campaignId') campaignId: string) {
+  async getCampaignStatus(
+    @Param('campaignId') campaignId: string,
+    //query for platform
+    @Query('platform') platform: string,
+  ) {
     this.logger.debug(`Received request for status of campaign: ${campaignId}`);
 
-    const status =
-      await this.facebookCampaignService.getCampaignStatus(campaignId);
+    const status = await this.facebookCampaignService.getCampaignStatus(
+      campaignId,
+      platform,
+    );
 
     return {
       success: true,
@@ -325,6 +370,8 @@ export class FacebookCampaignController {
   async retryFailedStep(
     @Param('campaignId') campaignId: string,
     @Body() body: RetryStepDto,
+    //query for platform
+    @Query('platform') platform: string,
   ): Promise<CampaignStepResponse> {
     this.logger.debug(
       `Received request to retry step '${body.step}' for campaign: ${campaignId}`,
@@ -334,6 +381,7 @@ export class FacebookCampaignController {
     const result = await this.facebookCampaignService.retryStep(
       campaignId,
       body.step,
+      platform,
     );
 
     return {

@@ -34,7 +34,7 @@ export class FacebookAuthService {
   private readonly logger = new Logger(FacebookAuthService.name);
 
   private readonly graph = axios.create({
-    baseURL: 'https://graph.facebook.com/v23.0',
+    baseURL: 'https://graph.facebook.com/v24.0',
   });
 
   constructor(
@@ -2222,15 +2222,17 @@ export class FacebookAuthService {
         throw new NotFoundException('Ad account not found');
       }
 
-      const query = new URLSearchParams({
-        name: metaPixelName,
-      });
+      // const pixelResponse = await this.graph.post<{ id: string }>(
+      //   `/${adAccountId}/adspixel?${query.toString()}`,
+      // );
 
-      const pixelResponse = await this.graph.post<{ id: string }>(
-        `/${adAccountId}/adspixel?${query.toString()}`,
-      );
-
-      const metaPixelId = pixelResponse.data.id;
+      // const metaPixelId = pixelResponse.data.id;
+      //
+      const metaPixelId =
+        await this.facebookBusinessManagerService.generateMetaPixelId(
+          adAccountId,
+          metaPixelName,
+        );
 
       // update ad account model with the pixel id on the metaPixelId field
       await this.facebookAdAccountModel.updateOne(

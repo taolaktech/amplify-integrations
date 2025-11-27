@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -801,6 +802,100 @@ export class FacebookBusinessManagerService {
         error.response?.data?.error?.message || 'An unknown error occurred';
       throw new InternalServerErrorException(
         `Facebook API Error: ${errorMessage}`,
+      );
+    }
+  }
+
+  async generateMetaPixelId(
+    adAccountId: string,
+    metaPixelName: string,
+  ): Promise<string> {
+    try {
+      const query = new URLSearchParams({
+        name: metaPixelName,
+      });
+
+      const pixelResponse = await this.graph.post<{ id: string }>(
+        `/${adAccountId}/adspixels?${query.toString()}`,
+      );
+
+      const metaPixelId = pixelResponse.data.id;
+
+      return metaPixelId;
+    } catch (error) {
+      // Axios wraps the actual API error in `error.response.data`
+      const facebookError = error.response?.data?.error;
+      const errorMessage =
+        facebookError?.message || error.message || 'Something went wrong';
+
+      this.logger.error(
+        `::: Error generating MetaPixel Id => ${JSON.stringify(facebookError || error)} :::`,
+      );
+
+      // Throw a new exception that includes the specific message from Facebook
+      throw new BadRequestException(errorMessage);
+    }
+  }
+
+  /**
+   * Fetches insights from the Facebook API for a batch of ads using the batch endpoint.
+   * @param adIds The list of Ad IDs to fetch insights for.
+   * @returns A promise that resolves to an array of insight data from the API.
+   */
+  async getInsights(adIds: string[]): Promise<any[]> {
+    try {
+      if (adIds.length === 0) {
+        return [];
+      }
+
+      this.logger.debug(`Fetching insights for ${adIds.length} ads.`);
+
+      const fields = [
+        'ad_id',
+        'clicks',
+        'impressions',
+        'spend',
+        'actions',
+        'action_values',
+      ];
+
+      const params = {
+        level: 'ad',
+        breakdowns: 'publisher_platform', // where the ad was shown within a platform to separate FB/IG data
+        fields: fields.join(','),
+        date_preset: 'last_28d', // Using a 28-day window for metrics
+      };
+
+      // Create a batch request to fetch insights for all ads in one API call
+      const batchRequests = adIds.map((id) => ({
+        method: 'GET',
+        relative_url: `${id}/insights?${new URLSearchParams(
+          params as any,
+        ).toString()}`,
+      }));
+
+      const response = await this.graph.post('/', {
+        batch: JSON.stringify(batchRequests),
+      });
+
+      // Process the batch response
+      const insights = response.data
+        .filter((res) => res && res.code === 200) // Filter for successful responses
+        .flatMap((res) => JSON.parse(res.body).data); // Extract the data from each response body
+
+      this.logger.debug(
+        `Successfully retrieved ${insights.length} insight entries.`,
+      );
+      return insights;
+    } catch (error) {
+      this.logger.error(
+        'Facebook API Error: Failed to fetch insights',
+        error.response?.data,
+      );
+      throw new InternalServerErrorException(
+        `Facebook API Error: ${
+          error.response?.data?.error?.message || 'Failed to fetch insights'
+        }`,
       );
     }
   }

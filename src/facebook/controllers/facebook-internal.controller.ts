@@ -59,4 +59,24 @@ export class InternalFacebookController {
       },
     };
   }
+
+  @Get('users/:userId/primary-instagram-account')
+  @ApiOperation({
+    summary: 'Get primary Instagram account',
+    description: "Retrieves the user's primary Instagram account.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Primary Instagram account retrieved successfully',
+  })
+  async getPrimaryInstagramAccount(@Param('userId') userId: string) {
+    const primaryAccount =
+      await this.facebookAuthService.getPrimaryInstagramAccount(userId);
+
+    return {
+      success: true,
+      data: primaryAccount,
+      message: 'Primary Instagram account retrieved successfully',
+    };
+  }
 }

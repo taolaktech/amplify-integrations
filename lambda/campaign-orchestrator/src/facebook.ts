@@ -17,6 +17,8 @@ const integrationsApi = axios.create({
   headers: { 'X-Internal-API-Key': API_KEY },
 });
 
+const PLATFORM = 'FACEBOOK';
+
 interface CampaignData {
   __v: string;
   _id: string;
@@ -128,7 +130,7 @@ interface StepResponse {
   data?: any;
 }
 
-// --- API Helper Functions ---
+//  API Helper Functions
 
 async function getCampaignData(campaignId: string): Promise<CampaignData> {
   console.log(`Fetching campaign data for campaignId: ${campaignId}`);
@@ -163,7 +165,7 @@ async function callInitializeStep(payload: {
 async function callCreateAdsetsStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_ADSETS');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-adsets`,
+    `/facebook-campaigns/${campaignId}/create-adsets?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_ADSETS" successful.');
   return response.data;
@@ -174,7 +176,7 @@ async function callCreateCreativesStep(
 ): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_CREATIVES');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-creatives`,
+    `/facebook-campaigns/${campaignId}/create-creatives?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_CREATIVES" successful.');
   return response.data;
@@ -183,7 +185,7 @@ async function callCreateCreativesStep(
 async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_ADS');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-ads`,
+    `/facebook-campaigns/${campaignId}/create-ads?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_ADS" successful.');
   return response.data;
@@ -192,7 +194,7 @@ async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
 async function callLaunchStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: LAUNCH');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/launch`,
+    `/facebook-campaigns/${campaignId}/launch?platform=${PLATFORM}`,
   );
   console.log('STEP "LAUNCH" successful. Workflow complete.');
   return response.data;

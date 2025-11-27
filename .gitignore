@@ -64,3 +64,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /lambda/campaign-orchestrator/samconfig.toml
 /lambda/campaign-orchestrator/node_modules
 /lambda/campaign-orchestrator/*.md
+
+# Test frontend app
+/frontend-oauth-tester/

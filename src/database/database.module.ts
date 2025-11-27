@@ -14,6 +14,7 @@ import {
   FacebookCampaignSchema,
   InstagramAccountSchema,
 } from './schema';
+import { DatabaseIndexService } from './database-index.service';
 // import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
 
 @Global()
@@ -41,6 +42,7 @@ import {
       { name: 'instagram-accounts', schema: InstagramAccountSchema },
     ]),
   ],
+  providers: [DatabaseIndexService],
   exports: [MongooseModule],
 })
 export class DatabaseModule {}

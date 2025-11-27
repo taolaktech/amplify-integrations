@@ -1,12 +1,12 @@
 import { SQSEvent, SQSHandler } from 'aws-lambda';
 import axios from 'axios';
 
-// --- Configuration ---
+//  Configuration
 const MANAGER_API_URL = process.env.AMPLIFY_MANAGER_API_URL;
 const INTEGRATIONS_API_URL = process.env.AMPLIFY_INTEGRATIONS_API_URL;
 const API_KEY = process.env.INTERNAL_API_KEY;
 
-// --- HTTP Clients ---
+// HTTP Clients
 const managerApi = axios.create({
   baseURL: MANAGER_API_URL,
   headers: { 'x-api-key': API_KEY },
@@ -16,6 +16,8 @@ const integrationsApi = axios.create({
   baseURL: INTEGRATIONS_API_URL,
   headers: { 'X-Internal-API-Key': API_KEY },
 });
+
+const PLATFORM = 'INSTAGRAM';
 
 interface CampaignData {
   __v: string;
@@ -107,12 +109,26 @@ interface InstagramAccountData {
   instagramAccountId: string;
   username: string;
   pageId: string;
-  adAccountId: string; // The Facebook Ad Account associated with this Instagram account
+  associatedAdAccountId: string; // The Facebook Ad Account associated with this Instagram account
 }
 
 interface InstagramAccountDataResponse {
   success: boolean;
   data: InstagramAccountData;
+}
+
+interface AdAccountData {
+  accountId: string;
+  pageId: string;
+  metaPixelId: string;
+  name: string;
+  currency: string;
+  integrationStatus: string;
+}
+
+interface AdAccountDataResponse {
+  sucees: boolean;
+  data: AdAccountData;
 }
 
 interface SqsBody {
@@ -135,6 +151,14 @@ async function getCampaignData(campaignId: string): Promise<CampaignData> {
     `/internal/campaign/${campaignId}`,
   );
   console.log(`::: Response => ${JSON.stringify(response.data)}`);
+  return response.data.data;
+}
+
+async function getAdAccount(userId: string): Promise<AdAccountData> {
+  console.log(`Fetching ad account for userId: ${userId}`);
+  const response = await integrationsApi.get<AdAccountDataResponse>(
+    `/facebook/internal/users/${userId}/primary-ad-account`,
+  );
   return response.data.data;
 }
 
@@ -165,7 +189,7 @@ async function callInitializeStep(payload: {
 async function callCreateAdsetsStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_ADSETS for Instagram campaign');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-adsets`,
+    `/facebook-campaigns/${campaignId}/create-adsets?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_ADSETS" successful.');
   return response.data;
@@ -176,7 +200,7 @@ async function callCreateCreativesStep(
 ): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_CREATIVES for Instagram campaign');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-creatives`,
+    `/facebook-campaigns/${campaignId}/create-creatives?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_CREATIVES" successful.');
   return response.data;
@@ -185,7 +209,7 @@ async function callCreateCreativesStep(
 async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: CREATE_ADS for Instagram campaign');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/create-ads`,
+    `/facebook-campaigns/${campaignId}/create-ads?platform=${PLATFORM}`,
   );
   console.log('STEP "CREATE_ADS" successful.');
   return response.data;
@@ -194,19 +218,23 @@ async function callCreateAdsStep(campaignId: string): Promise<StepResponse> {
 async function callLaunchStep(campaignId: string): Promise<StepResponse> {
   console.log('Executing STEP: LAUNCH for Instagram campaign');
   const response = await integrationsApi.post(
-    `/facebook-campaigns/${campaignId}/launch`,
+    `/facebook-campaigns/${campaignId}/launch?platform=${PLATFORM}`,
   );
   console.log('STEP "LAUNCH" successful. Workflow complete.');
   return response.data;
 }
 
-// --- Lambda Handler ---
+// Lambda Handler
 
 export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
   console.log(
     'Received SQS event for Instagram campaign orchestration with records:',
     event.Records.length,
   );
+
+  // log URL
+  // console.log(`::: Amplify URL => ${MANAGER_API_URL}`);
+  // console.log(`::: Integrations URL => ${INTEGRATIONS_API_URL}`);
 
   for (const record of event.Records) {
     let campaignId: string | null = null;
@@ -234,6 +262,12 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
         );
       }
 
+      const adAccountData = await getAdAccount(campaignData.createdBy);
+
+      if (Object.keys(adAccountData).length < 1) {
+        throw new Error('User has no ad account');
+      }
+
       // 2. Get Instagram account for the user
       const instagramAccount = await getInstagramAccount(
         campaignData.createdBy,
@@ -248,7 +282,7 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
         `Found Instagram account: ${instagramAccount.instagramAccountId} (${instagramAccount.username})`,
       );
       console.log(
-        `Associated Facebook Ad Account: ${instagramAccount.adAccountId}`,
+        `Associated Facebook Ad Account: ${instagramAccount.associatedAdAccountId}`,
       );
 
       // 3. Prepare campaign data for Instagram-only campaign
@@ -272,10 +306,10 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
           campaignId: _id,
           userId: createdBy,
           pageId: instagramAccount.pageId, // Facebook Page associated with Instagram account
-          metaPixelId: '', // Instagram campaigns may not use Meta Pixel, or we can get it from the ad account
+          metaPixelId: adAccountData.metaPixelId, //|| '', // Instagram campaigns may not use Meta Pixel, or we can get it from the ad account
           instagramAccountId: instagramAccount.instagramAccountId, // Required for Instagram campaigns
         },
-        userAdAccountId: instagramAccount.adAccountId, // Facebook Ad Account associated with Instagram account
+        userAdAccountId: instagramAccount.associatedAdAccountId, // Facebook Ad Account associated with Instagram account
         instagramAccountId: instagramAccount.instagramAccountId,
       };
 
