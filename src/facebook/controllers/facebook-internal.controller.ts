@@ -1,13 +1,18 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 import { Public } from '../../auth/decorators';
+import { AdsInsightsDto, CampaignInsightsDto } from '../dtos/insights.dto';
+import { FacebookBusinessManagerService } from '../services/facebook-business-manager.service';
 
 @Public()
 @ApiTags('Internal Facebook Campaign Controller')
 @Controller('facebook/internal')
 export class InternalFacebookController {
-  constructor(private readonly facebookAuthService: FacebookAuthService) {}
+  constructor(
+    private readonly facebookAuthService: FacebookAuthService,
+    private readonly facebookBusinessManager: FacebookBusinessManagerService,
+  ) {}
 
   @Get('users/:userId/primary-ad-account')
   @ApiOperation({
@@ -77,6 +82,51 @@ export class InternalFacebookController {
       success: true,
       data: primaryAccount,
       message: 'Primary Instagram account retrieved successfully',
+    };
+  }
+
+  @Post('ads/insights')
+  @ApiOperation({
+    summary: 'Get insights from facebook on multiple Ads',
+    description: 'Retrieves insights from the adId sent',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of Ad insights',
+  })
+  async retrieveMetaAdInsights(@Body() adInsightsDto: AdsInsightsDto) {
+    const adInsightsResponse = await this.facebookBusinessManager.getAdInsights(
+      adInsightsDto.adIds,
+    );
+
+    return {
+      success: true,
+      data: adInsightsResponse,
+      message: 'Ads Insights successfully fetched',
+    };
+  }
+
+  @Post('campaign/insights')
+  @ApiOperation({
+    summary: 'Get insights from facebook on multiple campaigns',
+    description: 'Retrieves insights from the campaignIds sent',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of Campaign insights',
+  })
+  async retrieveMetaCampaignInsights(
+    @Body() campaignInsightsDto: CampaignInsightsDto,
+  ) {
+    const adInsightsResponse =
+      await this.facebookBusinessManager.getCampaignInsights(
+        campaignInsightsDto.campaignIds,
+      );
+
+    return {
+      success: true,
+      data: adInsightsResponse,
+      message: 'Campaigns Insights successfully fetched',
     };
   }
 }

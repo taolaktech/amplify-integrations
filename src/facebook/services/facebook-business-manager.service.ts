@@ -842,7 +842,7 @@ export class FacebookBusinessManagerService {
    * @param adIds The list of Ad IDs to fetch insights for.
    * @returns A promise that resolves to an array of insight data from the API.
    */
-  async getInsights(adIds: string[]): Promise<any[]> {
+  async getAdInsights(adIds: string[]): Promise<any[]> {
     try {
       if (adIds.length === 0) {
         return [];
@@ -868,6 +868,70 @@ export class FacebookBusinessManagerService {
 
       // Create a batch request to fetch insights for all ads in one API call
       const batchRequests = adIds.map((id) => ({
+        method: 'GET',
+        relative_url: `${id}/insights?${new URLSearchParams(
+          params as any,
+        ).toString()}`,
+      }));
+
+      const response = await this.graph.post('/', {
+        batch: JSON.stringify(batchRequests),
+      });
+
+      // Process the batch response
+      const insights = response.data
+        .filter((res) => res && res.code === 200) // Filter for successful responses
+        .flatMap((res) => JSON.parse(res.body).data); // Extract the data from each response body
+
+      this.logger.debug(
+        `Successfully retrieved ${insights.length} insight entries.`,
+      );
+      return insights;
+    } catch (error) {
+      this.logger.error(
+        'Facebook API Error: Failed to fetch insights',
+        error.response?.data,
+      );
+      throw new InternalServerErrorException(
+        `Facebook API Error: ${
+          error.response?.data?.error?.message || 'Failed to fetch insights'
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Fetches insights from the Facebook API for a batch of campaigns using the batch endpoint.
+   * @param campaignIds The list of Campaign IDs to fetch insights for.
+   * @returns A promise that resolves to an array of insight data from the API.
+   */
+  async getCampaignInsights(campaignIds: string[]): Promise<any[]> {
+    try {
+      if (campaignIds.length === 0) {
+        return [];
+      }
+
+      this.logger.debug(
+        `Fetching insights for ${campaignIds.length} campaigns.`,
+      );
+
+      const fields = [
+        'ad_id',
+        'clicks',
+        'impressions',
+        'spend',
+        'actions',
+        'action_values',
+      ];
+
+      const params = {
+        level: 'campaign',
+        fields: fields.join(','),
+        date_preset: 'last_28d', // Using a 28-day window for metrics
+      };
+
+      // Create a batch request to fetch insights for all ads in one API call
+      const batchRequests = campaignIds.map((id) => ({
         method: 'GET',
         relative_url: `${id}/insights?${new URLSearchParams(
           params as any,
