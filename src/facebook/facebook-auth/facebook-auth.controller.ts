@@ -645,4 +645,32 @@ export class FacebookAuthController {
 
     return parts.join(', ').replace(/,(?=[^,]*$)/, ' and');
   }
+
+  @Public()
+  @UseGuards(TokenAuthGuard)
+  @Get('ad-accounts/:adAccountId/pages')
+  @ApiOperation({
+    summary: 'Get pages for a specific ad account',
+    description:
+      'Returns all Facebook pages that belong to the specified ad account',
+  })
+  @ApiParam({ name: 'adAccountId', description: 'Facebook Ad Account ID' })
+  async getAdAccountPages(
+    @Param('adAccountId') adAccountId: string,
+    @Req() request: ExtendedRequest,
+  ) {
+    const userId = request.authenticatedData._id.toString();
+    // const userId = '680690b4b7fe560e4582cf2f';
+
+    const pages = await this.facebookAuthService.fetchPagesBelongingToAdAccount(
+      userId,
+      adAccountId,
+    );
+
+    return {
+      success: true,
+      data: pages,
+      message: 'Pages retrieved successfully',
+    };
+  }
 }

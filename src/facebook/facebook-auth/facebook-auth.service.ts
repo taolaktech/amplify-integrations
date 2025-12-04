@@ -305,7 +305,11 @@ export class FacebookAuthService {
       requestedPlatforms.includes('instagram')
     ) {
       adAccounts = await this.fetchUserAdAccounts(longTokenData.access_token);
-      await this.saveUserAdAccounts(payload.userId, adAccounts);
+      await this.saveUserAdAccounts(
+        payload.userId,
+        adAccounts,
+        longTokenData.access_token,
+      );
     }
 
     // 7. Only fetch Instagram accounts if explicitly requested
@@ -316,10 +320,6 @@ export class FacebookAuthService {
       );
       await this.saveInstagramAccounts(payload.userId, instagramAccounts);
     }
-
-    console.log('============== AD Account ============');
-    console.log(JSON.stringify(adAccounts, null, 2));
-    console.log('======================================');
 
     return {
       adAccounts:
@@ -372,8 +372,13 @@ export class FacebookAuthService {
     // };
   }
 
-  async saveUserAdAccounts(userId: string, adAccounts: any[]): Promise<void> {
+  async saveUserAdAccounts(
+    userId: string,
+    adAccounts: any[],
+    token: string,
+  ): Promise<void> {
     for (const account of adAccounts) {
+      const adAccountPages = await this.fetchAdAccountPages(account.id, token);
       const existing = await this.facebookAdAccountModel.findOne({
         accountId: account.id,
       });
@@ -388,6 +393,7 @@ export class FacebookAuthService {
               accountStatus: account.account_status,
               businessName: account.business_name,
               capabilities: account.capabilities,
+              pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
               updatedAt: new Date(),
             },
           },
@@ -401,6 +407,7 @@ export class FacebookAuthService {
           accountStatus: account.account_status,
           businessName: account.business_name,
           capabilities: account.capabilities,
+          pages: adAccountPages, // .map((page) => page.id), // store associated page Ids
         });
       }
     }
@@ -1233,8 +1240,32 @@ export class FacebookAuthService {
         throw new ForbiddenException('Ad account not found or access denied');
       }
 
+      // 2. NOTE: Validate that the page belongs to this ad account
+      const adAccount = await this.facebookAdAccountModel.findOne({
+        userId,
+        accountId: adAccountId,
+      });
+
+      if (!adAccount) {
+        throw new ForbiddenException('Ad account not found');
+      }
+
+      // Check if the page belongs to this ad account
+      const pageBelongsToAdAccount = adAccount.pages?.includes(pageId);
+      if (!pageBelongsToAdAccount) {
+        throw new BadRequestException(
+          `The selected Facebook Page does not belong to the selected Ad Account. Please select a page that is associated with ad account ${adAccountId}.`,
+        );
+      }
+
       // 2. Set as primary
       await this.setPrimaryAdAccount(userId, adAccountId);
+
+      // First, set all pages for this user to have isPrimaryPage: false
+      await this.facebookPageModel.updateMany(
+        { userId },
+        { $set: { isPrimaryPage: false } },
+      );
 
       // 2. Find and atomically update the selected page to primary in our DB to ensure it belongs to the user
       const selectedPage = await this.facebookPageModel.findOneAndUpdate(
@@ -1247,6 +1278,7 @@ export class FacebookAuthService {
             isPrimaryPage: true,
           },
         },
+        { new: true },
       );
 
       if (!selectedPage) {
@@ -2361,6 +2393,80 @@ export class FacebookAuthService {
         error,
       );
       throw error;
+    }
+  }
+
+  async fetchPagesBelongingToAdAccount(userId: string, adAccountId: string) {
+    try {
+      // Validate the ad account belongs to the user
+      const adAccount = await this.facebookAdAccountModel.findOne({
+        userId,
+        accountId: adAccountId,
+      });
+
+      if (!adAccount) {
+        throw new ForbiddenException('Ad account not found or access denied');
+      }
+
+      // Get pages that belong to this ad account
+      const pages = await this.facebookPageModel
+        .find(
+          {
+            userId,
+            pageId: { $in: adAccount.pages || [] },
+          },
+          {
+            accessToken: 0,
+          },
+        )
+        .lean();
+
+      return pages;
+    } catch (error) {
+      this.logger.error(
+        `:: error fetching pages belonging to Ad Account => ${adAccountId} :::`,
+      );
+      if (error instanceof HttpException) {
+        // rethrow error
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        'Failed to get pages belonging to instagram account',
+      );
+    }
+  }
+
+  async fetchAdAccountPages(
+    adAccountId: string,
+    accessToken: string,
+  ): Promise<string[]> {
+    try {
+      // Ensure the adAccountId starts with 'act_'
+      const formattedAdAccountId = adAccountId.startsWith('act_')
+        ? adAccountId
+        : `act_${adAccountId}`;
+
+      const response = await this.graph.get(
+        `/${formattedAdAccountId}/promote_pages`,
+        {
+          params: { access_token: accessToken },
+        },
+      );
+
+      console.log('======= PAGE IDS =========');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('==========================');
+
+      // The response data contains the array of IDs directly
+      const pageIds = response.data?.data?.map((obj) => obj.id) || [];
+      return pageIds;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch page IDs for ad account ${adAccountId}`,
+        error,
+      );
+      return [];
     }
   }
 }
