@@ -107,6 +107,11 @@ export class FacebookAdAccount {
    */
   @Prop({ type: mongoose.Types.ObjectId, ref: 'facebook-pages' })
   selectedPrimaryFacebookPageId?: string;
+
+  @Prop({
+    type: [String],
+  })
+  pages?: string[]; // Array of page Ids that belong to this Ad account
 }
 
 export const FacebookAdAccountSchema =
