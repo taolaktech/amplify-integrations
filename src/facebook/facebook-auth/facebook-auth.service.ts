@@ -2454,10 +2454,6 @@ export class FacebookAuthService {
         },
       );
 
-      console.log('======= PAGE IDS =========');
-      console.log(JSON.stringify(response.data, null, 2));
-      console.log('==========================');
-
       // The response data contains the array of IDs directly
       const pageIds = response.data?.data?.map((obj) => obj.id) || [];
       return pageIds;
