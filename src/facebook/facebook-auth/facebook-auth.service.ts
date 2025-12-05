@@ -1234,322 +1234,331 @@ export class FacebookAuthService {
     };
   }> {
     try {
-      // 1. Validate access
-      const hasAccess = await this.validateAdAccountAccess(userId, adAccountId);
-      if (!hasAccess) {
-        throw new ForbiddenException('Ad account not found or access denied');
-      }
+      return {
+        message: '',
+        adAccountId,
+        assignmentStatus: '',
+        canCreateCampaigns: false,
+        grantedTasks: [],
+      };
 
-      // 2. NOTE: Validate that the page belongs to this ad account
-      const adAccount = await this.facebookAdAccountModel.findOne({
-        userId,
-        accountId: adAccountId,
-      });
+      // // 1. Validate access
+      // const hasAccess = await this.validateAdAccountAccess(userId, adAccountId);
+      // if (!hasAccess) {
+      //   throw new ForbiddenException('Ad account not found or access denied');
+      // }
 
-      if (!adAccount) {
-        throw new ForbiddenException('Ad account not found');
-      }
+      // // 2. NOTE: Validate that the page belongs to this ad account
+      // const adAccount = await this.facebookAdAccountModel.findOne({
+      //   userId,
+      //   accountId: adAccountId,
+      // });
 
-      // Check if the page belongs to this ad account
-      const pageBelongsToAdAccount = adAccount.pages?.includes(pageId);
-      if (!pageBelongsToAdAccount) {
-        throw new BadRequestException(
-          `The selected Facebook Page does not belong to the selected Ad Account. Please select a page that is associated with ad account ${adAccountId}.`,
-        );
-      }
+      // if (!adAccount) {
+      //   throw new ForbiddenException('Ad account not found');
+      // }
 
-      // 2. Set as primary
-      await this.setPrimaryAdAccount(userId, adAccountId);
+      // // Check if the page belongs to this ad account
+      // const pageBelongsToAdAccount = adAccount.pages?.includes(pageId);
+      // if (!pageBelongsToAdAccount) {
+      //   throw new BadRequestException(
+      //     `The selected Facebook Page does not belong to the selected Ad Account. Please select a page that is associated with ad account ${adAccountId}.`,
+      //   );
+      // }
 
-      // First, set all pages for this user to have isPrimaryPage: false
-      await this.facebookPageModel.updateMany(
-        { userId },
-        { $set: { isPrimaryPage: false } },
-      );
+      // // 2. Set as primary
+      // await this.setPrimaryAdAccount(userId, adAccountId);
 
-      // 2. Find and atomically update the selected page to primary in our DB to ensure it belongs to the user
-      const selectedPage = await this.facebookPageModel.findOneAndUpdate(
-        {
-          userId,
-          pageId,
-        },
-        {
-          $set: {
-            isPrimaryPage: true,
-          },
-        },
-        { new: true },
-      );
+      // // First, set all pages for this user to have isPrimaryPage: false
+      // await this.facebookPageModel.updateMany(
+      //   { userId },
+      //   { $set: { isPrimaryPage: false } },
+      // );
 
-      if (!selectedPage) {
-        throw new NotFoundException(
-          'Selected Facebook Page not found or does not belong to the user.',
-        );
-      }
+      // // 2. Find and atomically update the selected page to primary in our DB to ensure it belongs to the user
+      // const selectedPage = await this.facebookPageModel.findOneAndUpdate(
+      //   {
+      //     userId,
+      //     pageId,
+      //   },
+      //   {
+      //     $set: {
+      //       isPrimaryPage: true,
+      //     },
+      //   },
+      //   { new: true },
+      // );
 
-      // 3. If Instagram account is provided, set it as primary
-      if (instagramAccountId) {
-        // Find all Instagram accounts connected to this page
-        const instagramAccountsForPage = await this.instagramAccountModel.find({
-          userId,
-          pageId: pageId,
-        });
+      // if (!selectedPage) {
+      //   throw new NotFoundException(
+      //     'Selected Facebook Page not found or does not belong to the user.',
+      //   );
+      // }
 
-        // Update all Instagram accounts for this page to be associated with this ad account
-        if (instagramAccountsForPage.length > 0) {
-          await this.instagramAccountModel.updateMany(
-            { userId, pageId: pageId },
-            {
-              $set: {
-                associatedAdAccountId: adAccountId,
-                updatedAt: new Date(),
-              },
-            },
-          );
+      // // 3. If Instagram account is provided, set it as primary
+      // if (instagramAccountId) {
+      //   // Find all Instagram accounts connected to this page
+      //   const instagramAccountsForPage = await this.instagramAccountModel.find({
+      //     userId,
+      //     pageId: pageId,
+      //   });
 
-          this.logger.debug(
-            `Associated ${instagramAccountsForPage.length} Instagram accounts with ad account ${adAccountId}`,
-          );
-        }
+      //   // Update all Instagram accounts for this page to be associated with this ad account
+      //   if (instagramAccountsForPage.length > 0) {
+      //     await this.instagramAccountModel.updateMany(
+      //       { userId, pageId: pageId },
+      //       {
+      //         $set: {
+      //           associatedAdAccountId: adAccountId,
+      //           updatedAt: new Date(),
+      //         },
+      //       },
+      //     );
 
-        // Validate that the Instagram account belongs to the user
-        const instagramAccount = await this.instagramAccountModel.findOne({
-          userId,
-          instagramAccountId,
-        });
+      //     this.logger.debug(
+      //       `Associated ${instagramAccountsForPage.length} Instagram accounts with ad account ${adAccountId}`,
+      //     );
+      //   }
 
-        if (!instagramAccount) {
-          throw new NotFoundException(
-            'Selected Instagram account not found or does not belong to the user.',
-          );
-        }
+      //   // Validate that the Instagram account belongs to the user
+      //   const instagramAccount = await this.instagramAccountModel.findOne({
+      //     userId,
+      //     instagramAccountId,
+      //   });
 
-        // Set the Instagram account as primary
-        await this.instagramAccountModel.updateMany(
-          { userId },
-          { $set: { isPrimary: false } },
-        );
+      //   if (!instagramAccount) {
+      //     throw new NotFoundException(
+      //       'Selected Instagram account not found or does not belong to the user.',
+      //     );
+      //   }
 
-        await this.instagramAccountModel.updateOne(
-          { userId, instagramAccountId },
-          { $set: { isPrimary: true, updatedAt: new Date() } },
-        );
+      //   // Set the Instagram account as primary
+      //   await this.instagramAccountModel.updateMany(
+      //     { userId },
+      //     { $set: { isPrimary: false } },
+      //   );
 
-        // Update the ad account with the selected Instagram account
-        await this.facebookAdAccountModel.updateOne(
-          { userId, accountId: adAccountId },
-          {
-            $set: {
-              selectedPrimaryInstagramAccountId:
-                instagramAccount._id.toString(),
-            },
-          },
-        );
-      } else {
-        // Check if user has any Instagram accounts at all
-        const userInstagramAccounts = await this.instagramAccountModel.find({
-          userId,
-        });
+      //   await this.instagramAccountModel.updateOne(
+      //     { userId, instagramAccountId },
+      //     { $set: { isPrimary: true, updatedAt: new Date() } },
+      //   );
 
-        // If user has Instagram accounts but didn't select one, that's okay
-        // If user has no Instagram accounts, we'll note that in the response
-        if (userInstagramAccounts.length === 0) {
-          this.logger.debug(
-            `User ${userId} has no Instagram accounts connected`,
-          );
-        }
-      }
+      //   // Update the ad account with the selected Instagram account
+      //   await this.facebookAdAccountModel.updateOne(
+      //     { userId, accountId: adAccountId },
+      //     {
+      //       $set: {
+      //         selectedPrimaryInstagramAccountId:
+      //           instagramAccount._id.toString(),
+      //       },
+      //     },
+      //   );
+      // } else {
+      //   // Check if user has any Instagram accounts at all
+      //   const userInstagramAccounts = await this.instagramAccountModel.find({
+      //     userId,
+      //   });
 
-      // 4. Initialize system user permission tracking
-      await this.facebookAdAccountModel.updateOne(
-        { userId, accountId: adAccountId },
-        {
-          $set: {
-            systemUserPermission: {
-              systemUserId: this.config.get('AMPLIFY_SYSTEM_USER_ID'),
-              assignmentStatus: 'ASSIGNMENT_PENDING',
-              lastAssignmentAttempt: new Date(),
-              requestedTasks: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
-              grantedTasks: [],
-            },
-            integrationStatus: 'SETUP_INCOMPLETE',
-            updatedAt: new Date(),
-            metaPixelId: metaPixelId,
-            selectedPrimaryFacebookPageId: selectedPage._id.toString(),
-          },
-        },
-      );
+      //   // If user has Instagram accounts but didn't select one, that's okay
+      //   // If user has no Instagram accounts, we'll note that in the response
+      //   if (userInstagramAccounts.length === 0) {
+      //     this.logger.debug(
+      //       `User ${userId} has no Instagram accounts connected`,
+      //     );
+      //   }
+      // }
 
-      this.logger.debug(
-        `Starting system user assignment for ad account: ${adAccountId}`,
-      );
+      // // 4. Initialize system user permission tracking
+      // await this.facebookAdAccountModel.updateOne(
+      //   { userId, accountId: adAccountId },
+      //   {
+      //     $set: {
+      //       systemUserPermission: {
+      //         systemUserId: this.config.get('AMPLIFY_SYSTEM_USER_ID'),
+      //         assignmentStatus: 'ASSIGNMENT_PENDING',
+      //         lastAssignmentAttempt: new Date(),
+      //         requestedTasks: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
+      //         grantedTasks: [],
+      //       },
+      //       integrationStatus: 'SETUP_INCOMPLETE',
+      //       updatedAt: new Date(),
+      //       metaPixelId: metaPixelId,
+      //       selectedPrimaryFacebookPageId: selectedPage._id.toString(),
+      //     },
+      //   },
+      // );
 
-      try {
-        // 4. Attempt system user assignment and USE the result
-        const assignmentResult =
-          await this.facebookBusinessManagerService.requestSystemUserAccess({
-            adAccountId,
-            permissions: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
-          });
+      // this.logger.debug(
+      //   `Starting system user assignment for ad account: ${adAccountId}`,
+      // );
 
-        this.logger.debug('Assignment result:', assignmentResult);
+      // try {
+      //   // 4. Attempt system user assignment and USE the result
+      //   const assignmentResult =
+      //     await this.facebookBusinessManagerService.requestSystemUserAccess({
+      //       adAccountId,
+      //       permissions: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
+      //     });
 
-        // 5. Check if assignment API call succeeded
-        if (!assignmentResult.success) {
-          // Assignment API call failed
-          await this.facebookAdAccountModel.updateOne(
-            { userId, accountId: adAccountId },
-            {
-              $set: {
-                'systemUserPermission.assignmentStatus': 'ASSIGNMENT_FAILED',
-                'systemUserPermission.assignmentError':
-                  assignmentResult.message || 'Assignment API call failed',
-                integrationStatus: 'ASSIGNMENT_FAILED',
-              },
-            },
-          );
+      //   this.logger.debug('Assignment result:', assignmentResult);
 
-          throw new InternalServerErrorException(
-            `System user assignment failed: ${assignmentResult.message}`,
-          );
-        }
+      //   // 5. Check if assignment API call succeeded
+      //   if (!assignmentResult.success) {
+      //     // Assignment API call failed
+      //     await this.facebookAdAccountModel.updateOne(
+      //       { userId, accountId: adAccountId },
+      //       {
+      //         $set: {
+      //           'systemUserPermission.assignmentStatus': 'ASSIGNMENT_FAILED',
+      //           'systemUserPermission.assignmentError':
+      //             assignmentResult.message || 'Assignment API call failed',
+      //           integrationStatus: 'ASSIGNMENT_FAILED',
+      //         },
+      //       },
+      //     );
 
-        // 6. Assignment API succeeded, now verify it worked
-        this.logger.debug('Assignment API succeeded, verifying assignment...');
+      //     throw new InternalServerErrorException(
+      //       `System user assignment failed: ${assignmentResult.message}`,
+      //     );
+      //   }
 
-        const verification =
-          await this.facebookBusinessManagerService.checkSystemUserAssignment(
-            adAccountId,
-          );
+      //   // 6. Assignment API succeeded, now verify it worked
+      //   this.logger.debug('Assignment API succeeded, verifying assignment...');
 
-        this.logger.debug('Verification result:', verification);
+      //   const verification =
+      //     await this.facebookBusinessManagerService.checkSystemUserAssignment(
+      //       adAccountId,
+      //     );
 
-        // 7.  Update database based on BOTH assignment result AND verification
-        const updateData: any = {
-          'systemUserPermission.lastStatusCheck': new Date(),
-        };
+      //   this.logger.debug('Verification result:', verification);
 
-        if (verification.isAssigned) {
-          // Assignment succeeded AND verification confirmed it
-          updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
-          updateData['systemUserPermission.assignedAt'] = new Date();
-          updateData['systemUserPermission.grantedTasks'] =
-            verification.grantedTasks;
-          updateData['integrationStatus'] = 'SYSTEM_USER_ASSIGNED';
+      //   // 7.  Update database based on BOTH assignment result AND verification
+      //   const updateData: any = {
+      //     'systemUserPermission.lastStatusCheck': new Date(),
+      //   };
 
-          this.logger.debug(
-            `System user successfully assigned to ad account ${adAccountId}`,
-          );
-        } else {
-          // Assignment API succeeded but verification failed (rare case)
-          updateData['systemUserPermission.assignmentStatus'] =
-            'ASSIGNMENT_FAILED';
-          updateData['systemUserPermission.assignmentError'] =
-            'Assignment API succeeded but system user not found in assigned users list';
-          updateData['integrationStatus'] = 'ASSIGNMENT_FAILED';
+      //   if (verification.isAssigned) {
+      //     // Assignment succeeded AND verification confirmed it
+      //     updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
+      //     updateData['systemUserPermission.assignedAt'] = new Date();
+      //     updateData['systemUserPermission.grantedTasks'] =
+      //       verification.grantedTasks;
+      //     updateData['integrationStatus'] = 'SYSTEM_USER_ASSIGNED';
 
-          this.logger.warn(
-            `Assignment API succeeded but verification failed for ad account ${adAccountId}`,
-          );
-        }
+      //     this.logger.debug(
+      //       `System user successfully assigned to ad account ${adAccountId}`,
+      //     );
+      //   } else {
+      //     // Assignment API succeeded but verification failed (rare case)
+      //     updateData['systemUserPermission.assignmentStatus'] =
+      //       'ASSIGNMENT_FAILED';
+      //     updateData['systemUserPermission.assignmentError'] =
+      //       'Assignment API succeeded but system user not found in assigned users list';
+      //     updateData['integrationStatus'] = 'ASSIGNMENT_FAILED';
 
-        await this.facebookAdAccountModel.updateOne(
-          { userId, accountId: adAccountId },
-          { $set: updateData },
-        );
+      //     this.logger.warn(
+      //       `Assignment API succeeded but verification failed for ad account ${adAccountId}`,
+      //     );
+      //   }
 
-        // 8. Check final capabilities
-        const capabilities =
-          await this.facebookBusinessManagerService.getSystemUserCapabilities(
-            adAccountId,
-          );
+      //   await this.facebookAdAccountModel.updateOne(
+      //     { userId, accountId: adAccountId },
+      //     { $set: updateData },
+      //   );
 
-        // 9. Final status update if ready for campaigns
-        if (verification.isAssigned && capabilities.canCreateCampaigns) {
-          await this.facebookAdAccountModel.updateOne(
-            { userId, accountId: adAccountId },
-            {
-              $set: {
-                integrationStatus: 'READY_FOR_CAMPAIGNS',
-              },
-            },
-          );
-        }
+      //   // 8. Check final capabilities
+      //   const capabilities =
+      //     await this.facebookBusinessManagerService.getSystemUserCapabilities(
+      //       adAccountId,
+      //     );
 
-        // Prepare response with Instagram setup info
-        const instagramSetup = {
-          hasInstagramAccount: !!instagramAccountId,
-          instagramAccountId: instagramAccountId || undefined,
-          instagramUsername: instagramAccountId
-            ? (await this.instagramAccountModel.findOne({ instagramAccountId }))
-                ?.username
-            : undefined,
-        };
+      //   // 9. Final status update if ready for campaigns
+      //   if (verification.isAssigned && capabilities.canCreateCampaigns) {
+      //     await this.facebookAdAccountModel.updateOne(
+      //       { userId, accountId: adAccountId },
+      //       {
+      //         $set: {
+      //           integrationStatus: 'READY_FOR_CAMPAIGNS',
+      //         },
+      //       },
+      //     );
+      //   }
 
-        if (instagramAccountId && capabilities.canCreateCampaigns) {
-          await this.businessModel.updateOne(
-            { userId },
-            {
-              $set: {
-                'integrations.instagram': {
-                  adAccountId: adAccountId,
-                  instagramAccountId: instagramAccountId,
-                },
-              },
-            },
-          );
-        } else {
-          // update facebook integration in business model
-          await this.businessModel.updateOne(
-            { userId },
-            {
-              $set: {
-                'integrations.facebook': {
-                  adAccountId: adAccountId,
-                  pageId: pageId,
-                },
-              },
-            },
-          );
-        }
+      //   // Prepare response with Instagram setup info
+      //   const instagramSetup = {
+      //     hasInstagramAccount: !!instagramAccountId,
+      //     instagramAccountId: instagramAccountId || undefined,
+      //     instagramUsername: instagramAccountId
+      //       ? (await this.instagramAccountModel.findOne({ instagramAccountId }))
+      //           ?.username
+      //       : undefined,
+      //   };
 
-        return {
-          message: verification.isAssigned
-            ? capabilities.canCreateCampaigns
-              ? 'Primary ad account set and ready for campaigns'
-              : 'Primary ad account set and system user assigned, but missing some permissions'
-            : 'Primary ad account set but system user assignment verification failed',
-          adAccountId,
-          assignmentStatus: verification.isAssigned
-            ? 'ASSIGNED'
-            : 'ASSIGNMENT_FAILED',
-          canCreateCampaigns: capabilities.canCreateCampaigns,
-          grantedTasks: verification.grantedTasks,
-          instagramSetup,
-        };
-      } catch (assignmentError) {
-        // Handle assignment or verification errors properly
-        this.logger.error(
-          'System user assignment or verification failed:',
-          assignmentError,
-        );
+      //   if (instagramAccountId && capabilities.canCreateCampaigns) {
+      //     await this.businessModel.updateOne(
+      //       { userId },
+      //       {
+      //         $set: {
+      //           'integrations.instagram': {
+      //             adAccountId: adAccountId,
+      //             instagramAccountId: instagramAccountId,
+      //           },
+      //         },
+      //       },
+      //     );
+      //   } else {
+      //     // update facebook integration in business model
+      //     await this.businessModel.updateOne(
+      //       { userId },
+      //       {
+      //         $set: {
+      //           'integrations.facebook': {
+      //             adAccountId: adAccountId,
+      //             pageId: pageId,
+      //           },
+      //         },
+      //       },
+      //     );
+      //   }
 
-        // Update database with specific error
-        await this.facebookAdAccountModel.updateOne(
-          { userId, accountId: adAccountId },
-          {
-            $set: {
-              'systemUserPermission.assignmentStatus': 'ASSIGNMENT_FAILED',
-              'systemUserPermission.assignmentError':
-                assignmentError.message || 'Unknown assignment error',
-              integrationStatus: 'ASSIGNMENT_FAILED',
-            },
-          },
-        );
+      //   return {
+      //     message: verification.isAssigned
+      //       ? capabilities.canCreateCampaigns
+      //         ? 'Primary ad account set and ready for campaigns'
+      //         : 'Primary ad account set and system user assigned, but missing some permissions'
+      //       : 'Primary ad account set but system user assignment verification failed',
+      //     adAccountId,
+      //     assignmentStatus: verification.isAssigned
+      //       ? 'ASSIGNED'
+      //       : 'ASSIGNMENT_FAILED',
+      //     canCreateCampaigns: capabilities.canCreateCampaigns,
+      //     grantedTasks: verification.grantedTasks,
+      //     instagramSetup,
+      //   };
+      // } catch (assignmentError) {
+      //   // Handle assignment or verification errors properly
+      //   this.logger.error(
+      //     'System user assignment or verification failed:',
+      //     assignmentError,
+      //   );
 
-        // Re-throw the specific error type
-        throw assignmentError;
-      }
+      //   // Update database with specific error
+      //   await this.facebookAdAccountModel.updateOne(
+      //     { userId, accountId: adAccountId },
+      //     {
+      //       $set: {
+      //         'systemUserPermission.assignmentStatus': 'ASSIGNMENT_FAILED',
+      //         'systemUserPermission.assignmentError':
+      //           assignmentError.message || 'Unknown assignment error',
+      //         integrationStatus: 'ASSIGNMENT_FAILED',
+      //       },
+      //     },
+      //   );
+
+      //   // Re-throw the specific error type
+      //   throw assignmentError;
+      // }
+      
     } catch (error) {
       // Let specific exceptions bubble up to controller
       if (
