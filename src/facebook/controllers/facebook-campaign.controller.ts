@@ -1,25 +1,28 @@
 import {
+  BadRequestException,
   Body,
   Controller,
-  Post,
   Get,
-  Param,
   HttpCode,
   HttpStatus,
   Logger,
-  BadRequestException,
+  Param,
+  Post,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { FacebookCampaignService } from '../services/facebook-campaign.service';
-import {
-  FacebookCampaignDataService,
-  // CampaignDataFromLambda,
-} from '../services/facebook-campaign-data.service';
-import { RetryStepDto } from '../dtos/retry-step.dto';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { TokenAuthGuard } from 'src/auth/token-auth.guard';
+import { ExtendedRequest } from 'src/common/interfaces/request.interface';
 import { Public } from '../../auth/decorators';
 import { InitializeCampaignDto } from '../dtos/campaign.dto';
+import { RetryStepDto } from '../dtos/retry-step.dto';
 import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
+import {
+  FacebookCampaignDataService,
+} from '../services/facebook-campaign-data.service';
+import { FacebookCampaignService } from '../services/facebook-campaign.service';
 
 // DTOs for request/response
 // export class InitializeCampaignDto {
@@ -48,6 +51,7 @@ export class FacebookCampaignController {
     private readonly facebookAuthService: FacebookAuthService,
   ) {}
 
+  // =================== LAMBDA CALLS ===================
   @Post('initialize')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -390,6 +394,70 @@ export class FacebookCampaignController {
       nextStep: result.nextStep,
       message: `Step '${body.step}' was retried successfully.`,
       data: result.data,
+    };
+  }
+
+  // =================== END LAMBDA CALLS ===================
+
+  @Public()
+  @UseGuards(TokenAuthGuard)
+  @Post(':campaignId/pause')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Pause an active campaign',
+    description: 'Pauses the campaign, all ad sets, and all ads on Facebook/Instagram.',
+  })
+  @ApiParam({ name: 'campaignId', description: 'Amplify Campaign ID' })
+  async pauseCampaign(
+    @Param('campaignId') campaignId: string,
+    @Query('platform') platform: string,
+    @Req() request: ExtendedRequest
+  ): Promise<CampaignStepResponse> {
+    const userId = request.authenticatedData._id.toString();
+    this.logger.debug(`Received request to pause campaign: ${campaignId}`);
+
+    const result = await this.facebookCampaignService.pauseCampaign(
+      userId,
+      campaignId,
+      platform,
+    );
+
+    return {
+      success: result.success,
+      currentStep: 'PAUSED',
+      nextStep: null,
+      message: result.message,
+    };
+  }
+
+  @Public()
+  @UseGuards(TokenAuthGuard)
+  @Post(':campaignId/resume')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resume a paused campaign',
+    description: 'Resumes the campaign, all ad sets, and all ads on Facebook/Instagram.',
+  })
+  @ApiParam({ name: 'campaignId', description: 'Amplify Campaign ID' })
+  async resumeCampaign(
+    @Param('campaignId') campaignId: string,
+    @Query('platform') platform: string,
+    @Req() request: ExtendedRequest
+  ): Promise<CampaignStepResponse> {
+    const userId = request.authenticatedData._id.toString();
+    this.logger.debug(`Received request to resume campaign: ${campaignId}`);
+
+    const result = await this.facebookCampaignService.resumeCampaign(
+      userId,
+      campaignId,
+      platform,
+    );
+
+    return {
+      success: result.success,
+      currentStep: 'LAUNCHED',
+      nextStep: null,
+      message: result.message,
     };
   }
 }

@@ -1,25 +1,24 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import * as countries from 'i18n-iso-countries';
 import { Model } from 'mongoose';
+import { FacebookAdAccount, FacebookPage } from 'src/database/schema';
 import {
-  FacebookCampaign,
-  FacebookAdSet,
   FacebookAd,
-  FacebookCreativeAsset,
+  FacebookAdSet,
+  FacebookCampaign
 } from 'src/database/schema/facebook-campaign.schema';
+import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 import { FacebookBusinessManagerService } from './facebook-business-manager.service';
 import {
-  FacebookCampaignDataService,
   CampaignDataFromLambda,
+  FacebookCampaignDataService,
 } from './facebook-campaign-data.service';
-import * as countries from 'i18n-iso-countries';
-import { FacebookPage, FacebookAdAccount } from 'src/database/schema';
-import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 
 @Injectable()
 export class FacebookCampaignService {
@@ -1736,4 +1735,168 @@ export class FacebookCampaignService {
   //   // TODO: Implement activation of campaign, ad sets, and ads
   //   this.logger.debug('Activating campaign components...');
   // }
+
+  /**
+ * Pause an active campaign
+ * This will pause the campaign, all ad sets, and all ads
+ */
+  async pauseCampaign(
+    userId: string,
+    campaignId: string,
+    platform: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      this.logger.debug(`Pausing campaign: ${campaignId} on ${platform}`);
+
+      const facebookCampaign = await this.facebookCampaignModel.findOne({
+          id: campaignId,
+          userId,
+          platform,
+      });
+
+      if (!facebookCampaign) {
+        throw new BadRequestException(
+          `Campaign not found for user: ${userId} and campaignId: ${campaignId}`,
+        );
+      }
+
+      // Validate that campaign is in a pausable state
+      if (
+        facebookCampaign.facebookStatus === 'PAUSED' ||
+        facebookCampaign.processingStatus !== 'LAUNCHED'
+      ) {
+        throw new BadRequestException(
+          `Campaign cannot be paused. Current status: ${facebookCampaign.facebookStatus}`,
+        );
+      }
+
+      // Pause in reverse order: Campaign -> Ad Sets -> Ads
+      // 1. Pause all Ads first
+      for (const ad of facebookCampaign.ads) {
+        await this.facebookMarketingApiService.updateStatus(ad.adId, 'PAUSED');
+        this.logger.log(`Ad ${ad.adId} paused`);
+      }
+
+      // 2. Pause all Ad Sets
+      for (const adSet of facebookCampaign.adSets) {
+        await this.facebookMarketingApiService.updateStatus(
+          adSet.adSetId,
+          'PAUSED',
+        );
+        this.logger.log(`AdSet ${adSet.adSetId} paused`);
+      }
+
+      // 3. Pause the Campaign
+      await this.facebookMarketingApiService.updateStatus(
+        facebookCampaign.facebookCampaignId as string,
+        'PAUSED',
+      );
+      this.logger.log(`Campaign ${facebookCampaign.facebookCampaignId} paused`);
+
+      // Update database
+      await this.facebookCampaignModel.updateOne(
+        { campaignId, platform },
+        {
+          $set: {
+            'ads.$[].status': 'PAUSED',
+            'adSets.$[].status': 'PAUSED',
+            facebookStatus: 'PAUSED',
+            processingStatus: 'PAUSED',
+            lastProcessedAt: new Date(),
+          },
+        },
+      );
+
+      return {
+        success: true,
+        message: 'Campaign paused successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to pause campaign: ${campaignId}`, error);
+      throw error;
+    }
+  }
+
+/**
+ * Resume a paused campaign
+ */
+  async resumeCampaign(
+    userId: string,
+    campaignId: string,
+    platform: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      this.logger.debug(`Resuming campaign: ${campaignId} on ${platform}`);
+
+      const facebookCampaign = await this.facebookCampaignModel.findOne({
+          id: campaignId,
+          userId,
+          platform,
+      });
+
+      if (!facebookCampaign) {
+        throw new BadRequestException(
+          `Campaign not found for user: ${userId} and campaignId: ${campaignId}`,
+        );
+      }
+
+      // Validate that campaign is paused
+      if (facebookCampaign.facebookStatus !== 'PAUSED') {
+        throw new BadRequestException(
+          `Campaign is not paused. Current status: ${facebookCampaign.facebookStatus}`,
+        );
+      }
+
+      // Resume in order: Ads -> Ad Sets -> Campaign
+      // 1. Resume all Ads
+      for (const ad of facebookCampaign.ads) {
+        await this.facebookMarketingApiService.updateStatus(ad.adId, 'ACTIVE');
+        this.logger.log(`Ad ${ad.adId} resumed`);
+      }
+
+      // 2. Resume all Ad Sets
+      for (const adSet of facebookCampaign.adSets) {
+        await this.facebookMarketingApiService.updateStatus(
+          adSet.adSetId,
+          'ACTIVE',
+        );
+        this.logger.log(`AdSet ${adSet.adSetId} resumed`);
+      }
+
+      // 3. Resume the Campaign
+      await this.facebookMarketingApiService.updateStatus(
+        facebookCampaign.facebookCampaignId as string,
+        'ACTIVE',
+      );
+      this.logger.log(`Campaign ${facebookCampaign.facebookCampaignId} resumed`);
+
+      // Update database
+      await this.facebookCampaignModel.updateOne(
+        { campaignId, platform },
+        {
+          $set: {
+            'ads.$[].status': 'ACTIVE',
+            'adSets.$[].status': 'ACTIVE',
+            facebookStatus: 'ACTIVE',
+            processingStatus: 'LAUNCHED',
+            lastProcessedAt: new Date(),
+          },
+        },
+      );
+
+      return {
+        success: true,
+        message: 'Campaign resumed successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to resume campaign: ${campaignId}`, error);
+      throw error;
+    }
+  }
 }
