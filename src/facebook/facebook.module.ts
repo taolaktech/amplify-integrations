@@ -5,6 +5,10 @@ import { FacebookCampaignController } from './controllers/facebook-campaign.cont
 import { FacebookCampaignDataService } from './services/facebook-campaign-data.service';
 import { FacebookCampaignService } from './services/facebook-campaign.service';
 import { FacebookBusinessManagerService } from './services/facebook-business-manager.service';
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from 'src/auth/auth.service';
+import { InternalHttpHelper } from 'src/common/helpers/internal-http.helper';
+import { ServiceRegistryService } from 'src/common/services/service-registry.service';
 
 @Module({
   imports: [FacebookAuthModule],
@@ -13,6 +17,10 @@ import { FacebookBusinessManagerService } from './services/facebook-business-man
     FacebookCampaignDataService,
     FacebookCampaignService,
     FacebookBusinessManagerService,
+    JwtService,
+    AuthService,
+    InternalHttpHelper,
+    ServiceRegistryService,
   ],
 })
 export class FacebookModule {}
