@@ -10,6 +10,7 @@ import { FacebookModule } from './facebook/facebook.module';
 import { APP_GUARD } from '@nestjs/core';
 import { GoogleAdsModule } from './google-ads/google-ads.module';
 import { AuthGuard } from './auth/auth.guard';
+import { ShopifyWebhookModule } from './webhook/shopify-webhook.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuthGuard } from './auth/auth.guard';
     DatabaseModule,
     HealthcheckModule,
     ShopifyModule,
+    ShopifyWebhookModule,
     GoogleAdsModule,
     ConfigModule.forRoot({
       isGlobal: true,

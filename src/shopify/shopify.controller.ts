@@ -5,7 +5,6 @@ import {
   Get,
   Post,
   Query,
-  Req,
   Res,
 } from '@nestjs/common';
 import { ShopifyService } from './shopify.service';
@@ -25,17 +24,6 @@ import { Response } from 'express';
 export class ShopifyController {
   constructor(private shopifyService: ShopifyService) {}
 
-  @Post('webhook')
-  async handleShopifyWebhook(@Req() req: any, @Res() res: Response) {
-    const valid = await this.shopifyService.validateAndHandleWebhook(req.rawBody, req, res);
-
-    if (!valid) {
-      return res.status(400).send('Invalid webhook');
-    }
-
-    return res.status(200).send('OK');
-  }
-  
   @Public()
   @Get('/auth/callback')
   async shopifyOauthCallback(@Query() query: any, @Res() response: Response) {
