@@ -193,7 +193,7 @@ export class ShopifyService {
       business.markModified('shopifyBrandAssets');
       await business.save();
     } catch (c: any) {
-      console.log(c);
+      this.logger.debug(c);
       throw new InternalServerErrorException('Error Updating Account');
     }
   }
@@ -287,6 +287,56 @@ export class ShopifyService {
         query,
       );
       return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
+  }
+
+  async validateAndHandleWebhook(raw: any, req: any, res: any) {
+    try {
+      const valid = await this.shopifyGraphqlAdminApi.isValidateWebhook(
+        raw,
+        req,
+        res
+      );
+
+      if (!valid) {
+        console.error('❌ Invalid Shopify Webhook');
+        throw new BadRequestException("Invalid webhook");
+      }
+
+      this.logger.debug('✅ Verified Shopify Webhook');
+
+      const topic = 
+      req.headers['x-shopify-topic'] ||
+      req.headers['X-Shopify-Topic'];
+
+      const domain =
+      req.headers['x-shopify-shop-domain'] ||
+      req.headers['X-Shopify-Shop-Domain'];
+
+      switch (topic) {
+        case 'app/uninstalled':
+          this.logger.debug('App uninstalled for:', domain);
+          break;
+
+        case 'customers/data_request':
+          this.logger.debug('Customer data request');
+          break;
+
+        case 'customers/redact':
+          this.logger.debug('Customer redact');
+          break;
+
+        case 'shop/redact':
+          this.logger.debug('Shop redact');
+          break;
+      }
+
+      return true;
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
