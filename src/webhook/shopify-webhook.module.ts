@@ -4,6 +4,7 @@ import { ShopifyService } from '../shopify/shopify.service';
 import { ShopifyAuthService } from '../shopify/api/auth';
 import { ShopifyGraphqlAdminApi } from '../shopify/api/graphql-admin';
 import { ShopifyStoreFrontApi } from '../shopify/api/store-front-api';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   controllers: [WebhookController],
@@ -12,6 +13,7 @@ import { ShopifyStoreFrontApi } from '../shopify/api/store-front-api';
       ShopifyAuthService,
       ShopifyStoreFrontApi,
       ShopifyGraphqlAdminApi,
+      JwtService,
     ],
 })
 export class ShopifyWebhookModule {}
