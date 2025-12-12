@@ -1246,6 +1246,39 @@ export class FacebookAuthService {
         );
       }
 
+      // update business model with the appropriate integration
+      this.logger.debug('Updating Business model with integration details...');
+
+      if (instagramAccountId) {
+        // This is an Instagram setup
+        await this.businessModel.updateOne(
+          { userId },
+          {
+            $set: {
+              'integrations.instagram': {
+                adAccountId: adAccountId,
+                instagramAccountId: instagramAccountId,
+              },
+            },
+          },
+        );
+        this.logger.debug(`Updated Instagram integration for user ${userId}`);
+      } else {
+        // This is a Facebook-only setup
+        await this.businessModel.updateOne(
+          { userId },
+          {
+            $set: {
+              'integrations.facebook': {
+                adAccountId: adAccountId,
+                pageId: pageId,
+              },
+            },
+          },
+        );
+        this.logger.debug(`Updated Facebook integration for user ${userId}`);
+      }
+
       return {
         message: 'All set!',
         adAccountId,
