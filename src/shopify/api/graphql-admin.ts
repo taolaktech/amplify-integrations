@@ -34,7 +34,7 @@ import {
 export class ShopifyGraphqlAdminApi {
   private readonly logger = new Logger(ShopifyGraphqlAdminApi.name);
   private shopify: Shopify;
-
+  
   constructor(
     @InjectModel('shopify-accounts')
     private shopifyAccountModel: Model<ShopifyAccountDoc>,
@@ -378,5 +378,16 @@ export class ShopifyGraphqlAdminApi {
       }
       throw new InternalServerErrorException('Something Went Wrong');
     }
+  }
+
+  //webhooks validator
+  async isValidateWebhook(raw: any, req: any, res: any) {
+    const validation = await this.shopify.webhooks.validate({
+      rawBody: raw,
+      rawRequest: req,
+      rawResponse: res,
+    });
+    
+    return validation?.valid;
   }
 }

@@ -1244,7 +1244,7 @@ export class FacebookAuthService {
     };
   }> {
     try {
-      // // 1. Validate access
+      // 1. Validate access
       const hasAccess = await this.validateAdAccountAccess(userId, adAccountId);
       if (!hasAccess) {
         throw new ForbiddenException('Ad account not found or access denied');
@@ -1371,6 +1371,8 @@ export class FacebookAuthService {
         );
       }
 
+      
+      
       return {
         message: 'All set!',
         adAccountId,
@@ -1378,6 +1380,7 @@ export class FacebookAuthService {
         canCreateCampaigns: true,
         grantedTasks: [],
       };
+
     } catch (error) {
       // Let specific exceptions bubble up to controller
       if (
