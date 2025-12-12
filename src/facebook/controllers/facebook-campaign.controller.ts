@@ -19,9 +19,7 @@ import { Public } from '../../auth/decorators';
 import { InitializeCampaignDto } from '../dtos/campaign.dto';
 import { RetryStepDto } from '../dtos/retry-step.dto';
 import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
-import {
-  FacebookCampaignDataService,
-} from '../services/facebook-campaign-data.service';
+import { FacebookCampaignDataService } from '../services/facebook-campaign-data.service';
 import { FacebookCampaignService } from '../services/facebook-campaign.service';
 
 // DTOs for request/response
@@ -250,11 +248,8 @@ export class FacebookCampaignController {
       success: true,
       currentStep: 'CREATIVES_CREATED',
       nextStep: 'CREATE_ADS', // Inform the Lambda what to call next
-      message: `Successfully created ${result.creativesCreated} flexible creative asset(s). Ready to create ad.`,
-      data: {
-        creativesCreated: result.creativesCreated,
-        creativeIds: result.creativeIds,
-      },
+      message: `Successfully created ${result.preparedCreatives} flexible creative asset(s). Ready to create ad.`,
+      data: result,
     };
   }
 
@@ -405,13 +400,14 @@ export class FacebookCampaignController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Pause an active campaign',
-    description: 'Pauses the campaign, all ad sets, and all ads on Facebook/Instagram.',
+    description:
+      'Pauses the campaign, all ad sets, and all ads on Facebook/Instagram.',
   })
   @ApiParam({ name: 'campaignId', description: 'Amplify Campaign ID' })
   async pauseCampaign(
     @Param('campaignId') campaignId: string,
     @Query('platform') platform: string,
-    @Req() request: ExtendedRequest
+    @Req() request: ExtendedRequest,
   ): Promise<CampaignStepResponse> {
     const userId = request.authenticatedData._id.toString();
     this.logger.debug(`Received request to pause campaign: ${campaignId}`);
@@ -436,13 +432,14 @@ export class FacebookCampaignController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Resume a paused campaign',
-    description: 'Resumes the campaign, all ad sets, and all ads on Facebook/Instagram.',
+    description:
+      'Resumes the campaign, all ad sets, and all ads on Facebook/Instagram.',
   })
   @ApiParam({ name: 'campaignId', description: 'Amplify Campaign ID' })
   async resumeCampaign(
     @Param('campaignId') campaignId: string,
     @Query('platform') platform: string,
-    @Req() request: ExtendedRequest
+    @Req() request: ExtendedRequest,
   ): Promise<CampaignStepResponse> {
     const userId = request.authenticatedData._id.toString();
     this.logger.debug(`Received request to resume campaign: ${campaignId}`);

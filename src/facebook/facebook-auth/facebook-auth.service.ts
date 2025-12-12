@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Injectable,
@@ -379,25 +380,33 @@ export class FacebookAuthService {
   ): Promise<void> {
     for (const account of adAccounts) {
       const adAccountPages = await this.fetchAdAccountPages(account.id, token);
-      const existing = await this.facebookAdAccountModel.findOne({
+      const existingAccount = await this.facebookAdAccountModel.findOne({
         accountId: account.id,
       });
 
-      if (existing) {
-        await this.facebookAdAccountModel.updateOne(
-          { accountId: account.id },
-          {
-            $set: {
-              name: account.name,
-              currency: account.currency,
-              accountStatus: account.account_status,
-              businessName: account.business_name,
-              capabilities: account.capabilities,
-              pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
-              updatedAt: new Date(),
+      if (existingAccount) {
+        // If account exists, check if it belongs to the current user.
+        if (existingAccount.userId.toString() !== userId) {
+          // It belongs to another user. Throw a conflict error.
+          throw new ConflictException(
+            `Ad Account "${account.name}" (${account.id}) is already connected to another user on the platform.`,
+          );
+        } else {
+          await this.facebookAdAccountModel.updateOne(
+            { accountId: account.id },
+            {
+              $set: {
+                name: account.name,
+                currency: account.currency,
+                accountStatus: account.account_status,
+                businessName: account.business_name,
+                capabilities: account.capabilities,
+                pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
+                updatedAt: new Date(),
+              },
             },
-          },
-        );
+          );
+        }
       } else {
         await this.facebookAdAccountModel.create({
           userId,
@@ -1209,6 +1218,7 @@ export class FacebookAuthService {
    *
    * @param userId - The ID of the user requesting the ad account selection.
    * @param adAccountId - The ID of the ad account to be set as primary.
+   * @param pageId
    *
    * @throws ForbiddenException - If the user does not have access to the ad account.
    * @throws InternalServerErrorException - If there is an error during the assignment process or database update.
@@ -1234,7 +1244,7 @@ export class FacebookAuthService {
     };
   }> {
     try {
-// // 1. Validate access
+      // 1. Validate access
       const hasAccess = await this.validateAdAccountAccess(userId, adAccountId);
       if (!hasAccess) {
         throw new ForbiddenException('Ad account not found or access denied');
@@ -1345,7 +1355,23 @@ export class FacebookAuthService {
             },
           },
         );
+      } else {
+        await this.facebookAdAccountModel.updateOne(
+          {
+            userId,
+            accountId: adAccountId,
+          },
+          {
+            $set: {
+              integrationStatus: 'READY_FOR_CAMPAIGNS',
+              metaPixelId: metaPixelId,
+              selectedPrimaryFacebookPageId: selectedPage._id.toString()
+            },
+          },
+        );
       }
+
+      
       
       return {
         message: 'All set!',
@@ -1354,7 +1380,7 @@ export class FacebookAuthService {
         canCreateCampaigns: true,
         grantedTasks: [],
       };
-      
+
     } catch (error) {
       // Let specific exceptions bubble up to controller
       if (

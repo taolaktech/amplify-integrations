@@ -65,42 +65,65 @@ export class FacebookAd {
 // Track Facebook Creative assets
 @Schema({ _id: false })
 export class FacebookCreativeAsset {
-  @Prop({ required: true })
-  creativeId: string; // Facebook Creative ID
+  @Prop() // This ID will be populated during the ad creation step
+  creativeId?: string;
 
   @Prop({ required: true })
-  name: string; // Creative name
+  name: string; // e.g., "Product-Level Creative - Nike Shoes"
 
-  @Prop({ required: true })
-  imageUrl: string; // The S3 image URL from campaign data
-
-  @Prop()
-  primaryText?: string; // Ad copy text
+  @Prop({ required: true, type: Object })
+  assetFeedSpec: Record<string, any>; // The prepared asset feed spec for this creative
 
   @Prop()
-  headline?: string; // Ad headline
-
-  @Prop()
-  description?: string; // Ad description
-
-  @Prop()
-  callToAction?: string; // CTA button text
-
-  @Prop()
-  destinationUrl?: string; // Where ad clicks go
-
-  @Prop()
-  productId?: string; // Which product this ad promotes
+  productId?: string; // Associates this creative with a product
 
   @Prop({
-    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    enum: ['PENDING', 'CREATED', 'FAILED'],
     default: 'PENDING',
   })
-  approvalStatus: string; // Facebook creative approval status
+  status: string; // Internal status for tracking
 
   @Prop({ default: Date.now })
   createdAt: Date;
 }
+// @Schema({ _id: false })
+// export class FacebookCreativeAsset {
+//   @Prop({ required: true })
+//   creativeId: string; // Facebook Creative ID
+
+//   @Prop({ required: true })
+//   name: string; // Creative name
+
+//   @Prop({ required: true })
+//   imageUrl: string; // The S3 image URL from campaign data
+
+//   @Prop()
+//   primaryText?: string; // Ad copy text
+
+//   @Prop()
+//   headline?: string; // Ad headline
+
+//   @Prop()
+//   description?: string; // Ad description
+
+//   @Prop()
+//   callToAction?: string; // CTA button text
+
+//   @Prop()
+//   destinationUrl?: string; // Where ad clicks go
+
+//   @Prop()
+//   productId?: string; // Which product this ad promotes
+
+//   @Prop({
+//     enum: ['PENDING', 'APPROVED', 'REJECTED'],
+//     default: 'PENDING',
+//   })
+//   approvalStatus: string; // Facebook creative approval status
+
+//   @Prop({ default: Date.now })
+//   createdAt: Date;
+// }
 
 /**
  * Define PerformanceData as a separate sub-schema.
