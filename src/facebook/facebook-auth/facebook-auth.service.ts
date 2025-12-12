@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Injectable,
@@ -379,25 +380,33 @@ export class FacebookAuthService {
   ): Promise<void> {
     for (const account of adAccounts) {
       const adAccountPages = await this.fetchAdAccountPages(account.id, token);
-      const existing = await this.facebookAdAccountModel.findOne({
+      const existingAccount = await this.facebookAdAccountModel.findOne({
         accountId: account.id,
       });
 
-      if (existing) {
-        await this.facebookAdAccountModel.updateOne(
-          { accountId: account.id },
-          {
-            $set: {
-              name: account.name,
-              currency: account.currency,
-              accountStatus: account.account_status,
-              businessName: account.business_name,
-              capabilities: account.capabilities,
-              pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
-              updatedAt: new Date(),
+      if (existingAccount) {
+        // If account exists, check if it belongs to the current user.
+        if (existingAccount.userId.toString() !== userId) {
+          // It belongs to another user. Throw a conflict error.
+          throw new ConflictException(
+            `Ad Account "${account.name}" (${account.id}) is already connected to another user on the platform.`,
+          );
+        } else {
+          await this.facebookAdAccountModel.updateOne(
+            { accountId: account.id },
+            {
+              $set: {
+                name: account.name,
+                currency: account.currency,
+                accountStatus: account.account_status,
+                businessName: account.business_name,
+                capabilities: account.capabilities,
+                pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
+                updatedAt: new Date(),
+              },
             },
-          },
-        );
+          );
+        }
       } else {
         await this.facebookAdAccountModel.create({
           userId,

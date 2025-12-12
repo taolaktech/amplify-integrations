@@ -604,6 +604,47 @@ export class FacebookBusinessManagerService {
   }
 
   /**
+   * Creates a dynamic ad and its creative in a single API call.
+   */
+  async createDynamicAd(
+    adAccountId: string,
+    adSetId: string,
+    adName: string,
+    creativeSpec: {
+      name: string;
+      object_story_spec: any;
+      asset_feed_spec: any;
+    },
+  ): Promise<any> {
+    try {
+      this.logger.debug(`Creating dynamic ad '${adName}' in Ad Set ${adSetId}`);
+
+      const payload = {
+        name: adName,
+        adset_id: adSetId,
+        creative: creativeSpec,
+        status: 'PAUSED',
+      };
+
+      const response = await this.graph.post(`/${adAccountId}/ads`, payload);
+
+      this.logger.debug(
+        `Dynamic Ad '${adName}' created successfully with ID: ${response.data.id}`,
+      );
+      // The response for this call includes the ID of the ad AND the implicitly created creative
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Facebook API Error: Failed to create dynamic ad '${adName}'`,
+        error.response?.data,
+      );
+      throw new InternalServerErrorException(
+        `Facebook API Error: ${error.response?.data?.error?.message}`,
+      );
+    }
+  }
+
+  /**
    * Creates a single "flexible" ad creative using asset_feed_spec.
    */
   // async createFlexibleCreative(
