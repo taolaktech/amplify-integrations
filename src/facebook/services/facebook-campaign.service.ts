@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as countries from 'i18n-iso-countries';
@@ -20,6 +21,7 @@ import {
   CampaignDataFromLambda,
   FacebookCampaignDataService,
 } from './facebook-campaign-data.service';
+import { FacebookTokenService } from './facebook-token.service';
 
 @Injectable()
 export class FacebookCampaignService {
@@ -38,8 +40,19 @@ export class FacebookCampaignService {
     private facebookMarketingApiService: FacebookBusinessManagerService,
     private facebookCampaignDataService: FacebookCampaignDataService,
     private facebookAuthService: FacebookAuthService,
+    private facebookTokenService: FacebookTokenService,
   ) {
     this.sandboxAdAccountId = process.env.SANDBOX_AD_ACCOUNT_ID as string; //Load sandbox ID
+  }
+
+  private async getAndValidateUserToken(userId: string): Promise<string> {
+    const userToken = await this.facebookTokenService.getUserToken(userId);
+    if (!userToken) {
+      throw new UnauthorizedException(
+        `No valid Facebook token found for user ${userId}. Please re-authenticate.`,
+      );
+    }
+    return userToken;
   }
 
   //  Helper to get the effective Ad Account ID based on environment
@@ -83,6 +96,9 @@ export class FacebookCampaignService {
       this.logger.debug(
         `Step 1: Initializing Facebook campaign for Amplify campaign: ${campaignData.campaignId}`,
       );
+      const userId = facebookCampaignDocument.userId.toString();
+
+      const userToken = await this.getAndValidateUserToken(userId);
 
       // Prevent re-initialization if already done
       if (
@@ -112,6 +128,7 @@ export class FacebookCampaignService {
       // Call the API service to create the campaign on Facebook
       const facebookCampaignResponse =
         await this.facebookMarketingApiService.createCampaign(
+          userToken,
           facebookCampaignDocument.userAdAccountId,
           campaignName,
         );
@@ -188,6 +205,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Ensure campaign has been initialized
       if (!facebookCampaign.facebookCampaignId) {
@@ -252,6 +272,7 @@ export class FacebookCampaignService {
 
       // Create the single Ad Set via API
       const adSetResponse = await this.facebookMarketingApiService.createAdSet(
+        userToken,
         facebookCampaign.userAdAccountId,
         facebookCampaign.facebookCampaignId,
         adSetName,
@@ -958,6 +979,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
       const campaignData =
         facebookCampaign.originalCampaignData as CampaignDataFromLambda;
 
@@ -1026,6 +1050,7 @@ export class FacebookCampaignService {
         }
 
         const imageHashes = await this.uploadImagesToFacebook(
+          userToken,
           facebookCampaign.userAdAccountId,
           Array.from(productImages),
         );
@@ -1336,6 +1361,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       if (
         facebookCampaign.processingStatus === 'ADS_CREATED' &&
@@ -1388,6 +1416,7 @@ export class FacebookCampaignService {
         // We use the new method specifically for creating dynamic ads
         const adResponse =
           await this.facebookMarketingApiService.createDynamicAd(
+            userToken,
             facebookCampaign.userAdAccountId,
             adSetId,
             adName,
@@ -1486,6 +1515,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Prevent re-launching
       if (
@@ -1524,15 +1556,24 @@ export class FacebookCampaignService {
       );
 
       // 1. Activate the Ad
-      await this.facebookMarketingApiService.updateStatus(adId, 'ACTIVE');
+      await this.facebookMarketingApiService.updateStatus(
+        userToken,
+        adId,
+        'ACTIVE',
+      );
       this.logger.log(`Ad ${adId} status now Active`);
 
       // 2. Activate the Ad Set
-      await this.facebookMarketingApiService.updateStatus(adSetId, 'ACTIVE');
+      await this.facebookMarketingApiService.updateStatus(
+        userToken,
+        adSetId,
+        'ACTIVE',
+      );
       this.logger.log(`Adset ${adSetId} status now Active`);
 
       // 3. Activate the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         fbCampaignId,
         'ACTIVE',
       );
@@ -1747,11 +1788,16 @@ export class FacebookCampaignService {
    * Helper method to upload multiple images and get their hashes.
    */
   private async uploadImagesToFacebook(
+    userAccessToken: string,
     adAccountId: string,
     imageUrls: string[],
   ): Promise<string[]> {
     const uploadPromises = imageUrls.map((url) =>
-      this.facebookMarketingApiService.uploadImageByUrl(adAccountId, url),
+      this.facebookMarketingApiService.uploadImageByUrl(
+        userAccessToken,
+        adAccountId,
+        url,
+      ),
     );
     const results = await Promise.all(uploadPromises);
     return results.map((res) => res.hash);
@@ -2053,6 +2099,10 @@ export class FacebookCampaignService {
         );
       }
 
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
+
       // Validate that campaign is in a pausable state
       if (
         facebookCampaign.facebookStatus === 'PAUSED' ||
@@ -2066,13 +2116,18 @@ export class FacebookCampaignService {
       // Pause in reverse order: Campaign -> Ad Sets -> Ads
       // 1. Pause all Ads first
       for (const ad of facebookCampaign.ads) {
-        await this.facebookMarketingApiService.updateStatus(ad.adId, 'PAUSED');
+        await this.facebookMarketingApiService.updateStatus(
+          userToken,
+          ad.adId,
+          'PAUSED',
+        );
         this.logger.log(`Ad ${ad.adId} paused`);
       }
 
       // 2. Pause all Ad Sets
       for (const adSet of facebookCampaign.adSets) {
         await this.facebookMarketingApiService.updateStatus(
+          userToken,
           adSet.adSetId,
           'PAUSED',
         );
@@ -2081,6 +2136,7 @@ export class FacebookCampaignService {
 
       // 3. Pause the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         facebookCampaign.facebookCampaignId as string,
         'PAUSED',
       );
@@ -2135,6 +2191,9 @@ export class FacebookCampaignService {
           `Campaign not found for user: ${userId} and campaignId: ${campaignId}`,
         );
       }
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Validate that campaign is paused
       if (facebookCampaign.facebookStatus !== 'PAUSED') {
@@ -2146,13 +2205,18 @@ export class FacebookCampaignService {
       // Resume in order: Ads -> Ad Sets -> Campaign
       // 1. Resume all Ads
       for (const ad of facebookCampaign.ads) {
-        await this.facebookMarketingApiService.updateStatus(ad.adId, 'ACTIVE');
+        await this.facebookMarketingApiService.updateStatus(
+          userToken,
+          ad.adId,
+          'ACTIVE',
+        );
         this.logger.log(`Ad ${ad.adId} resumed`);
       }
 
       // 2. Resume all Ad Sets
       for (const adSet of facebookCampaign.adSets) {
         await this.facebookMarketingApiService.updateStatus(
+          userToken,
           adSet.adSetId,
           'ACTIVE',
         );
@@ -2161,6 +2225,7 @@ export class FacebookCampaignService {
 
       // 3. Resume the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         facebookCampaign.facebookCampaignId as string,
         'ACTIVE',
       );

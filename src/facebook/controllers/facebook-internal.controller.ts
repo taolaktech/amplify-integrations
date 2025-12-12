@@ -4,6 +4,7 @@ import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 import { Public } from '../../auth/decorators';
 import { AdsInsightsDto, CampaignInsightsDto } from '../dtos/insights.dto';
 import { FacebookBusinessManagerService } from '../services/facebook-business-manager.service';
+import { FacebookCampaignService } from '../services/facebook-campaign.service';
 
 @Public()
 @ApiTags('Internal Facebook Campaign Controller')
@@ -12,6 +13,7 @@ export class InternalFacebookController {
   constructor(
     private readonly facebookAuthService: FacebookAuthService,
     private readonly facebookBusinessManager: FacebookBusinessManagerService,
+    private readonly facebookCampaignService: FacebookCampaignService,
   ) {}
 
   @Get('users/:userId/primary-ad-account')
@@ -95,13 +97,14 @@ export class InternalFacebookController {
     description: 'List of Ad insights',
   })
   async retrieveMetaAdInsights(@Body() adInsightsDto: AdsInsightsDto) {
-    const adInsightsResponse = await this.facebookBusinessManager.getAdInsights(
-      adInsightsDto.adIds,
-    );
+    // TODO:
+    // const adInsightsResponse = await this.facebookBusinessManager.getAdInsights(
+    //   adInsightsDto.adIds,
+    // );
 
     return {
       success: true,
-      data: adInsightsResponse,
+      data: {}, // adInsightsResponse,
       message: 'Ads Insights successfully fetched',
     };
   }
@@ -118,14 +121,15 @@ export class InternalFacebookController {
   async retrieveMetaCampaignInsights(
     @Body() campaignInsightsDto: CampaignInsightsDto,
   ) {
-    const adInsightsResponse =
-      await this.facebookBusinessManager.getCampaignInsights(
-        campaignInsightsDto.campaignIds,
-      );
+    // TODO:
+    // const adInsightsResponse =
+    //   await this.facebookBusinessManager.getCampaignInsights(
+    //     campaignInsightsDto.campaignIds,
+    //   );
 
     return {
       success: true,
-      data: adInsightsResponse,
+      data: {}, //adInsightsResponse,
       message: 'Campaigns Insights successfully fetched',
     };
   }

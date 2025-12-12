@@ -9,11 +9,13 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
 import { InternalHttpHelper } from 'src/common/helpers/internal-http.helper';
 import { ServiceRegistryService } from 'src/common/services/service-registry.service';
+import { FacebookTokenService } from './services/facebook-token.service';
 
 @Module({
   imports: [FacebookAuthModule],
   controllers: [InternalFacebookController, FacebookCampaignController],
   providers: [
+    FacebookTokenService,
     FacebookCampaignDataService,
     FacebookCampaignService,
     FacebookBusinessManagerService,
