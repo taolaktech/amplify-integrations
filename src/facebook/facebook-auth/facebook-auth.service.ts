@@ -482,74 +482,15 @@ export class FacebookAuthService {
             `Checking live status for account: ${account.accountId}`,
           );
 
-          const assignment =
-            await this.facebookBusinessManagerService.checkSystemUserAssignment(
-              account.accountId,
-            );
-
-          const capabilities =
-            await this.facebookBusinessManagerService.getSystemUserCapabilities(
-              account.accountId,
-            );
-
-          // 3. Update database with latest status
-          const updateData: any = {
-            'systemUserPermission.lastStatusCheck': new Date(),
-            'systemUserPermission.grantedTasks': assignment.grantedTasks,
-          };
-
-          if (assignment.isAssigned) {
-            updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
-            if (!account.systemUserPermission?.assignedAt) {
-              updateData['systemUserPermission.assignedAt'] = new Date();
-            }
-            updateData['integrationStatus'] = capabilities.canCreateCampaigns
-              ? 'READY_FOR_CAMPAIGNS'
-              : 'SYSTEM_USER_ASSIGNED';
-            // also set assignmentError to null if canCreateCampaigns is true
-            if (capabilities.canCreateCampaigns) {
-              updateData['systemUserPermission.assignmentError'] = null;
-            }
-          } else {
-            // System user not found in assigned users
-            if (account.systemUserPermission?.assignmentStatus === 'ASSIGNED') {
-              // Was assigned before but now missing - update status
-              updateData['systemUserPermission.assignmentStatus'] =
-                'ASSIGNMENT_FAILED';
-              updateData['systemUserPermission.assignmentError'] =
-                'System user no longer in assigned users list';
-            }
-            updateData['integrationStatus'] = 'SETUP_INCOMPLETE';
-          }
-
-          await this.facebookAdAccountModel.updateOne(
-            { _id: account._id },
-            { $set: updateData },
-          );
-
           // 4. Return enriched account data
           return {
             ...account,
             systemUserPermission: {
               ...account.systemUserPermission,
-              assignmentStatus: assignment.isAssigned
-                ? 'ASSIGNED'
-                : 'NOT_REQUESTED',
-              grantedTasks: assignment.grantedTasks,
+              assignmentStatus: 'ASSIGNED',
               lastStatusCheck: new Date(),
             },
-            integrationStatus: assignment.isAssigned
-              ? capabilities.canCreateCampaigns
-                ? 'READY_FOR_CAMPAIGNS'
-                : 'SYSTEM_USER_ASSIGNED'
-              : 'SETUP_INCOMPLETE',
-            capabilities: {
-              canCreateCampaigns: capabilities.canCreateCampaigns,
-              canManageAds: capabilities.canManageAds,
-              canViewInsights: capabilities.canViewInsights,
-              grantedTasks: capabilities.grantedTasks,
-              missingTasks: capabilities.missingTasks,
-            },
+            integrationStatus: 'READY_FOR_CAMPAIGNS',
           };
         } catch (error) {
           this.logger.warn(
@@ -863,9 +804,7 @@ export class FacebookAuthService {
    *
    * @throws InternalServerErrorException - If an error occurs while retrieving the primary ad account or checking its status.
    */
-  async getPrimaryAdAccountWithStatus(
-    userId: string,
-  ): Promise<IGetPrimaryAdAccountWithStatusResponse> {
+  async getPrimaryAdAccountWithStatus(userId: string): Promise<any> {
     try {
       this.logger.debug(
         `Getting primary ad account with status for user: ${userId}`,
@@ -915,75 +854,30 @@ export class FacebookAuthService {
         const lastCheck = primaryAccount.systemUserPermission?.lastStatusCheck;
         const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
 
-        let assignment;
-        let capabilities;
         let isLiveCheck = false;
 
         if (lastCheck && lastCheck > threeMinutesAgo) {
           this.logger.debug(
             `Using cached status for primary account ${primaryAccount.accountId}`,
           );
-
-          // Use cached data
-          assignment = {
-            isAssigned:
-              primaryAccount.systemUserPermission?.assignmentStatus ===
-              'ASSIGNED',
-            grantedTasks:
-              primaryAccount.systemUserPermission?.grantedTasks || [],
-          };
-          capabilities = this.calculateCapabilitiesFromTasks(
-            assignment.grantedTasks,
-          );
         } else {
           this.logger.debug(
             `Performing live status check for primary account ${primaryAccount.accountId}`,
           );
           isLiveCheck = true;
-
-          // Perform live status check
-          assignment =
-            await this.facebookBusinessManagerService.checkSystemUserAssignment(
-              primaryAccount.accountId,
-            );
-
-          capabilities =
-            await this.facebookBusinessManagerService.getSystemUserCapabilities(
-              primaryAccount.accountId,
-            );
         }
 
         // 4.Update database with latest status (only if live check was performed)
         if (isLiveCheck) {
           const updateData: any = {
             'systemUserPermission.lastStatusCheck': new Date(),
-            'systemUserPermission.grantedTasks': assignment.grantedTasks,
           };
 
-          if (assignment.isAssigned) {
-            updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
-            if (!primaryAccount.systemUserPermission?.assignedAt) {
-              updateData['systemUserPermission.assignedAt'] = new Date();
-            }
-            updateData['integrationStatus'] = capabilities.canCreateCampaigns
-              ? 'READY_FOR_CAMPAIGNS'
-              : 'SYSTEM_USER_ASSIGNED';
-          } else {
-            // System user not found in assigned users
-            if (
-              primaryAccount.systemUserPermission?.assignmentStatus ===
-              'ASSIGNED'
-            ) {
-              updateData['systemUserPermission.assignmentStatus'] =
-                'ASSIGNMENT_FAILED';
-              updateData['systemUserPermission.assignmentError'] =
-                'System user no longer in assigned users list';
-            } else {
-              updateData['systemUserPermission.assignmentStatus'] =
-                'NOT_REQUESTED';
-            }
-            updateData['integrationStatus'] = 'SETUP_INCOMPLETE';
+          updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
+          if (!primaryAccount.systemUserPermission?.assignedAt) {
+            updateData['systemUserPermission.assignedAt'] = new Date();
           }
+          updateData['integrationStatus'] = 'READY_FOR_CAMPAIGNS';
 
           await this.facebookAdAccountModel.updateOne(
             { _id: primaryAccount._id },
@@ -992,8 +886,6 @@ export class FacebookAuthService {
 
           this.logger.debug(`Updated primary account status:`, {
             accountId: primaryAccount.accountId,
-            isAssigned: assignment.isAssigned,
-            canCreateCampaigns: capabilities.canCreateCampaigns,
           });
         }
 
@@ -1006,37 +898,20 @@ export class FacebookAuthService {
             businessName: primaryAccount.businessName,
             isPrimary: true,
           },
-          integrationStatus: assignment.isAssigned
-            ? capabilities.canCreateCampaigns
-              ? 'READY_FOR_CAMPAIGNS'
-              : 'SYSTEM_USER_ASSIGNED'
-            : 'SETUP_INCOMPLETE',
+          integrationStatus: 'READY_FOR_CAMPAIGNS',
           systemUserPermission: {
-            assignmentStatus: assignment.isAssigned
-              ? 'ASSIGNED'
-              : 'NOT_REQUESTED',
-            grantedTasks: assignment.grantedTasks,
+            assignmentStatus: 'ASSIGNED',
             lastStatusCheck: isLiveCheck ? new Date() : lastCheck || new Date(),
             ...(primaryAccount.systemUserPermission?.assignmentError && {
               assignmentError:
                 primaryAccount.systemUserPermission.assignmentError,
             }),
           },
-          capabilities: {
-            canCreateCampaigns: capabilities.canCreateCampaigns,
-            canManageAds: capabilities.canManageAds,
-            canViewInsights: capabilities.canViewInsights,
-            grantedTasks: capabilities.grantedTasks,
-            missingTasks: capabilities.missingTasks,
-          },
-          readyForCampaigns: capabilities.canCreateCampaigns,
         };
 
         return {
           data: accountWithExtra,
-          message: capabilities.canCreateCampaigns
-            ? 'Primary ad account is ready for campaigns'
-            : `Primary ad account needs setup. Missing permissions: ${capabilities.missingTasks.join(', ')}`,
+          message: 'Primary ad account is ready for campaigns',
         };
       } catch (statusError) {
         //  return account info with error status
@@ -1365,14 +1240,45 @@ export class FacebookAuthService {
             $set: {
               integrationStatus: 'READY_FOR_CAMPAIGNS',
               metaPixelId: metaPixelId,
-              selectedPrimaryFacebookPageId: selectedPage._id.toString()
+              selectedPrimaryFacebookPageId: selectedPage._id.toString(),
             },
           },
         );
       }
 
-      
-      
+      // update business model with the appropriate integration
+      this.logger.debug('Updating Business model with integration details...');
+
+      if (instagramAccountId) {
+        // This is an Instagram setup
+        await this.businessModel.updateOne(
+          { userId },
+          {
+            $set: {
+              'integrations.instagram': {
+                adAccountId: adAccountId,
+                instagramAccountId: instagramAccountId,
+              },
+            },
+          },
+        );
+        this.logger.debug(`Updated Instagram integration for user ${userId}`);
+      } else {
+        // This is a Facebook-only setup
+        await this.businessModel.updateOne(
+          { userId },
+          {
+            $set: {
+              'integrations.facebook': {
+                adAccountId: adAccountId,
+                pageId: pageId,
+              },
+            },
+          },
+        );
+        this.logger.debug(`Updated Facebook integration for user ${userId}`);
+      }
+
       return {
         message: 'All set!',
         adAccountId,
@@ -1380,7 +1286,6 @@ export class FacebookAuthService {
         canCreateCampaigns: true,
         grantedTasks: [],
       };
-
     } catch (error) {
       // Let specific exceptions bubble up to controller
       if (
@@ -1416,8 +1321,6 @@ export class FacebookAuthService {
     adAccountId: string,
   ): Promise<{
     assignmentStatus: string;
-    canCreateCampaigns: boolean;
-    grantedTasks: string[];
     lastChecked: Date;
   }> {
     try {
@@ -1430,34 +1333,16 @@ export class FacebookAuthService {
         throw new NotFoundException('Ad account not found');
       }
 
-      // Get live status from Facebook
-      const assignment =
-        await this.facebookBusinessManagerService.checkSystemUserAssignment(
-          adAccountId,
-        );
-      const capabilities =
-        await this.facebookBusinessManagerService.getSystemUserCapabilities(
-          adAccountId,
-        );
-
       // Update database with latest status
       const updateData: any = {
         'systemUserPermission.lastStatusCheck': new Date(),
-        'systemUserPermission.grantedTasks': assignment.grantedTasks,
       };
 
-      if (assignment.isAssigned) {
-        updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
-        if (!account.systemUserPermission?.assignedAt) {
-          updateData['systemUserPermission.assignedAt'] = new Date();
-        }
-        updateData['integrationStatus'] = capabilities.canCreateCampaigns
-          ? 'READY_FOR_CAMPAIGNS'
-          : 'SYSTEM_USER_ASSIGNED';
-      } else {
-        updateData['systemUserPermission.assignmentStatus'] = 'NOT_REQUESTED';
-        updateData['integrationStatus'] = 'SETUP_INCOMPLETE';
+      updateData['systemUserPermission.assignmentStatus'] = 'ASSIGNED';
+      if (!account.systemUserPermission?.assignedAt) {
+        updateData['systemUserPermission.assignedAt'] = new Date();
       }
+      updateData['integrationStatus'] = 'READY_FOR_CAMPAIGNS';
 
       await this.facebookAdAccountModel.updateOne(
         { userId, accountId: adAccountId },
@@ -1465,9 +1350,7 @@ export class FacebookAuthService {
       );
 
       return {
-        assignmentStatus: assignment.isAssigned ? 'ASSIGNED' : 'NOT_REQUESTED',
-        canCreateCampaigns: capabilities.canCreateCampaigns,
-        grantedTasks: assignment.grantedTasks,
+        assignmentStatus: 'ASSIGNED',
         lastChecked: new Date(),
       };
     } catch (error) {
@@ -1642,65 +1525,10 @@ export class FacebookAuthService {
 
           // Check system user permission status
           try {
-            const assignment =
-              await this.facebookBusinessManagerService.checkSystemUserAssignment(
-                account.id,
-              );
-
-            const capabilities =
-              await this.facebookBusinessManagerService.getSystemUserCapabilities(
-                account.id,
-              );
-
-            const oldStatus =
-              existingAccount.integrationStatus || 'SETUP_INCOMPLETE';
-            let newStatus = 'SETUP_INCOMPLETE';
-
-            if (assignment.isAssigned) {
-              newStatus = capabilities.canCreateCampaigns
-                ? 'READY_FOR_CAMPAIGNS'
-                : 'SYSTEM_USER_ASSIGNED';
-            }
-
-            // Update permission status in database
-            const permissionUpdateData: any = {
-              'systemUserPermission.lastStatusCheck': new Date(),
-              'systemUserPermission.grantedTasks': assignment.grantedTasks,
-              integrationStatus: newStatus,
-            };
-
-            if (assignment.isAssigned) {
-              permissionUpdateData['systemUserPermission.assignmentStatus'] =
-                'ASSIGNED';
-              if (!existingAccount.systemUserPermission?.assignedAt) {
-                permissionUpdateData['systemUserPermission.assignedAt'] =
-                  new Date();
-              }
-            } else {
-              permissionUpdateData['systemUserPermission.assignmentStatus'] =
-                'NOT_REQUESTED';
-            }
-
-            await this.facebookAdAccountModel.updateOne(
-              { accountId: account.id },
-              { $set: permissionUpdateData },
-            );
+            const oldStatus = 'READY_FOR_CAMPAIGNS';
+            const newStatus = 'READY_FOR_CAMPAIGNS';
 
             // Track permission changes
-            if (oldStatus !== newStatus) {
-              permissionUpdates.push({
-                accountId: account.id,
-                oldStatus,
-                newStatus,
-                capabilities: {
-                  canCreateCampaigns: capabilities.canCreateCampaigns,
-                  canManageAds: capabilities.canManageAds,
-                  canViewInsights: capabilities.canViewInsights,
-                  grantedTasks: capabilities.grantedTasks,
-                  missingTasks: capabilities.missingTasks,
-                },
-              });
-            }
           } catch (permissionError) {
             this.logger.warn(
               `Failed to check permissions for account ${account.id}:`,
