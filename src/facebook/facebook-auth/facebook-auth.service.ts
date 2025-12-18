@@ -5,30 +5,27 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
-import { Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FacebookPage } from '../../database/schema/facebook-page.schema';
-import mongoose, { Model } from 'mongoose';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
+import { InjectModel } from '@nestjs/mongoose';
+import axios from 'axios';
+import mongoose, { Model, Types } from 'mongoose';
 import {
+  Business,
   FacebookAdAccount,
   FacebookAdAccountDocument,
-  UserToken,
   InstagramAccount,
-  Business,
+  UserToken,
 } from 'src/database/schema';
+import { FacebookPage } from '../../database/schema/facebook-page.schema';
+import { IRefreshAdAccountResponse } from '../interfaces/interface';
+import { FacebookBusinessManagerService } from '../services/facebook-business-manager.service';
 import { FacebookTokenService } from '../services/facebook-token.service';
 import { SelectPrimaryAdAccountDto } from './dtos/select-primary-ad-account.dto';
-import { FacebookBusinessManagerService } from '../services/facebook-business-manager.service';
-import {
-  IGetPrimaryAdAccountWithStatusResponse,
-  IRefreshAdAccountResponse,
-} from '../interfaces/interface';
 
 @Injectable()
 export class FacebookAuthService {
@@ -1252,7 +1249,7 @@ export class FacebookAuthService {
       if (instagramAccountId) {
         // This is an Instagram setup
         await this.businessModel.updateOne(
-          { userId },
+          { userId: new Types.ObjectId(userId) },
           {
             $set: {
               'integrations.instagram': {
@@ -1266,7 +1263,7 @@ export class FacebookAuthService {
       } else {
         // This is a Facebook-only setup
         await this.businessModel.updateOne(
-          { userId },
+          { userId: new Types.ObjectId(userId) },
           {
             $set: {
               'integrations.facebook': {
