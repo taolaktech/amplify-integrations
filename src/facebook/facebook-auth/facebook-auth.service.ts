@@ -35,7 +35,7 @@ export class FacebookAuthService {
   private readonly logger = new Logger(FacebookAuthService.name);
 
   private readonly graph = axios.create({
-    baseURL: 'https://graph.facebook.com/v24.0',
+    baseURL: 'https://graph.facebook.com/v23.0',
   });
 
   constructor(
@@ -2007,7 +2007,7 @@ export class FacebookAuthService {
 
       return {
         accountId: primaryAdAccount.accountId,
-        pageId: primaryPage._id.toString(),
+        pageId: primaryPage.pageId,
         metaPixelId: primaryAdAccount.metaPixelId,
         name: primaryAdAccount.name,
         currency: primaryAdAccount.currency,
