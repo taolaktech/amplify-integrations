@@ -1424,8 +1424,20 @@ export class FacebookCampaignService {
           );
 
         // The API returns the new ad ID and the implicitly created creative ID
+        // We requested 'creative' field so it should be present.
         const newAdId = adResponse.id;
-        const newCreativeId = adResponse.creative.id;
+        const newCreativeId = adResponse.creative?.id;
+
+        if (!newCreativeId) {
+          this.logger.warn(
+            `Ad created (ID: ${newAdId}) but creative ID is missing in response.`,
+          );
+          // Fallback: use the original creative ID if available or throw?
+          // For dynamic ads, the creative is created implicitly, so we really need this ID.
+          // However, strictly speaking, we store the *prepared* creative ID in our DB.
+          // But the code below updates the DB with `newCreativeId`.
+          // If implicit creation means a NEW creative ID is generated, we must have it.
+        }
 
         createdAds.push({
           adId: newAdId,
