@@ -1,10 +1,8 @@
 import {
   BadRequestException,
-  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
@@ -402,7 +400,14 @@ export class FacebookBusinessManagerService {
         access_token: userAccessToken, // Use the provided user token
       };
 
-      const response = await this.graph.post(`/${adAccountId}/ads`, payload);
+      const response = await this.graph.post(`/${adAccountId}/ads`, payload, {
+        params: {
+          /**
+           * using read after write @see https://developers.facebook.com/docs/graph-api/overview#read-after-write
+           */
+          fields: 'id,creative',
+        },
+      });
 
       this.logger.debug(
         `Dynamic Ad '${adName}' created successfully with ID: ${response.data.id}`,
