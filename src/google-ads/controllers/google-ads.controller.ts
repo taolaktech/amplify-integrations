@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { GoogleAdsService } from './google-ads.service';
+import { GoogleAdsService } from '../services/google-ads.service';
 import {
   ApiOperation,
   ApiProperty,
@@ -31,7 +31,7 @@ import {
   CreateGoogleAdsAssetDto,
   GetCampaignMetricsDto,
   GetCampaignBatchMetricsDto,
-} from './dto';
+} from '../dto';
 
 class Result {
   @ApiProperty()
@@ -53,27 +53,6 @@ class CreateResourceResponse {
 @Controller('api/google-ads')
 export class GoogleAdsController {
   constructor(private googleAdsService: GoogleAdsService) {}
-
-  @ApiOperation({
-    summary: 'Get Google Auth URL',
-    description: 'Returns the Google OAuth URL for authentication.',
-  })
-  @Get('/auth/url')
-  getAuthUrl() {
-    const url = this.googleAdsService.getGoogleAuthUrl();
-    return { url };
-  }
-
-  @ApiOperation({
-    summary: 'Google Auth Callback',
-    description:
-      'Handles the OAuth redirect and processes the authentication callback.',
-  })
-  @Public()
-  @Get('/auth/redirect')
-  async googleAuthCallback(@Query() q: { [k: string]: string }) {
-    return await this.googleAdsService.googleAuthCallbackHandler(q);
-  }
 
   @ApiOperation({
     summary: 'Create a new Google Ads customer account',
