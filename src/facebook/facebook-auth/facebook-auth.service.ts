@@ -1234,7 +1234,7 @@ export class FacebookAuthService {
     };
   }> {
     try {
-// // 1. Validate access
+      // // 1. Validate access
       const hasAccess = await this.validateAdAccountAccess(userId, adAccountId);
       if (!hasAccess) {
         throw new ForbiddenException('Ad account not found or access denied');
@@ -1286,6 +1286,16 @@ export class FacebookAuthService {
           'Selected Facebook Page not found or does not belong to the user.',
         );
       }
+
+      // 3. Store the selected page reference on the ad account so campaign creation can resolve it
+      await this.facebookAdAccountModel.updateOne(
+        { userId, accountId: adAccountId },
+        {
+          $set: {
+            selectedPrimaryFacebookPageId: selectedPage._id.toString(),
+          },
+        },
+      );
 
       // 3. If Instagram account is provided, set it as primary
       if (instagramAccountId) {
@@ -1346,7 +1356,7 @@ export class FacebookAuthService {
           },
         );
       }
-      
+
       return {
         message: 'All set!',
         adAccountId,
@@ -1354,7 +1364,6 @@ export class FacebookAuthService {
         canCreateCampaigns: true,
         grantedTasks: [],
       };
-      
     } catch (error) {
       // Let specific exceptions bubble up to controller
       if (
