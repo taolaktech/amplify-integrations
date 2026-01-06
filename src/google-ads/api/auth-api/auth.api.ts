@@ -37,7 +37,7 @@ export class GoogleAdsAuthApiService {
     this.oauth2Client = new google.auth.OAuth2(
       this.GOOGLE_CLIENT_ID,
       this.GOOGLE_CLIENT_SECRET,
-      `${this.config.get('API_URL')}/api/google/auth/redirect`,
+      `${this.config.get('API_URL')}/api/google-ads/auth/redirect`,
     );
   }
 

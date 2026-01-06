@@ -43,10 +43,6 @@ export class GoogleAdsService {
     private googleAdsSearchApi: GoogleAdsSearchApiService,
   ) {}
 
-  async listAccessibleCustomers() {
-    return await this.googleAdsCustomerApi.listAccessibleCustomers();
-  }
-
   async createTargetRoasBiddingStrategy(
     dto: CreateTargetRoasBiddingStrategyDto,
     options?: GoogleAdsResourceRequestOptions,

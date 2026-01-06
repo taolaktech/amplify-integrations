@@ -55,7 +55,7 @@ export class GoogleAdsController {
   constructor(private googleAdsService: GoogleAdsService) {}
 
   @ApiOperation({
-    summary: 'Create a new Google Ads customer account',
+    summary: 'DEPRECATED:Create a new Google Ads customer account',
     description: 'Creates a new customer account in Google Ads.',
   })
   @Post('/customers/create')
@@ -150,15 +150,6 @@ export class GoogleAdsController {
     return await this.googleAdsService.createConversionAction(dto, {
       validateOnly,
     });
-  }
-
-  @ApiOperation({
-    summary: 'Get list of accessible customers',
-    description: 'Retrieves a list of accessible Google Ads customer accounts.',
-  })
-  @Get('/customers/accessible-customers')
-  async getCustomers() {
-    return await this.googleAdsService.listAccessibleCustomers();
   }
 
   @ApiOperation({

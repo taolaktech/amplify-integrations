@@ -84,17 +84,8 @@ class GoogleAdsConversionAction {
 
 @Schema({ _id: false })
 class GoogleAdsIntegration {
-  @Prop()
-  customerId: string;
-
-  @Prop()
-  customerName: string;
-
-  @Prop()
-  customerResourceName: string;
-
-  @Prop()
-  conversionAction: GoogleAdsConversionAction;
+  @Prop({ type: Types.ObjectId, ref: 'google-ads-accounts' })
+  primaryAdAccountConnection: Types.ObjectId;
 }
 
 @Schema({ _id: false })

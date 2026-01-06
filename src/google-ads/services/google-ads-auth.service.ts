@@ -10,6 +10,10 @@ import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { AppConfigService } from 'src/config/config.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { GoogleAdsAccountDoc } from 'src/database/schema/google-ads-account.schema';
+import { Business } from 'src/database/schema';
 
 @Injectable()
 export class GoogleAdsAuthService {
@@ -19,6 +23,10 @@ export class GoogleAdsAuthService {
     private googleAdsAuthApiService: GoogleAdsAuthApiService,
     private config: AppConfigService,
     private googleAdsCustomerApi: GoogleAdsCustomerApiService,
+    @InjectModel('google-ads-accounts')
+    private googleAdsAccountModel: Model<GoogleAdsAccountDoc>,
+    @InjectModel('business')
+    private businessModel: Model<Business>,
   ) {}
 
   async getGoogleAuthUrl(userId: string): Promise<string> {
@@ -28,10 +36,25 @@ export class GoogleAdsAuthService {
 
   async googleAuthCallbackHandler(params: any) {
     try {
-      const { code, state } = params;
+      const { code, state, userId: userIdOverride } = params;
 
       // validate state
-      const { userId } = this.validateStateToken(state);
+      const { userId: userIdFromState } = this.validateStateToken(state);
+
+      if (userIdOverride && userIdOverride !== userIdFromState) {
+        this.logger.error('State userId and Request token userId mismatch', {
+          userIdOverride,
+          userIdFromState,
+        });
+        throw new UnauthorizedException('Invalid state');
+      }
+
+      if (!userIdOverride && !userIdFromState) {
+        throw new UnauthorizedException('Invalid state');
+      }
+
+      const userId = (userIdOverride as string | undefined) ?? userIdFromState;
+      const userObjectId = new Types.ObjectId(userId);
 
       // get token
       const tokensData =
@@ -46,11 +69,70 @@ export class GoogleAdsAuthService {
           idToken: tokensData.id_token,
         });
 
-      // TODO- save tokens to db with user infomation and profile
-      // TODO- encrypt refresh token
-      // TODO- save refresh token to db
+      const accessibleCustomers =
+        await this.googleAdsCustomerApi.listAccessibleCustomers();
+      const accessibleCustomerResourceNames =
+        accessibleCustomers.resourceNames || [];
 
-      return { tokensData, googleProfile };
+      const existing = await this.googleAdsAccountModel.findOne({
+        userId: userObjectId,
+        googleUserId: googleProfile.id,
+      });
+
+      const existingPrimaryCustomerAccount = existing?.primaryCustomerAccount;
+      const primaryAdAccountState =
+        existingPrimaryCustomerAccount &&
+        !accessibleCustomerResourceNames.includes(
+          existingPrimaryCustomerAccount,
+        )
+          ? 'DISCONNECTED'
+          : 'CONNECTED';
+
+      const refreshToken = tokensData.refresh_token || existing?.refreshToken;
+      if (!refreshToken) {
+        throw new UnauthorizedException('Missing refresh token');
+      }
+
+      const googleAdsAccount =
+        await this.googleAdsAccountModel.findOneAndUpdate(
+          { userId: userObjectId, googleUserId: googleProfile.id },
+          {
+            $set: {
+              userId: userObjectId,
+              googleUserId: googleProfile.id,
+              email: googleProfile.email,
+              refreshToken,
+              accessToken: tokensData.access_token,
+              accessTokenExpiresAt: new Date(
+                Date.now() + (tokensData.expires_in || 0) * 1000,
+              ),
+              accessibleCustomers: accessibleCustomerResourceNames,
+              primaryAdAccountState,
+            },
+            $setOnInsert: {
+              primaryCustomerAccount:
+                accessibleCustomerResourceNames?.[0] ?? undefined,
+            },
+          },
+          { upsert: true, new: true },
+        );
+
+      await this.businessModel.updateOne(
+        { userId: userObjectId },
+        {
+          $set: {
+            'integrations.googleAds.primaryAdAccountConnection':
+              googleAdsAccount?._id,
+          },
+        },
+        { upsert: true, setDefaultsOnInsert: true },
+      );
+
+      return {
+        tokensData,
+        googleProfile,
+        accessibleCustomers,
+      };
     } catch (error) {
       this.logger.error('Error occurred:', error);
       throw new InternalServerErrorException();

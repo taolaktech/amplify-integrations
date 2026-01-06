@@ -10,7 +10,7 @@ import {
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { Reflector } from '@nestjs/core';
-// import { IS_PUBLIC_KEY } from './decorators';
+import { IS_PUBLIC_KEY } from './decorators';
 
 @Injectable()
 export class TokenAuthGuard implements CanActivate {
@@ -22,14 +22,14 @@ export class TokenAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-    //   context.getHandler(),
-    //   context.getClass(),
-    // ]);
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
-    // if (isPublic) {
-    //   return true;
-    // }
+    if (isPublic) {
+      return true;
+    }
 
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;

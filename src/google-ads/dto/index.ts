@@ -21,6 +21,8 @@ import {
 } from '../api/resource-api/enums';
 import { Type } from 'class-transformer';
 
+export { SetPrimaryCustomerAccountDto } from './set-primary-customer-account.dto';
+
 export class CreateTargetRoasBiddingStrategyDto {
   @ApiProperty()
   @IsString()
