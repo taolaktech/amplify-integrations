@@ -1169,6 +1169,16 @@ export class FacebookAuthService {
         );
       }
 
+      // 3. Store the selected page reference on the ad account so campaign creation can resolve it
+      await this.facebookAdAccountModel.updateOne(
+        { userId, accountId: adAccountId },
+        {
+          $set: {
+            selectedPrimaryFacebookPageId: selectedPage._id.toString(),
+          },
+        },
+      );
+
       // 3. If Instagram account is provided, set it as primary
       if (instagramAccountId) {
         // Find all Instagram accounts connected to this page

@@ -7,6 +7,7 @@ import axios, {
 } from 'axios';
 import { ServiceRegistryService } from '../services/service-registry.service';
 import { ServiceName } from '../types/service.types';
+import { AppConfigService } from 'src/config/config.service';
 
 export interface InternalRequestOptions {
   headers?: Record<string, string>;
@@ -19,11 +20,16 @@ export class InternalHttpHelper {
   private axiosInstance: AxiosInstance;
   private baseUrl: string;
   private serviceName: string;
+  private internalRequestToken: string;
 
-  constructor(private serviceRegistry: ServiceRegistryService) {
+  constructor(
+    private serviceRegistry: ServiceRegistryService,
+    private config: AppConfigService,
+  ) {
     this.axiosInstance = axios.create({
       timeout: 10000,
     });
+    this.internalRequestToken = this.config.get('INTERNAL_REQUEST_TOKEN');
   }
 
   forService(serviceName: ServiceName): InternalHttpHelper {
@@ -59,7 +65,8 @@ export class InternalHttpHelper {
       url: fullUrl,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Internal ${process.env.INTERNAL_REQUEST_TOKEN}`,
+        Authorization: `Internal ${this.internalRequestToken}`,
+        'x-api-key': this.internalRequestToken,
         'X-Request-ID': requestId,
         ...options.headers,
       },

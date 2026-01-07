@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { GoogleAdsService } from './google-ads.service';
+import { GoogleAdsService } from '../services/deprecated__google-ads.service';
 import {
   ApiOperation,
   ApiProperty,
@@ -7,7 +7,6 @@ import {
   ApiResponse,
   ApiSecurity,
 } from '@nestjs/swagger';
-import { Public } from 'src/auth/decorators';
 import {
   AddGeotargetingToCampaignDto,
   AddKeywordsToAdGroupDto,
@@ -31,7 +30,7 @@ import {
   CreateGoogleAdsAssetDto,
   GetCampaignMetricsDto,
   GetCampaignBatchMetricsDto,
-} from './dto';
+} from '../dto';
 
 class Result {
   @ApiProperty()
@@ -53,41 +52,6 @@ class CreateResourceResponse {
 @Controller('api/google-ads')
 export class GoogleAdsController {
   constructor(private googleAdsService: GoogleAdsService) {}
-
-  @ApiOperation({
-    summary: 'Get Google Auth URL',
-    description: 'Returns the Google OAuth URL for authentication.',
-  })
-  @Get('/auth/url')
-  getAuthUrl() {
-    const url = this.googleAdsService.getGoogleAuthUrl();
-    return { url };
-  }
-
-  @ApiOperation({
-    summary: 'Google Auth Callback',
-    description:
-      'Handles the OAuth redirect and processes the authentication callback.',
-  })
-  @Public()
-  @Get('/auth/redirect')
-  async googleAuthCallback(@Query() q: { [k: string]: string }) {
-    return await this.googleAdsService.googleAuthCallbackHandler(q);
-  }
-
-  @ApiOperation({
-    summary: 'Create a new Google Ads customer account',
-    description: 'Creates a new customer account in Google Ads.',
-  })
-  @Post('/customers/create')
-  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
-  async createCustomer(
-    @Body() dto: CreateCustomerDto,
-    @Query() query: { [k: string]: string },
-  ) {
-    const validateOnly = query.validateOnly === '1';
-    return await this.googleAdsService.createCustomer(dto, { validateOnly });
-  }
 
   @ApiOperation({
     summary: 'Create an asset',
@@ -171,15 +135,6 @@ export class GoogleAdsController {
     return await this.googleAdsService.createConversionAction(dto, {
       validateOnly,
     });
-  }
-
-  @ApiOperation({
-    summary: 'Get list of accessible customers',
-    description: 'Retrieves a list of accessible Google Ads customer accounts.',
-  })
-  @Get('/customers/accessible-customers')
-  async getCustomers() {
-    return await this.googleAdsService.listAccessibleCustomers();
   }
 
   @ApiOperation({

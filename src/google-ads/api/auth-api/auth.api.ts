@@ -1,11 +1,28 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { AppConfigService } from 'src/config/config.service';
 import { GoogleAdsSharedMethodsService } from '../shared';
+import axios from 'axios';
+
+type GoogleProfile = {
+  id: string;
+  email: string;
+  verified_email: boolean;
+  name: string;
+  given_name: string;
+  family_name: string;
+  picture: string;
+  locale: string;
+};
 
 @Injectable()
 export class GoogleAdsAuthApiService {
+  private logger = new Logger(GoogleAdsAuthApiService.name);
   private oauth2Client: OAuth2Client;
   private GOOGLE_CLIENT_ID: string;
   private GOOGLE_CLIENT_SECRET: string;
@@ -20,16 +37,16 @@ export class GoogleAdsAuthApiService {
     this.oauth2Client = new google.auth.OAuth2(
       this.GOOGLE_CLIENT_ID,
       this.GOOGLE_CLIENT_SECRET,
-      `${this.config.get('API_URL')}/api/google/auth/redirect`,
+      `${this.config.get('API_URL')}/api/google-ads/auth/redirect`,
     );
   }
 
-  getGoogleAuthUrl(): string {
+  getGoogleAuthUrl(state: string): string {
     const scopes = [
       'https://www.googleapis.com/auth/adwords',
-      // 'https://www.googleapis.com/auth/userinfo.profile',
-      // 'openid',
-      // 'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
     ];
 
     // Generate a url that asks permissions for the Drive activity scope
@@ -41,26 +58,10 @@ export class GoogleAdsAuthApiService {
       scope: scopes,
       // Enable incremental authorization. Recommended as a best practice.
       include_granted_scopes: true,
-      state: 'state_parameter_passthrough_value',
+      state,
       prompt: 'consent',
     });
     return authorizationUrl;
-  }
-
-  async googleAuthCallbackHandler(params: any) {
-    try {
-      const { code } = params;
-
-      // get tokens
-      const tokens = await this.getOauthTokensWithCode(code as string);
-
-      const { refresh_token } = tokens;
-
-      return { refresh_token };
-    } catch (error) {
-      console.log('Error occurred:', error);
-      throw new InternalServerErrorException();
-    }
   }
 
   async getOauthTokensWithCode(code: string) {
@@ -72,8 +73,25 @@ export class GoogleAdsAuthApiService {
         });
       return tokensData;
     } catch (err: any) {
-      console.error('error getting tokens');
+      this.logger.error('Error getting tokens', err);
       throw err;
+    }
+  }
+
+  async getGoogleUserProfile(params: { accessToken: string; idToken: string }) {
+    try {
+      const response = await axios.get<GoogleProfile>(
+        `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${params.accessToken}`,
+        {
+          headers: {
+            Authorization: `Bearer ${params.idToken}`,
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      this.logger.error('Error getting google profile', error);
+      throw error;
     }
   }
 }

@@ -56,6 +56,7 @@ import {
   UpdateCampaignBody,
 } from '../../my-types';
 import { GoogleAdsSharedMethodsService } from '../shared';
+import { GoogleAdsConnectionTokenService } from '../../services/google-ads-connection-token.service';
 
 @Injectable()
 export class GoogleAdsResourceApiService {
@@ -64,16 +65,41 @@ export class GoogleAdsResourceApiService {
   private DRY_RUN = false;
   private logger = new Logger(GoogleAdsResourceApiService.name);
 
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   constructor(
     private config: AppConfigService,
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
+    private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
   ) {
     this.GOOGLE_CLIENT_ID = this.config.get('GOOGLE_CLIENT_ID');
     this.GOOGLE_CLIENT_SECRET = this.config.get('GOOGLE_CLIENT_SECRET');
   }
 
-  private async axiosInstance() {
-    return await this.googleAdsSharedMethodsService.axiosInstance();
+  private async axiosInstance(options: GoogleAdsResourceRequestOptions) {
+    if (!options?.connectionId) {
+      throw new BadRequestException('connectionId is required');
+    }
+    const accessToken =
+      await this.googleAdsConnectionTokenService.getAccessToken({
+        connectionId: options.connectionId,
+      });
+
+    const loginCustomerId =
+      options.loginCustomerId ??
+      (
+        await this.googleAdsConnectionTokenService.getAuthContext({
+          connectionId: options.connectionId,
+        })
+      ).loginCustomerId;
+    return this.googleAdsSharedMethodsService.axiosInstanceWithAccessToken({
+      accessToken,
+      loginCustomerId,
+    });
   }
 
   private extractCustomerIdFromResourceName(resourceName: string) {
@@ -90,9 +116,10 @@ export class GoogleAdsResourceApiService {
     customerId: string,
     resourceName: string,
   ) {
+    const sanitizedCustomerId = this.normalizeCustomerId(customerId);
     const resourceCustomerId =
       this.extractCustomerIdFromResourceName(resourceName);
-    if (customerId !== resourceCustomerId) {
+    if (sanitizedCustomerId !== resourceCustomerId) {
       throw new BadRequestException(
         `Resource x customer mismatch- customer-${customerId}, resourceCustomerId-${resourceCustomerId} `,
       );
@@ -111,7 +138,7 @@ export class GoogleAdsResourceApiService {
       grant_type: params.grantType,
       refresh_token: params.refreshToken,
       code: params.code,
-      redirect_uri: `${this.config.get('API_URL')}/api/google/auth/redirect`,
+      redirect_uri: `${this.config.get('API_URL')}/api/google-ads/auth/redirect`,
     };
     try {
       const response = await axios.post<GoogleTokensResult>(
@@ -134,6 +161,7 @@ export class GoogleAdsResourceApiService {
     error: unknown,
     resource: GoogleAdsResource,
     customerId: string,
+    operations: GoogleAdsOperation<unknown>[],
   ): Error {
     if (axios.isAxiosError(error) && error.response?.data?.error) {
       const googleAdsError = error.response.data.error;
@@ -160,13 +188,15 @@ export class GoogleAdsResourceApiService {
         }
       }
       this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
-      this.logger.log(error.response?.data);
+      this.logger.error(error.response?.data);
       this.logger.error(JSON.stringify(error.response?.data || {}));
+      this.logger.error(JSON.stringify({ operations }));
       throw new InternalServerErrorException({
         googleAdsError,
         mesage: 'Something went wrong while performing operation',
       });
     }
+    this.logger.error(error);
     throw error;
   }
 
@@ -174,11 +204,12 @@ export class GoogleAdsResourceApiService {
     resource: GoogleAdsResource,
     customerId: string,
     operations: GoogleAdsOperation<T>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
-      const url = `/customers/${customerId}/${resource}:mutate`;
-      const axios = await this.axiosInstance();
+      const normalizedCustomerId = this.normalizeCustomerId(customerId);
+      const url = `/customers/${normalizedCustomerId}/${resource}:mutate`;
+      const axios = await this.axiosInstance(options);
       const data: GoogleAdsRestBody<T> = {
         operations,
         validateOnly: this.DRY_RUN || options?.validateOnly,
@@ -187,7 +218,7 @@ export class GoogleAdsResourceApiService {
       const res = await axios.post<ResourceCreationResponse>(url, data);
       return res.data;
     } catch (error: unknown) {
-      this.mutateResourceErrorHandler(error, resource, customerId);
+      this.mutateResourceErrorHandler(error, resource, customerId, operations);
       throw new InternalServerErrorException(
         `Cannot complete ${resource} mutate operation for customerId ${customerId}`,
       );
@@ -197,7 +228,7 @@ export class GoogleAdsResourceApiService {
   private async campaignBudgetMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsBudget>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaignBudgets';
 
@@ -212,7 +243,7 @@ export class GoogleAdsResourceApiService {
   private async campaignMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaign>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaigns';
     return await this.mutateResourceOperation<GoogleAdsCampaign>(
@@ -226,7 +257,7 @@ export class GoogleAdsResourceApiService {
   private async adGroupsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroup>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroups';
     return await this.mutateResourceOperation<GoogleAdsAdGroup>(
@@ -240,7 +271,7 @@ export class GoogleAdsResourceApiService {
   private async adGroupsAdsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupAd>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroupAds';
     // customers/{customerId}/adGroupAds/{adGroupId}~{ad_id}
@@ -255,7 +286,7 @@ export class GoogleAdsResourceApiService {
   private async adGroupCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAdGroupCriterion>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'adGroupCriteria';
     return await this.mutateResourceOperation<GoogleAdsAdGroupCriterion>(
@@ -269,7 +300,7 @@ export class GoogleAdsResourceApiService {
   private async biddingStrategiesMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsBiddingStrategy>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'biddingStrategies';
     return await this.mutateResourceOperation<GoogleAdsBiddingStrategy>(
@@ -283,7 +314,7 @@ export class GoogleAdsResourceApiService {
   private async campaignCriteriaMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaignCriteria';
     return await this.mutateResourceOperation<GoogleAdsCampaignCriterion>(
@@ -297,7 +328,7 @@ export class GoogleAdsResourceApiService {
   private async conversionActionMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsConversionAction>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'conversionActions';
     return await this.mutateResourceOperation<GoogleAdsConversionAction>(
@@ -311,7 +342,7 @@ export class GoogleAdsResourceApiService {
   private async customerAssetsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCustomerAsset>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'customerAssets';
     return await this.mutateResourceOperation<GoogleAdsCustomerAsset>(
@@ -325,7 +356,7 @@ export class GoogleAdsResourceApiService {
   private async campaignAssetsMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsCampaignAsset>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'campaignAssets';
     return await this.mutateResourceOperation<GoogleAdsCampaignAsset>(
@@ -339,7 +370,7 @@ export class GoogleAdsResourceApiService {
   private async assetMutateOperation(
     customerId: string,
     operations: GoogleAdsOperation<GoogleAdsAsset>[],
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const resource = 'assets';
     return await this.mutateResourceOperation<GoogleAdsAsset>(
@@ -351,11 +382,13 @@ export class GoogleAdsResourceApiService {
   }
 
   private async suggestGeoTargetConstants(
-    payload: Partial<SuggestGeoTargetConstantsRequestBody>,
+    payload: SuggestGeoTargetConstantsRequestBody,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const url = `/geoTargetConstants:suggest`;
-      const axios = await this.axiosInstance();
+      const axios = await this.axiosInstance(options);
+
       const res = await axios.post<SuggestGeoTargetConstantsResponse>(
         url,
         payload,
@@ -375,7 +408,7 @@ export class GoogleAdsResourceApiService {
   async createBudget(
     customerId: string,
     body: { name: string; amountMicros: number; explicitlyShared?: boolean },
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const budget: Partial<GoogleAdsBudget> = {
@@ -408,7 +441,7 @@ export class GoogleAdsResourceApiService {
   async createTargetRoasBiddingStrategy(
     customerId: string,
     body: CreateTargetRoasBiddingStrategyBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const biddingStrategy: Partial<GoogleAdsBiddingStrategy> = {
@@ -444,7 +477,7 @@ export class GoogleAdsResourceApiService {
   async createMaxConversionsBiddingStrategy(
     customerId: string,
     body: CreateMaximizeConversionsBiddingStrategyBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const biddingStrategy: Partial<GoogleAdsBiddingStrategy> = {
@@ -481,7 +514,7 @@ export class GoogleAdsResourceApiService {
   async createSearchCampaign(
     customerId: string,
     body: CreateCampaignBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       this.checkResourceAgainstAccount(customerId, body.campaignBudget);
@@ -528,7 +561,7 @@ export class GoogleAdsResourceApiService {
   async createPerformanceMaxCampaign(
     customerId: string,
     body: CreateCampaignBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       this.checkResourceAgainstAccount(customerId, body.campaignBudget);
@@ -576,7 +609,7 @@ export class GoogleAdsResourceApiService {
 
   async createAdGroup(
     body: CreateAdGroupBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -613,7 +646,7 @@ export class GoogleAdsResourceApiService {
 
   async createAdGroupAd(
     body: CreateAdGroupAdBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     const { finalUrls, headlines, descriptions, path1, path2 } = body;
     if (
@@ -668,7 +701,7 @@ export class GoogleAdsResourceApiService {
 
   async addKeywordsToAdGroup(
     body: AddKeywordsToAdGroupBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -722,7 +755,7 @@ export class GoogleAdsResourceApiService {
 
   async addGeoTargetingToCampaign(
     body: AddGeoTargetingToCampaignBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerId = this.extractCustomerIdFromResourceName(
@@ -735,10 +768,13 @@ export class GoogleAdsResourceApiService {
         locationNames: {
           names: body.locationNames,
         },
+        // geoTargets: {
+        //   geoTargetConstants: [],
+        // },
       };
 
       const { geoTargetConstantSuggestions } =
-        await this.suggestGeoTargetConstants(gtc);
+        await this.suggestGeoTargetConstants(gtc, options);
 
       const operations: GoogleAdsOperation<GoogleAdsCampaignCriterion>[] = [];
 
@@ -783,7 +819,7 @@ export class GoogleAdsResourceApiService {
 
   async updateCampaign(
     body: UpdateCampaignBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       if (!body.campaign.resourceName) {
@@ -814,7 +850,7 @@ export class GoogleAdsResourceApiService {
 
   async createConversionAction(
     body: CreateConversionActionBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const conversionAction: Partial<GoogleAdsConversionAction> = {
@@ -845,7 +881,7 @@ export class GoogleAdsResourceApiService {
 
   async createAsset(
     body: CreateAssetBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const asset: Partial<GoogleAdsAsset> = {
@@ -879,7 +915,7 @@ export class GoogleAdsResourceApiService {
 
   async createCustomerAsset(
     body: CreateCustomerAssetBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const customerAsset: Partial<GoogleAdsCustomerAsset> = {
@@ -911,7 +947,7 @@ export class GoogleAdsResourceApiService {
 
   async createCampaignAsset(
     body: CreateCampaignAssetBody,
-    options?: GoogleAdsResourceRequestOptions,
+    options: GoogleAdsResourceRequestOptions,
   ) {
     try {
       const campaignAsset: Partial<GoogleAdsCampaignAsset> = {

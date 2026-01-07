@@ -18,7 +18,7 @@ export class UserToken {
     required: true,
     enum: ['access', 'refresh', 'page'],
   })
-  tokenType: string;
+  tokenType: 'access' | 'refresh' | 'page';
 
   @Prop({ required: true })
   encryptedToken: string;

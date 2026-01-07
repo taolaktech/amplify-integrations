@@ -242,7 +242,7 @@ export interface SuggestGeoTargetConstantsRequestBody {
   locationNames: {
     names: string[];
   };
-  geoTargets: {
+  geoTargets?: {
     geoTargetConstants: string[];
   };
 }

@@ -2,40 +2,40 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { HydratedDocument, Types } from 'mongoose';
-import {
-  CampaignStatus,
-  CampaignType,
-  CampaignPlatform,
-} from '../../enums/campaign';
+import { CampaignStatus, CampaignPlatform } from '../../enums/campaign';
+import { GoogleAdsCampaign } from './google-ads-campaign.schema';
 
 export type CampaignDocument = HydratedDocument<Campaign>;
 
 @Schema({ _id: false, timestamps: false })
-export class Creative {
+class Creative {
   @ApiProperty({
     example: '1234567890',
     description: 'Unique identifier for the creative.',
   })
-  @Prop({ required: true })
-  id: string;
+  @Prop()
+  id?: string;
 
   @ApiProperty({ example: 'facebook', description: 'The advertising channel.' })
   @Prop({ required: true })
-  channel: string;
+  channel: 'facebook' | 'instagram' | 'google';
 
-  @ApiProperty({ example: 100, description: 'The budget for the creative.' })
-  @Prop({ required: true })
-  budget: number;
+  @ApiProperty({
+    example: 'pending',
+    description: 'Status for set gen for facebook and instagram',
+  })
+  @Prop({ required: false })
+  status?: 'pending' | 'created';
 
   @ApiProperty({
     example: ['https://example.com/image.jpg'],
     description: 'Array of creative assets (URLs, text).',
   })
-  @Prop({ type: [String], required: true })
+  @Prop({ type: [String], required: true, default: [] })
   data: string[];
 }
 
-export const CreativeSchema = SchemaFactory.createForClass(Creative);
+const CreativeSchema = SchemaFactory.createForClass(Creative);
 
 @Schema({ _id: false }) // Using _id: false as it's a simple value object
 export class Location {
@@ -59,6 +59,13 @@ export const LocationSchema = SchemaFactory.createForClass(Location);
 @Schema({ _id: false, timestamps: false })
 export class Product {
   @ApiProperty({
+    example: '1234567890',
+    description: 'Shopify product ID.',
+  })
+  @Prop({ required: true })
+  shopifyId: string;
+
+  @ApiProperty({
     example: 'AeroStride Pro Shoes',
     description: 'Product title.',
   })
@@ -80,11 +87,11 @@ export class Product {
     example: 'Serious runners',
     description: 'Target audience for the product.',
   })
-  @Prop({ required: true })
-  audience: string;
+  @Prop()
+  audience?: string;
 
   @ApiProperty({ example: 'Race day', description: 'Suitable occasion.' })
-  @Prop({ required: true })
+  @Prop()
   occasion: string;
 
   @ApiProperty({
@@ -99,11 +106,11 @@ export class Product {
   category: string;
 
   @ApiProperty({
-    example: 'https://example.com/image.png',
-    description: 'URL to product image.',
+    example: ['https://example.com/image.png'],
+    description: 'URLs to product image.',
   })
   @Prop({ required: true })
-  imageLink: string;
+  imageLinks: string[];
 
   @ApiProperty({
     example: 'https://example.com/product/123',
@@ -119,23 +126,59 @@ export class Product {
   @Prop({ type: [CreativeSchema], required: true })
   creatives: Creative[];
 }
-
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-@Schema({ timestamps: true })
+@Schema({ _id: false })
+class Metrics {
+  @ApiProperty({
+    example: 25,
+  })
+  @Prop({ default: 0 })
+  totalClicks: number;
+
+  @ApiProperty({
+    example: 25,
+  })
+  @Prop({ default: 0 })
+  totalConversionsValue: number;
+
+  @ApiProperty({
+    example: 25,
+  })
+  @Prop({ default: 0 })
+  totalConversions: number;
+
+  @ApiProperty({
+    example: 25,
+  })
+  @Prop({ default: 0 })
+  totalCost: number;
+
+  @ApiProperty({
+    example: 25,
+  })
+  @Prop({ default: 0 })
+  totalImpressions: number;
+}
+export const MetricsSchema = SchemaFactory.createForClass(Metrics);
+
+@Schema({
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
 export class Campaign {
   @Prop({ type: Types.ObjectId, ref: 'users', required: true })
   createdBy: Types.ObjectId;
 
   @ApiProperty({
     enum: CampaignStatus,
-    example: CampaignStatus.DRAFT,
     description: 'The current status of the campaign.',
   })
   @Prop({
     type: String,
     enum: CampaignStatus,
-    default: CampaignStatus.DRAFT,
+    default: CampaignStatus.READY_TO_LAUNCH,
   })
   status: CampaignStatus;
 
@@ -147,26 +190,39 @@ export class Campaign {
   businessId: Types.ObjectId;
 
   @ApiProperty({
-    enum: CampaignType,
-    example: CampaignType.PRODUCT_LAUNCH,
+    example: '65e5d6a8c4b1a8d4b3c9d7b2',
+    description: 'The database ID of the shopify account.',
+  })
+  @Prop({ type: Types.ObjectId, ref: 'shopify-accounts' })
+  shopifyAccountId: Types.ObjectId;
+
+  @ApiProperty({
+    example: 'June Spring Campaign',
+    description: 'The name of the campaign.',
+  })
+  @Prop()
+  name: string;
+
+  @ApiProperty({
+    example: 'PRODUCT LAUNCH',
     description: 'The type of campaign.',
   })
-  @Prop({ type: String, enum: CampaignType, required: true })
-  type: CampaignType;
+  @Prop({ type: String, required: true })
+  type: string;
 
   @ApiProperty({ example: '#3b5998', description: 'Primary campaign color.' })
-  @Prop({ required: true })
+  @Prop()
   brandColor: string;
 
   @ApiProperty({ example: '#3b5998', description: 'Primary campaign color.' })
-  @Prop({ required: true })
+  @Prop()
   accentColor: string;
 
   @ApiProperty({
     example: 'Playful and energetic',
     description: 'Tone of voice for ad copy.',
   })
-  @Prop({ required: true })
+  @Prop()
   tone: string;
 
   @ApiProperty({
@@ -204,7 +260,7 @@ export class Campaign {
   @ApiProperty({
     enum: CampaignPlatform,
     isArray: true,
-    example: [CampaignPlatform.FACEBOOK, CampaignPlatform.GOOGLE],
+    example: Object.values(CampaignPlatform),
     description: 'List of targeted platforms.',
   })
   @Prop({
@@ -213,6 +269,46 @@ export class Campaign {
     required: true,
   })
   platforms: CampaignPlatform[];
+
+  @ApiProperty({
+    type: [Metrics],
+    description: 'Total metrics- aggregated across all platforms.',
+  })
+  @Prop({ type: MetricsSchema, default: () => {} })
+  metrics: Metrics;
+
+  @ApiProperty({
+    type: Date,
+    description: 'The last date when metrics were updated.',
+  })
+  @Prop({ type: Date })
+  metricsLastUpdatedAt: Date;
+
+  @ApiProperty({
+    type: Date,
+    description: 'Date when the campaign was archived',
+  })
+  archivedAt?: Date;
+
+  /**
+   * Populated virtual for the associated Google Ads campaign.
+   * This is set when using .populate('googleAdsCampaign').
+   */
+  googleAdsCampaign?: HydratedDocument<GoogleAdsCampaign>;
 }
 
 export const CampaignSchema = SchemaFactory.createForClass(Campaign);
+
+CampaignSchema.virtual('googleAdsCampaign', {
+  ref: 'google-ads-campaigns',
+  localField: '_id',
+  foreignField: 'campaign',
+  justOne: true,
+});
+
+CampaignSchema.virtual('campaignProducts', {
+  ref: 'campaign-products',
+  localField: '_id',
+  foreignField: 'campaignId',
+  justOne: false,
+});

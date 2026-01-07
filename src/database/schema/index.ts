@@ -7,3 +7,6 @@ export * from './facebook-ad-account.schema';
 export * from './user-token.schema';
 export * from './facebook-campaign.schema';
 export * from './instagram-account.schema';
+export * from './google-ads-account.schema';
+export * from './google-ads-campaign.schema';
+export * from './google-ads-conversion-action.schema';

@@ -22,17 +22,16 @@ import {
   CreateGoogleAdsAssetDto,
   GetCampaignBatchMetricsDto,
   CreateMaxConversionsBiddingStrategyDto,
-} from './dto';
+} from '../dto';
 
-import { GoogleAdsResourceApiService } from './api/resource-api/resource.api';
+import { GoogleAdsResourceApiService } from '../api/resource-api/resource.api';
 import {
   GoogleAdsKeywordMatchType,
   GoogleAdsServedAssetFieldType,
-} from './api/resource-api/enums';
-import { GoogleAdsResourceRequestOptions } from './my-types';
-import { GoogleAdsAuthApiService } from './api/auth-api/auth.api';
-import { GoogleAdsCustomerApiService } from './api/customer-api/customer.api';
-import { GoogleAdsSearchApiService } from './api/search-api/search-api';
+} from '../api/resource-api/enums';
+import { GoogleAdsResourceRequestOptions } from '../my-types';
+import { GoogleAdsCustomerApiService } from '../api/customer-api/customer.api';
+import { GoogleAdsSearchApiService } from '../api/search-api/search-api';
 
 @Injectable()
 export class GoogleAdsService {
@@ -40,22 +39,9 @@ export class GoogleAdsService {
 
   constructor(
     private googleAdsResourceApi: GoogleAdsResourceApiService,
-    private googleAdsAuthApiService: GoogleAdsAuthApiService,
     private googleAdsCustomerApi: GoogleAdsCustomerApiService,
     private googleAdsSearchApi: GoogleAdsSearchApiService,
   ) {}
-
-  getGoogleAuthUrl(): string {
-    return this.googleAdsAuthApiService.getGoogleAuthUrl();
-  }
-
-  async googleAuthCallbackHandler(params: any) {
-    return await this.googleAdsAuthApiService.googleAuthCallbackHandler(params);
-  }
-
-  async listAccessibleCustomers() {
-    return await this.googleAdsCustomerApi.listAccessibleCustomers();
-  }
 
   async createTargetRoasBiddingStrategy(
     dto: CreateTargetRoasBiddingStrategyDto,

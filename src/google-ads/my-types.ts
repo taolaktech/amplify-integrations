@@ -8,6 +8,8 @@ import {
 import { GoogleAdsCampaign } from './api/resource-api/types';
 
 export type GoogleAdsResourceRequestOptions = {
+  connectionId: string;
+  loginCustomerId?: string;
   validateOnly?: boolean;
   partialFailure?: boolean;
   responseContentType?: GoogleAdsResponseContentType;

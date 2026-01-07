@@ -12,6 +12,10 @@ export const configSchema = z.object({
 
   API_KEY: z.string(),
 
+  INTERNAL_REQUEST_TOKEN: z.string(),
+
+  OAUTH_STATE_SECRET: z.string(),
+
   SHOPIFY_CLIENT_ID: z.string(),
   SHOPIFY_CLIENT_SECRET: z.string(),
 
@@ -29,8 +33,9 @@ export const configSchema = z.object({
 
   // google ads
   GOOGLE_ADS_DEVELOPER_TOKEN: z.string(),
-  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
   GOOGLE_ADS_REFRESH_TOKEN: z.string(),
+
+  GOOGLE_ADS_REDIRECT_URL: z.string(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
