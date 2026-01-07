@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { SkipApiKeyAuth } from 'src/auth/decorators';
 import { TokenAuthGuard } from 'src/auth/token-auth.guard';
@@ -23,6 +31,27 @@ export class GoogleAdsCustomersController {
     const userId = request.authenticatedData._id.toString();
     return await this.googleAdsCustomersService.getPrimaryConnectionCustomers(
       userId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'List accessible customers',
+    description:
+      "Lists accessible Google Ads customers for a connection. If authenticated with TokenAuthGuard and connectionId is not provided, uses the user's business primary Google Ads connection.",
+  })
+  @SkipApiKeyAuth()
+  @UseGuards(TokenAuthGuard)
+  @Get('/accessible-customers/list')
+  async listAccessibleCustomers(
+    @Req() request: ExtendedRequest,
+    @Query('connectionId') connectionId?: string,
+  ) {
+    const userId = request.authenticatedData._id.toString();
+    return await this.googleAdsCustomersService.listAccessibleCustomersForConnection(
+      {
+        connectionId,
+        userId,
+      },
     );
   }
 

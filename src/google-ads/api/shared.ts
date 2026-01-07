@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { DateTime } from 'luxon';
 import axios from 'axios';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
@@ -9,14 +8,9 @@ import { GoogleTokensResult } from './resource-api/types';
 export class GoogleAdsSharedMethodsService {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
-  GOOGLE_ADS_REFRESH_TOKEN: string;
   GOOGLE_ADS_DEVELOPER_TOKEN: string;
   GOOGLE_ADS_API_URL = 'https://googleads.googleapis.com';
   GOOGLE_ADS_VERSION = 'v20';
-  GOOGLE_ADS_LOGIN_CUSTOMER_ID: string;
-
-  private googleAdsAccessToken: string;
-  private googleAdsAccessTokenExpiresAt: DateTime;
 
   constructor(private config: AppConfigService) {
     this.GOOGLE_CLIENT_ID = this.config.get('GOOGLE_CLIENT_ID');
@@ -24,40 +18,22 @@ export class GoogleAdsSharedMethodsService {
     this.GOOGLE_ADS_DEVELOPER_TOKEN = this.config.get(
       'GOOGLE_ADS_DEVELOPER_TOKEN',
     );
-    this.GOOGLE_ADS_LOGIN_CUSTOMER_ID = this.config.get(
-      'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
-    );
-    this.GOOGLE_ADS_REFRESH_TOKEN = this.config.get('GOOGLE_ADS_REFRESH_TOKEN');
-
-    this.googleAdsAccessTokenExpiresAt = DateTime.now().minus({ days: 1 });
   }
 
-  async axiosInstance() {
-    const accessToken = await this.getAccessToken();
+  axiosInstanceWithAccessToken(params: {
+    accessToken: string;
+    loginCustomerId?: string;
+  }) {
     return axios.create({
       baseURL: `${this.GOOGLE_ADS_API_URL}/${this.GOOGLE_ADS_VERSION}`,
       headers: {
         'developer-token': this.GOOGLE_ADS_DEVELOPER_TOKEN,
-        'login-customer-id': this.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
-        Authorization: `Bearer ${accessToken}`,
+        ...(params.loginCustomerId
+          ? { 'login-customer-id': params.loginCustomerId }
+          : {}),
+        Authorization: `Bearer ${params.accessToken}`,
       },
     });
-  }
-
-  async getAccessToken() {
-    if (DateTime.now() > this.googleAdsAccessTokenExpiresAt) {
-      const { access_token, expires_in } =
-        await this.getAccessTokenFromRefreshToken(
-          this.GOOGLE_ADS_REFRESH_TOKEN,
-        );
-      this.googleAdsAccessToken = access_token;
-      this.googleAdsAccessTokenExpiresAt = DateTime.now().plus({
-        seconds: expires_in - 10,
-      });
-      return access_token;
-    } else {
-      return this.googleAdsAccessToken;
-    }
   }
 
   async getGoogleAccessTokenCall(params: {
@@ -84,19 +60,6 @@ export class GoogleAdsSharedMethodsService {
         },
       );
       return response.data;
-    } catch (err: any) {
-      console.error('error getting tokens');
-      throw err;
-    }
-  }
-
-  private async getAccessTokenFromRefreshToken(refreshToken: string) {
-    try {
-      const tokensData = await this.getGoogleAccessTokenCall({
-        refreshToken,
-        grantType: 'refresh_token',
-      });
-      return tokensData;
     } catch (err: any) {
       console.error('error getting tokens');
       throw err;

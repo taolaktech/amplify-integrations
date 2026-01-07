@@ -14,6 +14,7 @@ import {
   FacebookCampaignSchema,
   InstagramAccountSchema,
   GoogleAdsAccountSchema,
+  GoogleAdsCampaignSchema,
 } from './schema';
 import { DatabaseIndexService } from './database-index.service';
 // import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
@@ -42,6 +43,7 @@ import { DatabaseIndexService } from './database-index.service';
       { name: 'facebook-campaigns', schema: FacebookCampaignSchema },
       { name: 'instagram-accounts', schema: InstagramAccountSchema },
       { name: 'google-ads-accounts', schema: GoogleAdsAccountSchema },
+      { name: 'google-ads-campaigns', schema: GoogleAdsCampaignSchema },
     ]),
   ],
   providers: [DatabaseIndexService],

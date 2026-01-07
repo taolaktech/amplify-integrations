@@ -8,8 +8,8 @@ import { ServiceRegistryService } from 'src/common/services/service-registry.ser
 import { GoogleAdsService } from './services/deprecated__google-ads.service';
 import { GoogleAdsAuthService } from './services/google-ads-auth.service';
 import { GoogleAdsCustomersService } from './services/google-ads-customers.service';
+import { GoogleAdsConnectionTokenService } from './services/google-ads-connection-token.service';
 
-import { GoogleAdsController } from './controllers/deprecated__google-ads.controller';
 import { GoogleAdsAuthController } from './controllers/google-ads-auth.controller';
 import { GoogleAdsCustomersController } from './controllers/google-ads-customers.controller';
 
@@ -18,7 +18,7 @@ import { GoogleAdsSharedMethodsService } from './api/shared';
 import { GoogleAdsAuthApiService } from './api/auth-api/auth.api';
 import { GoogleAdsCustomerApiService } from './api/customer-api/customer.api';
 import { GoogleAdsSearchApiService } from './api/search-api/search-api';
-import { GoogleAdsCampaignOrchestrationModule } from './google-ads-campaign-orchestration/google-ads-campaign-orchestration.module';
+import { GoogleAdsCampaignOrchestrationModule } from './campaign-orchestration/google-ads-campaign-orchestration.module';
 
 @Module({
   imports: [GoogleAdsCampaignOrchestrationModule],
@@ -26,6 +26,7 @@ import { GoogleAdsCampaignOrchestrationModule } from './google-ads-campaign-orch
     GoogleAdsService,
     GoogleAdsAuthService,
     GoogleAdsCustomersService,
+    GoogleAdsConnectionTokenService,
 
     TokenAuthGuard,
     AuthService,
@@ -40,10 +41,6 @@ import { GoogleAdsCampaignOrchestrationModule } from './google-ads-campaign-orch
     GoogleAdsSharedMethodsService,
     JwtService,
   ],
-  controllers: [
-    GoogleAdsController,
-    GoogleAdsAuthController,
-    GoogleAdsCustomersController,
-  ],
+  controllers: [GoogleAdsAuthController, GoogleAdsCustomersController],
 })
 export class GoogleAdsModule {}

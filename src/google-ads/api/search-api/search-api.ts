@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 
 import { GoogleAdsSharedMethodsService } from '../shared';
 import { GetBatchGoogleCampaignMetricsResponse } from './types';
+import { GoogleAdsConnectionTokenService } from '../../services/google-ads-connection-token.service';
 
 @Injectable()
 export class GoogleAdsSearchApiService {
@@ -14,20 +15,41 @@ export class GoogleAdsSearchApiService {
 
   constructor(
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
+    private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
   ) {}
 
-  private async axiosInstance() {
-    return await this.googleAdsSharedMethodsService.axiosInstance();
+  private async axiosInstance(options: {
+    connectionId: string;
+    loginCustomerId?: string;
+  }) {
+    const accessToken =
+      await this.googleAdsConnectionTokenService.getAccessToken({
+        connectionId: options.connectionId,
+      });
+
+    const loginCustomerId =
+      options.loginCustomerId ??
+      (
+        await this.googleAdsConnectionTokenService.getAuthContext({
+          connectionId: options.connectionId,
+        })
+      ).loginCustomerId;
+
+    return this.googleAdsSharedMethodsService.axiosInstanceWithAccessToken({
+      accessToken,
+      loginCustomerId,
+    });
   }
 
   private async searchOrSearchStream<R>(
     method: 'search' | 'searchStream',
     customerId: string,
     query: string,
+    options: { connectionId: string },
   ) {
     try {
       const url = `/customers/${customerId}/googleAds:${method}`;
-      const axios = await this.axiosInstance();
+      const axios = await this.axiosInstance(options);
       const res = await axios.post<R>(url, { query });
       return res.data;
     } catch (error: unknown) {
@@ -47,19 +69,37 @@ export class GoogleAdsSearchApiService {
     }
   }
 
-  private async googleAdsSearchStream<R>(customerId: string, query: string) {
+  private async googleAdsSearchStream<R>(
+    customerId: string,
+    query: string,
+    options: { connectionId: string },
+  ) {
     return await this.searchOrSearchStream<R>(
       'searchStream',
       customerId,
       query,
+      options,
     );
   }
 
-  private async googleAdsSearch<R>(customerId: string, query: string) {
-    return await this.searchOrSearchStream<R>('search', customerId, query);
+  private async googleAdsSearch<R>(
+    customerId: string,
+    query: string,
+    options: { connectionId: string },
+  ) {
+    return await this.searchOrSearchStream<R>(
+      'search',
+      customerId,
+      query,
+      options,
+    );
   }
 
-  async getCampaignById(customerId: string, campaignId: string) {
+  async getCampaignById(
+    customerId: string,
+    campaignId: string,
+    options: { connectionId: string },
+  ) {
     const query = `
       SELECT
         campaign.id,
@@ -73,10 +113,14 @@ export class GoogleAdsSearchApiService {
       WHERE campaign.id=${campaignId}
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
-  async getCampaignByName(customerId: string, campaignName: string) {
+  async getCampaignByName(
+    customerId: string,
+    campaignName: string,
+    options: { connectionId: string },
+  ) {
     const query = `
       SELECT
         campaign.id,
@@ -89,10 +133,14 @@ export class GoogleAdsSearchApiService {
       WHERE campaign.name='${campaignName}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
-  async getCampaignMetrics(customerId: string, campaignId: string) {
+  async getCampaignMetrics(
+    customerId: string,
+    campaignId: string,
+    options: { connectionId: string },
+  ) {
     const query = `
       SELECT
         campaign.id,
@@ -112,10 +160,14 @@ export class GoogleAdsSearchApiService {
       WHERE campaign.id='${campaignId}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
-  async getCampaignMetricsBatch(customerId: string, campaignIds: string[]) {
+  async getCampaignMetricsBatch(
+    customerId: string,
+    campaignIds: string[],
+    options: { connectionId: string },
+  ) {
     const ids = campaignIds.join(',');
     const query = `
     SELECT
@@ -140,11 +192,15 @@ export class GoogleAdsSearchApiService {
       await this.googleAdsSearchStream<GetBatchGoogleCampaignMetricsResponse>(
         customerId,
         query,
+        options,
       );
     return streamResponse;
   }
 
-  async getConversionActions(customerId: string) {
+  async getConversionActions(
+    customerId: string,
+    options: { connectionId: string },
+  ) {
     const query = `
       SELECT
         conversion_action.id,
@@ -154,12 +210,13 @@ export class GoogleAdsSearchApiService {
       ORDER BY conversion_action.id DESC
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getConversionActionById(
     customerId: string,
     conversionActionId: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -170,12 +227,13 @@ export class GoogleAdsSearchApiService {
       WHERE conversion_action.id=${conversionActionId}
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getConversionActionByName(
     customerId: string,
     conversionActionName: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -186,10 +244,14 @@ export class GoogleAdsSearchApiService {
       WHERE conversion_action.name='${conversionActionName}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
-  async getBiddingStrategyById(customerId: string, biddingStrategyId: string) {
+  async getBiddingStrategyById(
+    customerId: string,
+    biddingStrategyId: string,
+    options: { connectionId: string },
+  ) {
     const query = `
       SELECT
         bidding_strategy.id,
@@ -201,12 +263,13 @@ export class GoogleAdsSearchApiService {
       WHERE bidding_strategy.id = ${biddingStrategyId}
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getBiddingStrategyByName(
     customerId: string,
     biddingStrategyName: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -219,13 +282,14 @@ export class GoogleAdsSearchApiService {
       WHERE bidding_strategy.name = '${biddingStrategyName}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getAdGroupByName(
     customerId: string,
     campaignResourceName: string,
     adGroupName: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -238,13 +302,14 @@ export class GoogleAdsSearchApiService {
       AND ad_group.name = '${adGroupName}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getAdGroupById(
     customerId: string,
     campaignResourceName: string,
     adGroupId: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -257,13 +322,14 @@ export class GoogleAdsSearchApiService {
       AND ad_group.id = '${adGroupId}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 
   async getAdGroupMetrics(
     customerId: string,
     campaignResourceName: string,
     adGroupId: string,
+    options: { connectionId: string },
   ) {
     const query = `
       SELECT
@@ -299,6 +365,6 @@ export class GoogleAdsSearchApiService {
       AND ad_group.id = '${adGroupId}'
     `;
 
-    return await this.googleAdsSearch(customerId, query);
+    return await this.googleAdsSearch(customerId, query, options);
   }
 }

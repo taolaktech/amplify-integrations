@@ -46,7 +46,9 @@ export class GoogleAdsCustomersService {
 
     if (shouldFetch) {
       const accessibleCustomers =
-        await this.googleAdsCustomerApi.listAccessibleCustomers();
+        await this.googleAdsCustomerApi.listAccessibleCustomers({
+          connectionId: connection._id.toString(),
+        });
       const accessibleCustomerResourceNames =
         accessibleCustomers.resourceNames || [];
 
@@ -151,7 +153,33 @@ export class GoogleAdsCustomersService {
     };
   }
 
-  async listAccessibleCustomers() {
-    return await this.googleAdsCustomerApi.listAccessibleCustomers();
+  async listAccessibleCustomersForConnection(params: {
+    connectionId?: string;
+    userId?: string;
+  }) {
+    const { connectionId, userId } = params;
+
+    if (connectionId) {
+      return await this.googleAdsCustomerApi.listAccessibleCustomers({
+        connectionId,
+      });
+    }
+
+    if (!userId) {
+      throw new BadRequestException('connectionId or userId is required');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const business = await this.businessModel.findOne({ userId: userObjectId });
+    const primaryConnectionId =
+      business?.integrations?.googleAds?.primaryAdAccountConnection;
+
+    if (!primaryConnectionId) {
+      throw new NotFoundException('Primary Google Ads connection not found');
+    }
+
+    return await this.googleAdsCustomerApi.listAccessibleCustomers({
+      connectionId: primaryConnectionId.toString(),
+    });
   }
 }

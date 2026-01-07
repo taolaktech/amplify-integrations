@@ -31,7 +31,6 @@ export const configSchema = z.object({
 
   // google ads
   GOOGLE_ADS_DEVELOPER_TOKEN: z.string(),
-  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string(),
   GOOGLE_ADS_REFRESH_TOKEN: z.string(),
 
   GOOGLE_ADS_REDIRECT_URL: z.string(),

@@ -54,20 +54,6 @@ export class GoogleAdsController {
   constructor(private googleAdsService: GoogleAdsService) {}
 
   @ApiOperation({
-    summary: 'DEPRECATED: Create a new Google Ads customer account',
-    description: 'Creates a new customer account in Google Ads.',
-  })
-  @Post('/customers/create')
-  @ApiQuery({ name: 'validateOnly', required: false, type: Number })
-  async createCustomer(
-    @Body() dto: CreateCustomerDto,
-    @Query() query: { [k: string]: string },
-  ) {
-    const validateOnly = query.validateOnly === '1';
-    return await this.googleAdsService.createCustomer(dto, { validateOnly });
-  }
-
-  @ApiOperation({
     summary: 'Create an asset',
     description: 'Creates a new asset.',
   })
