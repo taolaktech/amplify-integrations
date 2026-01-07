@@ -1,12 +1,13 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 
 import { GoogleAdsAuthApiService } from '../api/auth-api/auth.api';
 import { GoogleAdsCustomerApiService } from '../api/customer-api/customer.api';
-import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { AppConfigService } from 'src/config/config.service';
@@ -70,7 +71,9 @@ export class GoogleAdsAuthService {
         });
 
       const accessibleCustomers =
-        await this.googleAdsCustomerApi.listAccessibleCustomers();
+        await this.googleAdsCustomerApi.listAccessibleCustomersWithAccessToken({
+          accessToken: tokensData.access_token,
+        });
       const accessibleCustomerResourceNames =
         accessibleCustomers.resourceNames || [];
 
@@ -137,10 +140,6 @@ export class GoogleAdsAuthService {
       this.logger.error('Error occurred:', error);
       throw new InternalServerErrorException();
     }
-  }
-
-  async listAccessibleCustomers() {
-    return await this.googleAdsCustomerApi.listAccessibleCustomers();
   }
 
   private generateStateToken(params: { userId: string }) {

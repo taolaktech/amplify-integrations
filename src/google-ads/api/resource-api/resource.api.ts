@@ -65,6 +65,12 @@ export class GoogleAdsResourceApiService {
   private DRY_RUN = false;
   private logger = new Logger(GoogleAdsResourceApiService.name);
 
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   constructor(
     private config: AppConfigService,
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
@@ -110,9 +116,10 @@ export class GoogleAdsResourceApiService {
     customerId: string,
     resourceName: string,
   ) {
+    const sanitizedCustomerId = this.normalizeCustomerId(customerId);
     const resourceCustomerId =
       this.extractCustomerIdFromResourceName(resourceName);
-    if (customerId !== resourceCustomerId) {
+    if (sanitizedCustomerId !== resourceCustomerId) {
       throw new BadRequestException(
         `Resource x customer mismatch- customer-${customerId}, resourceCustomerId-${resourceCustomerId} `,
       );
@@ -154,6 +161,7 @@ export class GoogleAdsResourceApiService {
     error: unknown,
     resource: GoogleAdsResource,
     customerId: string,
+    operations: GoogleAdsOperation<unknown>[],
   ): Error {
     if (axios.isAxiosError(error) && error.response?.data?.error) {
       const googleAdsError = error.response.data.error;
@@ -180,13 +188,15 @@ export class GoogleAdsResourceApiService {
         }
       }
       this.logger.log(`XXX Cannot complete ${resource} mutate operation XXX`);
-      this.logger.log(error.response?.data);
+      this.logger.error(error.response?.data);
       this.logger.error(JSON.stringify(error.response?.data || {}));
+      this.logger.error(JSON.stringify({ operations }));
       throw new InternalServerErrorException({
         googleAdsError,
         mesage: 'Something went wrong while performing operation',
       });
     }
+    this.logger.error(error);
     throw error;
   }
 
@@ -197,7 +207,8 @@ export class GoogleAdsResourceApiService {
     options: GoogleAdsResourceRequestOptions,
   ) {
     try {
-      const url = `/customers/${customerId}/${resource}:mutate`;
+      const normalizedCustomerId = this.normalizeCustomerId(customerId);
+      const url = `/customers/${normalizedCustomerId}/${resource}:mutate`;
       const axios = await this.axiosInstance(options);
       const data: GoogleAdsRestBody<T> = {
         operations,
@@ -207,7 +218,7 @@ export class GoogleAdsResourceApiService {
       const res = await axios.post<ResourceCreationResponse>(url, data);
       return res.data;
     } catch (error: unknown) {
-      this.mutateResourceErrorHandler(error, resource, customerId);
+      this.mutateResourceErrorHandler(error, resource, customerId, operations);
       throw new InternalServerErrorException(
         `Cannot complete ${resource} mutate operation for customerId ${customerId}`,
       );
@@ -377,6 +388,7 @@ export class GoogleAdsResourceApiService {
     try {
       const url = `/geoTargetConstants:suggest`;
       const axios = await this.axiosInstance(options);
+
       const res = await axios.post<SuggestGeoTargetConstantsResponse>(
         url,
         payload,
@@ -756,9 +768,9 @@ export class GoogleAdsResourceApiService {
         locationNames: {
           names: body.locationNames,
         },
-        geoTargets: {
-          geoTargetConstants: [],
-        },
+        // geoTargets: {
+        //   geoTargetConstants: [],
+        // },
       };
 
       const { geoTargetConstantSuggestions } =

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
@@ -20,17 +20,33 @@ export class GoogleAdsSharedMethodsService {
     );
   }
 
+  private normalizeLoginCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      throw new BadRequestException('loginCustomerId is required');
+    }
+    const match = raw.match(/^customers\/(\d+)$/i);
+    const numeric = match ? match[1] : raw;
+    if (!/^\d+$/.test(numeric)) {
+      throw new BadRequestException(
+        `Invalid loginCustomerId format: ${String(value)}`,
+      );
+    }
+    return numeric;
+  }
+
   axiosInstanceWithAccessToken(params: {
     accessToken: string;
     loginCustomerId?: string;
   }) {
+    const loginCustomerId = params.loginCustomerId
+      ? this.normalizeLoginCustomerId(params.loginCustomerId)
+      : undefined;
     return axios.create({
       baseURL: `${this.GOOGLE_ADS_API_URL}/${this.GOOGLE_ADS_VERSION}`,
       headers: {
         'developer-token': this.GOOGLE_ADS_DEVELOPER_TOKEN,
-        ...(params.loginCustomerId
-          ? { 'login-customer-id': params.loginCustomerId }
-          : {}),
+        ...(loginCustomerId ? { 'login-customer-id': loginCustomerId } : {}),
         Authorization: `Bearer ${params.accessToken}`,
       },
     });

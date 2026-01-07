@@ -12,6 +12,12 @@ import { DateTime } from 'luxon';
 
 @Injectable()
 export class GoogleAdsCustomersService {
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   constructor(
     @InjectModel('business')
     private businessModel: Model<Business>,
@@ -101,7 +107,10 @@ export class GoogleAdsCustomersService {
     userId: string;
     primaryCustomerAccount: string;
   }) {
-    const { userId, primaryCustomerAccount } = params;
+    const { userId } = params;
+    const primaryCustomerAccount = this.normalizeCustomerId(
+      params.primaryCustomerAccount,
+    );
     if (!primaryCustomerAccount) {
       throw new BadRequestException('primaryCustomerAccount is required');
     }

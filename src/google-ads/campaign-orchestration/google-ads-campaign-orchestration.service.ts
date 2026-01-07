@@ -11,15 +11,18 @@ import { InternalHttpHelper } from 'src/common/helpers/internal-http.helper';
 import { ServiceNames } from 'src/common/types/service.types';
 import {
   Business,
+  BusinessDoc,
   CampaignDocument,
   GoogleAdsCampaignDoc,
 } from 'src/database/schema';
+import { GoogleAdsAccountDoc } from 'src/database/schema/google-ads-account.schema';
 import { GoogleAdsConnectionTokenService } from '../services/google-ads-connection-token.service';
 import { GoogleAdsResourceApiService } from '../api/resource-api/resource.api';
 import { GoogleAdsProcessingStatus } from 'src/enums';
 import { GoogleAdsServedAssetFieldType } from '../api/resource-api/enums';
 import { countryCodeMap } from './country-code-map';
 import { GoogleAdsCampaignStatus } from '../api/resource-api/enums';
+import { GoogleAdsSearchApiService } from '../api/search-api/search-api';
 
 type CalculateTargetRoasResponse = {
   budget: number;
@@ -36,19 +39,139 @@ type CalculateTargetRoasResponse = {
 @Injectable()
 export class GoogleAdsCampaignOrchestrationService {
   private ONE_CURRENCY_UNIT = 1_000_000;
+  private MIN_CURRENCY_UNIT_MICROS = 10_000;
   private logger = new Logger(GoogleAdsCampaignOrchestrationService.name);
+
+  private roundToMinCurrencyUnitMicros(amountMicros: number) {
+    const unit = this.MIN_CURRENCY_UNIT_MICROS;
+    const raw = Math.floor(Number(amountMicros || 0));
+    if (!isFinite(raw) || raw <= 0) {
+      return unit;
+    }
+    return Math.max(Math.ceil(raw / unit) * unit, unit);
+  }
 
   constructor(
     @InjectModel('campaigns')
     private campaignModel: Model<CampaignDocument>,
     @InjectModel('business')
     private businessModel: Model<Business>,
+    @InjectModel('google-ads-accounts')
+    private googleAdsAccountModel: Model<GoogleAdsAccountDoc>,
     @InjectModel('google-ads-campaigns')
     private googleAdsCampaignModel: Model<GoogleAdsCampaignDoc>,
     private internalHttp: InternalHttpHelper,
     private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
     private googleAdsResourceApi: GoogleAdsResourceApiService,
+    private googleAdsSearchApi: GoogleAdsSearchApiService,
   ) {}
+
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
+  private extractResourceIdFromResourceName(resourceName: string) {
+    const parts = String(resourceName || '').split('/');
+    return parts[parts.length - 1];
+  }
+
+  private extractConversionIdAndLabelFromEventSnippet(eventSnippet?: string) {
+    if (!eventSnippet) {
+      return { conversionTag: undefined, label: undefined };
+    }
+    const match = eventSnippet.match(/"send_to":\s*\[\s*"AW-(\d+)\/([\w-]+)"/);
+    if (!match) {
+      return { conversionTag: undefined, label: undefined };
+    }
+    return { conversionTag: `AW-${match[1]}`, label: match[2] };
+  }
+
+  private async ensureConversionActionForConnection(params: {
+    connectionId: string;
+    customerId: string;
+    business: BusinessDoc;
+    options: { connectionId: string; loginCustomerId: string };
+  }) {
+    const { connectionId, customerId, business, options } = params;
+
+    const connectionObjectId = new Types.ObjectId(connectionId);
+    const connection =
+      await this.googleAdsAccountModel.findById(connectionObjectId);
+    if (!connection) {
+      throw new NotFoundException('Google Ads connection not found');
+    }
+
+    const sanitizedCustomerId = this.normalizeCustomerId(customerId);
+
+    if (
+      connection.conversionActionResourceName &&
+      connection.conversionActionId &&
+      Array.isArray(connection.conversionActionTagSnippets) &&
+      connection.conversionActionTagSnippets.length
+    ) {
+      return;
+    }
+
+    const customerName = `${String(business.companyName || 'business')}-${business._id.toString()}`;
+    const conversionActionName = `${customerName}-conversion-action`;
+
+    let conversionActionResourceName = connection.conversionActionResourceName;
+    let conversionActionId = connection.conversionActionId;
+
+    if (!conversionActionResourceName || !conversionActionId) {
+      this.logger.log(
+        `Step1--> creating conversion action for connectionId=${connectionId} customerId=${sanitizedCustomerId}`,
+      );
+
+      const createRes = await this.googleAdsResourceApi.createConversionAction(
+        {
+          customerId: sanitizedCustomerId,
+          name: conversionActionName,
+        },
+        options,
+      );
+
+      conversionActionResourceName =
+        createRes?.conversionAction?.resourceName || undefined;
+      if (!conversionActionResourceName) {
+        throw new InternalServerErrorException(
+          'Conversion action creation did not return resourceName',
+        );
+      }
+      conversionActionId = this.extractResourceIdFromResourceName(
+        conversionActionResourceName,
+      );
+    }
+
+    const details = await this.googleAdsSearchApi.getConversionActionById(
+      sanitizedCustomerId,
+      conversionActionId,
+      { connectionId },
+    );
+
+    const tagSnippets = (details as any)?.results?.[0]?.conversionAction
+      ?.tagSnippets;
+    const eventSnippet = tagSnippets?.[0]?.eventSnippet;
+    const { conversionTag, label } =
+      this.extractConversionIdAndLabelFromEventSnippet(eventSnippet);
+
+    await this.googleAdsAccountModel.updateOne(
+      { _id: connectionObjectId },
+      {
+        $set: {
+          conversionActionResourceName,
+          conversionActionId,
+          conversionActionTag: conversionTag,
+          conversionActionLabel: label,
+          conversionActionTagSnippets: Array.isArray(tagSnippets)
+            ? tagSnippets
+            : [],
+        },
+      },
+    );
+  }
 
   private async markFailure(params: {
     googleAdsCampaignId: Types.ObjectId | unknown;
@@ -186,6 +309,13 @@ export class GoogleAdsCampaignOrchestrationService {
         `Step1--> resolved customerId=${customerId} using connectionId=${lockedConnectionId.toString()}`,
       );
 
+      await this.ensureConversionActionForConnection({
+        connectionId: lockedConnectionId.toString(),
+        customerId,
+        business,
+        options,
+      });
+
       const googleBudgetTotal =
         Number(campaign.totalBudget || 0) /
         Math.max(
@@ -220,11 +350,18 @@ export class GoogleAdsCampaignOrchestrationService {
       const dailyBudget = googleBudgetTotal / Math.max(days, 1);
 
       this.logger.log(
-        `Step1--> date window start=${startDate.toISOString()} end=${endDate.toISOString()} days=${days} dailyBudget=${dailyBudget}`,
+        `Step1--> BUDGET days=${days} dailyBudget=${dailyBudget}`,
       );
 
-      const budgetAmountMicros = Math.floor(
+      this.logger.log(
+        `Step1--> date window start=${startDate.toISOString().split('T')[0]} end=${endDate.toISOString().split('T')[0]} days=${days} dailyBudget=${dailyBudget}`,
+      );
+
+      const rawBudgetAmountMicros = Math.floor(
         dailyBudget * this.ONE_CURRENCY_UNIT,
+      );
+      const budgetAmountMicros = this.roundToMinCurrencyUnitMicros(
+        rawBudgetAmountMicros,
       );
 
       const campaignName = `${campaign.name}_${campaign._id.toString()}`;
@@ -508,99 +645,118 @@ export class GoogleAdsCampaignOrchestrationService {
     const previousStatus = googleAdsCampaign.processingStatus;
 
     try {
-      const existingAdGroup = googleAdsCampaign.adGroups?.[0];
+      if (!Array.isArray(campaign.products) || !campaign.products.length) {
+        throw new BadRequestException('Campaign has no products');
+      }
 
-      let adGroupResourceName: string | undefined =
-        existingAdGroup?.resourceName;
-      let adGroupName: string | undefined = existingAdGroup?.name;
-
-      if (!adGroupResourceName) {
-        adGroupName = `${campaign.name}_${campaign._id.toString()}_adgroup`
-          .replace(/\s+/g, '_')
-          .slice(0, 255);
-
-        this.logger.log(
-          `Step2--> creating single ad group name=${adGroupName} for campaignResourceName=${googleAdsCampaign.campaignResourceName}`,
-        );
-
-        await this.googleAdsCampaignModel.updateOne(
-          { _id: googleAdsCampaign._id },
-          {
-            $set: {
-              processingStatus: GoogleAdsProcessingStatus.CREATING_AD_GROUPS,
-            },
+      await this.googleAdsCampaignModel.updateOne(
+        { _id: googleAdsCampaign._id },
+        {
+          $set: {
+            processingStatus: GoogleAdsProcessingStatus.CREATING_AD_GROUPS,
           },
-        );
+        },
+      );
 
-        const adGroupRes = await this.googleAdsResourceApi.createAdGroup(
-          {
-            adGroupName,
-            campaignResourceName: googleAdsCampaign.campaignResourceName,
-          },
-          options,
-        );
+      for (const product of campaign.products) {
+        const productId = String(product.shopifyId);
 
-        adGroupResourceName = adGroupRes?.adGroup?.resourceName;
-        if (!adGroupResourceName) {
+        const current = await this.googleAdsCampaignModel.findById(
+          googleAdsCampaign._id,
+        );
+        if (!current) {
           throw new InternalServerErrorException(
-            'Ad group creation did not return resourceName',
+            'Google Ads campaign record missing',
           );
         }
 
-        await this.googleAdsCampaignModel.updateOne(
-          { _id: googleAdsCampaign._id },
-          {
-            $set: {
-              adGroups: [
-                {
+        const existingProductAdGroup = (current.adGroups || []).find(
+          (g) => String(g.productId) === productId,
+        );
+
+        let adGroupResourceName = existingProductAdGroup?.resourceName;
+        let adGroupName = existingProductAdGroup?.name;
+
+        if (!adGroupResourceName) {
+          adGroupName = `${product.title || campaign.name}_${productId}`
+            .replace(/\s+/g, '_')
+            .slice(0, 255);
+
+          this.logger.log(
+            `Step2--> creating ad group for productId=${productId} name=${adGroupName}`,
+          );
+
+          const adGroupRes = await this.googleAdsResourceApi.createAdGroup(
+            {
+              adGroupName,
+              campaignResourceName: googleAdsCampaign.campaignResourceName,
+            },
+            options,
+          );
+
+          adGroupResourceName = adGroupRes?.adGroup?.resourceName;
+          if (!adGroupResourceName) {
+            throw new InternalServerErrorException(
+              'Ad group creation did not return resourceName',
+            );
+          }
+
+          await this.googleAdsCampaignModel.updateOne(
+            {
+              _id: googleAdsCampaign._id,
+              'adGroups.productId': { $ne: productId },
+            },
+            {
+              $push: {
+                adGroups: {
                   resourceName: adGroupResourceName,
                   name: adGroupName || 'adgroup',
+                  productId,
                   status: 'ENABLED',
                   type: 'SEARCH_STANDARD',
-                  // productId: 'ALL',
                   ads: [],
                 },
-              ],
-              processingStatus: GoogleAdsProcessingStatus.AD_GROUPS_CREATED,
+              },
             },
-          },
-        );
-
-        this.logger.log(
-          `Step2--> ad group created resourceName=${adGroupResourceName}`,
-        );
-      } else {
-        this.logger.log(
-          `Step2--> ad group already exists; skipping. resourceName=${adGroupResourceName}`,
-        );
-      }
-
-      const refreshed = await this.googleAdsCampaignModel.findById(
-        googleAdsCampaign._id,
-      );
-      if (!refreshed) {
-        throw new InternalServerErrorException(
-          'Google Ads campaign record missing',
-        );
-      }
-
-      const refreshedAdGroup = refreshed.adGroups?.[0];
-      if (!refreshedAdGroup?.resourceName) {
-        throw new InternalServerErrorException(
-          'Google Ads campaign record missing adGroup resourceName',
-        );
-      }
-
-      const existingAds = refreshedAdGroup.ads || [];
-
-      const headlines: string[] = [];
-      const descriptions: string[] = [];
-      const finalUrls: string[] = [];
-
-      for (const product of campaign.products || []) {
-        if (product?.productLink) {
-          finalUrls.push(product.productLink);
+          );
+        } else {
+          this.logger.log(
+            `Step2--> ad group already exists for productId=${productId}; skipping creation. resourceName=${adGroupResourceName}`,
+          );
         }
+
+        const refreshed = await this.googleAdsCampaignModel.findById(
+          googleAdsCampaign._id,
+        );
+        const refreshedProductAdGroup = (refreshed?.adGroups || []).find(
+          (g) => String(g.productId) === productId,
+        );
+        if (!refreshedProductAdGroup?.resourceName) {
+          throw new InternalServerErrorException(
+            'Google Ads campaign record missing adGroup resourceName',
+          );
+        }
+
+        if (
+          Array.isArray(refreshedProductAdGroup.ads) &&
+          refreshedProductAdGroup.ads.length
+        ) {
+          this.logger.log(
+            `Step2--> ad already exists for productId=${productId}; skipping ad creation`,
+          );
+          continue;
+        }
+
+        const finalUrl = product.productLink;
+        if (!finalUrl) {
+          throw new BadRequestException(
+            `Product ${productId} missing productLink`,
+          );
+        }
+
+        const headlines: string[] = [];
+        const descriptions: string[] = [];
+
         for (const creative of product.creatives || []) {
           if (creative.channel !== 'google') continue;
           for (const d of creative.data || []) {
@@ -617,86 +773,26 @@ export class GoogleAdsCampaignOrchestrationService {
             }
           }
         }
-      }
 
-      const uniqFinalUrls = Array.from(new Set(finalUrls)).filter(Boolean);
+        const uniqHeadlines = Array.from(new Set(headlines))
+          .filter(Boolean)
+          .slice(0, 15);
+        const uniqDescriptions = Array.from(new Set(descriptions))
+          .filter(Boolean)
+          .slice(0, 4);
 
-      if (uniqFinalUrls.length < 1) {
-        throw new BadRequestException('No finalUrls found for ad creation');
-      }
-      if (headlines.length < 3) {
-        throw new BadRequestException(
-          `Not enough headlines for ad creation (need >=3, got ${headlines.length})`,
-        );
-      }
-      if (descriptions.length < 3) {
-        throw new BadRequestException(
-          `Not enough descriptions for ad creation (need >=3, got ${descriptions.length})`,
-        );
-      }
+        if (uniqHeadlines.length < 3) {
+          throw new BadRequestException(
+            `Not enough headlines for productId=${productId} (need >=3, got ${uniqHeadlines.length})`,
+          );
+        }
+        if (uniqDescriptions.length < 2) {
+          throw new BadRequestException(
+            `Not enough descriptions for productId=${productId} (need >=2, got ${uniqDescriptions.length})`,
+          );
+        }
 
-      const adsToCreate: {
-        name: string;
-        headlines: string[];
-        descriptions: string[];
-      }[] = [];
-
-      const maxAds = Math.min(
-        Math.floor(headlines.length / 3),
-        Math.floor(descriptions.length / 3),
-      );
-
-      for (let i = 0; i < maxAds; i++) {
-        adsToCreate.push({
-          name: `${refreshedAdGroup.name || 'adgroup'}_ad_${i + 1}`.slice(
-            0,
-            255,
-          ),
-          headlines: headlines.slice(i * 3, i * 3 + 3),
-          descriptions: descriptions.slice(i * 3, i * 3 + 3),
-        });
-      }
-
-      const existingNames = new Set(existingAds.map((a) => a.name));
-      const pendingAds = adsToCreate.filter((a) => !existingNames.has(a.name));
-
-      if (!pendingAds.length) {
-        this.logger.log(
-          `Step2--> ad group ads already created; skipping. campaignId=${params.campaignId}`,
-        );
-        await this.googleAdsCampaignModel.updateOne(
-          { _id: refreshed._id },
-          {
-            $set: {
-              processingStatus: GoogleAdsProcessingStatus.AD_GROUP_ADS_CREATED,
-            },
-          },
-        );
-
-        return await this.googleAdsCampaignModel.findById(refreshed._id);
-      }
-
-      this.logger.log(
-        `Step2--> creating ${pendingAds.length} ad group ads in single ad group`,
-      );
-
-      await this.googleAdsCampaignModel.updateOne(
-        { _id: refreshed._id },
-        {
-          $set: {
-            processingStatus: GoogleAdsProcessingStatus.CREATING_AD_GROUP_ADS,
-          },
-        },
-      );
-
-      const createdAds: {
-        resourceName: string;
-        name: string;
-        status?: string;
-      }[] = [];
-
-      for (const ad of pendingAds) {
-        const headlineAssets = ad.headlines.map((text, idx) => {
+        const headlineAssets = uniqHeadlines.map((text, idx) => {
           if (idx === 0) {
             return {
               text,
@@ -712,7 +808,7 @@ export class GoogleAdsCampaignOrchestrationService {
           return { text };
         });
 
-        const descriptionAssets = ad.descriptions.map((text, idx) => {
+        const descriptionAssets = uniqDescriptions.map((text, idx) => {
           if (idx === 0) {
             return {
               text,
@@ -728,13 +824,27 @@ export class GoogleAdsCampaignOrchestrationService {
           return { text };
         });
 
-        this.logger.log(`Step2--> creating adGroupAd name=${ad.name}`);
+        const adName =
+          `${refreshedProductAdGroup.name || 'adgroup'}_ad_1`.slice(0, 255);
+
+        this.logger.log(
+          `Step2--> creating adGroupAd for productId=${productId} name=${adName}`,
+        );
+
+        await this.googleAdsCampaignModel.updateOne(
+          { _id: googleAdsCampaign._id },
+          {
+            $set: {
+              processingStatus: GoogleAdsProcessingStatus.CREATING_AD_GROUP_ADS,
+            },
+          },
+        );
 
         const adRes = await this.googleAdsResourceApi.createAdGroupAd(
           {
-            adGroupAdName: ad.name,
-            adGroupResourceName: refreshedAdGroup.resourceName,
-            finalUrls: uniqFinalUrls,
+            adGroupAdName: adName,
+            adGroupResourceName: refreshedProductAdGroup.resourceName,
+            finalUrls: [finalUrl],
             headlines: headlineAssets,
             descriptions: descriptionAssets,
           },
@@ -742,30 +852,30 @@ export class GoogleAdsCampaignOrchestrationService {
         );
 
         const adResourceName = adRes?.adGroupAd?.resourceName;
-        if (adResourceName) {
-          createdAds.push({
-            resourceName: adResourceName,
-            name: ad.name,
-            status: 'ENABLED',
-          });
+        if (!adResourceName) {
+          throw new InternalServerErrorException(
+            'Ad group ad creation did not return resourceName',
+          );
         }
-      }
 
-      if (createdAds.length) {
+        const createdAd = {
+          resourceName: adResourceName,
+          name: adName,
+          status: 'ENABLED',
+        };
+
         await this.googleAdsCampaignModel.updateOne(
-          { _id: refreshed._id },
+          { _id: googleAdsCampaign._id, 'adGroups.productId': productId },
           {
-            $push: {
-              'adGroups.0.ads': {
-                $each: createdAds,
-              },
+            $addToSet: {
+              'adGroups.$.ads': createdAd,
             },
           },
         );
       }
 
       await this.googleAdsCampaignModel.updateOne(
-        { _id: refreshed._id },
+        { _id: googleAdsCampaign._id },
         {
           $set: {
             processingStatus: GoogleAdsProcessingStatus.AD_GROUP_ADS_CREATED,
@@ -774,7 +884,7 @@ export class GoogleAdsCampaignOrchestrationService {
       );
 
       this.logger.log(`Step2--> done campaignId=${params.campaignId}`);
-      return await this.googleAdsCampaignModel.findById(refreshed._id);
+      return await this.googleAdsCampaignModel.findById(googleAdsCampaign._id);
     } catch (error) {
       await this.markFailure({
         googleAdsCampaignId: googleAdsCampaign._id,
@@ -959,6 +1069,10 @@ export class GoogleAdsCampaignOrchestrationService {
     }
   }
 
+  /* Step 4-
+    - Idempotently enables the Google Ads campaign. 
+    Uses state persisted in google-ads-campaigns by step 1.
+    */
   async step4(params: { campaignId: string }) {
     if (!params.campaignId) {
       throw new BadRequestException('campaignId is required');

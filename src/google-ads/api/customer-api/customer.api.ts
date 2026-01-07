@@ -19,6 +19,12 @@ import { GoogleAdsConnectionTokenService } from '../../services/google-ads-conne
 export class GoogleAdsCustomerApiService {
   logger = new Logger(GoogleAdsCustomerApiService.name);
 
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   constructor(
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
     private config: AppConfigService,
@@ -48,6 +54,34 @@ export class GoogleAdsCustomerApiService {
     });
   }
 
+  async listAccessibleCustomersWithAccessToken(params: {
+    accessToken: string;
+  }) {
+    try {
+      const url = `/customers:listAccessibleCustomers`;
+
+      const axios =
+        this.googleAdsSharedMethodsService.axiosInstanceWithAccessToken({
+          accessToken: params.accessToken,
+        });
+
+      const res = await axios.get<{ resourceNames: string[] }>(url);
+      return res.data;
+    } catch (error: unknown) {
+      this.logger.error(
+        `Cannot complete listAccessibleCustomers customer operation (accessToken)`,
+      );
+      if (error instanceof AxiosError) {
+        this.logger.log(error.response?.data);
+        this.logger.error(JSON.stringify(error.response?.data || {}));
+        this.logger.log(error.response?.data?.error?.message);
+      }
+      throw new InternalServerErrorException(
+        `Cannot complete listAccessibleCustomers customer operation`,
+      );
+    }
+  }
+
   private async customerOperation<T, R>(
     customerId: string,
     method: GoogleAdsCustomerMethod,
@@ -55,7 +89,8 @@ export class GoogleAdsCustomerApiService {
     options: { connectionId: string },
   ) {
     try {
-      const url = `/customers/${customerId}:${method}`;
+      const normalizedCustomerId = this.normalizeCustomerId(customerId);
+      const url = `/customers/${normalizedCustomerId}:${method}`;
 
       const axios = await this.axiosInstance(options);
 

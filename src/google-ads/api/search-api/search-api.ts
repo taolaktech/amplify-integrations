@@ -13,6 +13,12 @@ import { GoogleAdsConnectionTokenService } from '../../services/google-ads-conne
 export class GoogleAdsSearchApiService {
   logger = new Logger(GoogleAdsSearchApiService.name);
 
+  private normalizeCustomerId(value: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   constructor(
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
     private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
@@ -48,7 +54,8 @@ export class GoogleAdsSearchApiService {
     options: { connectionId: string },
   ) {
     try {
-      const url = `/customers/${customerId}/googleAds:${method}`;
+      const normalizedCustomerId = this.normalizeCustomerId(customerId);
+      const url = `/customers/${normalizedCustomerId}/googleAds:${method}`;
       const axios = await this.axiosInstance(options);
       const res = await axios.post<R>(url, { query });
       return res.data;

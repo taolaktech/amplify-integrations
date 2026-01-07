@@ -12,6 +12,8 @@ export const configSchema = z.object({
 
   API_KEY: z.string(),
 
+  INTERNAL_REQUEST_TOKEN: z.string(),
+
   OAUTH_STATE_SECRET: z.string(),
 
   SHOPIFY_CLIENT_ID: z.string(),

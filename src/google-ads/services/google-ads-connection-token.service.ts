@@ -17,6 +17,12 @@ export class GoogleAdsConnectionTokenService {
     private googleAdsSharedMethodsService: GoogleAdsSharedMethodsService,
   ) {}
 
+  private normalizeCustomerId(value?: string) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^customers\/(\d+)$/i);
+    return match ? match[1] : raw;
+  }
+
   async getAuthContext(params: { connectionId: string }): Promise<{
     accessToken: string;
     loginCustomerId: string;
@@ -29,7 +35,9 @@ export class GoogleAdsConnectionTokenService {
       throw new NotFoundException('Google Ads connection not found');
     }
 
-    const loginCustomerId = account.primaryCustomerAccount;
+    const loginCustomerId = this.normalizeCustomerId(
+      account.primaryCustomerAccount,
+    );
     if (!loginCustomerId) {
       throw new BadRequestException(
         'Google Ads connection is missing primaryCustomerAccount',

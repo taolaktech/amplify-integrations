@@ -5,7 +5,6 @@ import { TokenAuthGuard } from 'src/auth/token-auth.guard';
 import { InternalHttpHelper } from 'src/common/helpers/internal-http.helper';
 import { ServiceRegistryService } from 'src/common/services/service-registry.service';
 
-import { GoogleAdsService } from './services/deprecated__google-ads.service';
 import { GoogleAdsAuthService } from './services/google-ads-auth.service';
 import { GoogleAdsCustomersService } from './services/google-ads-customers.service';
 import { GoogleAdsConnectionTokenService } from './services/google-ads-connection-token.service';
@@ -23,7 +22,6 @@ import { GoogleAdsCampaignOrchestrationModule } from './campaign-orchestration/g
 @Module({
   imports: [GoogleAdsCampaignOrchestrationModule],
   providers: [
-    GoogleAdsService,
     GoogleAdsAuthService,
     GoogleAdsCustomersService,
     GoogleAdsConnectionTokenService,
