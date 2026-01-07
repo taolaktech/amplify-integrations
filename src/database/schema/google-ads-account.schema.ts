@@ -37,21 +37,6 @@ export class GoogleAdsAccount {
 
   @Prop()
   lastAccessibleCustomersFetchAt?: Date;
-
-  @Prop()
-  conversionActionResourceName?: string;
-
-  @Prop()
-  conversionActionId?: string;
-
-  @Prop()
-  conversionActionTag?: string;
-
-  @Prop()
-  conversionActionLabel?: string;
-
-  @Prop({ type: [Object], default: [] })
-  conversionActionTagSnippets?: any[];
 }
 
 export const GoogleAdsAccountSchema =

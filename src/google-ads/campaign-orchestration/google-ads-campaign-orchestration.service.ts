@@ -14,6 +14,7 @@ import {
   BusinessDoc,
   CampaignDocument,
   GoogleAdsCampaignDoc,
+  GoogleAdsConversionActionDoc,
 } from 'src/database/schema';
 import { GoogleAdsAccountDoc } from 'src/database/schema/google-ads-account.schema';
 import { GoogleAdsConnectionTokenService } from '../services/google-ads-connection-token.service';
@@ -53,6 +54,8 @@ export class GoogleAdsCampaignOrchestrationService {
     private googleAdsAccountModel: Model<GoogleAdsAccountDoc>,
     @InjectModel('google-ads-campaigns')
     private googleAdsCampaignModel: Model<GoogleAdsCampaignDoc>,
+    @InjectModel('google-ads-conversion-actions')
+    private googleAdsConversionActionModel: Model<GoogleAdsConversionActionDoc>,
     private internalHttp: InternalHttpHelper,
     private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
     private googleAdsResourceApi: GoogleAdsResourceApiService,
@@ -127,11 +130,17 @@ export class GoogleAdsCampaignOrchestrationService {
 
     const sanitizedCustomerId = this.normalizeCustomerId(customerId);
 
+    const existingConversionAction =
+      await this.googleAdsConversionActionModel.findOne({
+        userId: connection.userId,
+        googleCustomerId: sanitizedCustomerId,
+      });
+
     if (
-      connection.conversionActionResourceName &&
-      connection.conversionActionId &&
-      Array.isArray(connection.conversionActionTagSnippets) &&
-      connection.conversionActionTagSnippets.length
+      existingConversionAction?.conversionActionResourceName &&
+      existingConversionAction?.conversionActionId &&
+      Array.isArray(existingConversionAction?.conversionActionTagSnippets) &&
+      existingConversionAction.conversionActionTagSnippets.length
     ) {
       return;
     }
@@ -139,8 +148,9 @@ export class GoogleAdsCampaignOrchestrationService {
     const customerName = `${String(business.companyName || 'business')}-${business._id.toString()}`;
     const conversionActionName = `${customerName}-conversion-action`;
 
-    let conversionActionResourceName = connection.conversionActionResourceName;
-    let conversionActionId = connection.conversionActionId;
+    let conversionActionResourceName =
+      existingConversionAction?.conversionActionResourceName;
+    let conversionActionId = existingConversionAction?.conversionActionId;
 
     if (!conversionActionResourceName || !conversionActionId) {
       this.logger.log(
@@ -179,8 +189,11 @@ export class GoogleAdsCampaignOrchestrationService {
     const { conversionTag, label } =
       this.extractConversionIdAndLabelFromEventSnippet(eventSnippet);
 
-    await this.googleAdsAccountModel.updateOne(
-      { _id: connectionObjectId },
+    await this.googleAdsConversionActionModel.updateOne(
+      {
+        userId: connection.userId,
+        googleCustomerId: sanitizedCustomerId,
+      },
       {
         $set: {
           conversionActionResourceName,
@@ -192,6 +205,7 @@ export class GoogleAdsCampaignOrchestrationService {
             : [],
         },
       },
+      { upsert: true },
     );
   }
 
