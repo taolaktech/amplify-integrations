@@ -35,9 +35,9 @@ export class GoogleAdsCampaignOrchestrationController {
   }
 
   @ApiOperation({
-    summary: 'Google Ads orchestration step 3 (geo targeting)',
+    summary: 'Google Ads orchestration step 3 (keywords)',
     description:
-      'Idempotently adds geo targeting to the Google Ads campaign based on Campaign.location. Uses state persisted in google-ads-campaigns by step 1.',
+      'Idempotently generates keyword ideas and adds keywords to all ad groups. Uses state persisted in google-ads-campaigns by steps 1 & 2.',
   })
   @Post('/step-3')
   async step3(@Body() body: { campaignId: string }) {
@@ -47,13 +47,25 @@ export class GoogleAdsCampaignOrchestrationController {
   }
 
   @ApiOperation({
-    summary: 'Google Ads orchestration step 4 (enable campaign)',
+    summary: 'Google Ads orchestration step 4 (geo targeting)',
     description:
-      'Idempotently enables the Google Ads campaign by setting status=ENABLED. Uses state persisted in google-ads-campaigns by step 1.',
+      'Idempotently adds geo targeting to the Google Ads campaign based on Campaign.location. Uses state persisted in google-ads-campaigns by step 1.',
   })
   @Post('/step-4')
   async step4(@Body() body: { campaignId: string }) {
     return await this.googleAdsCampaignOrchestrationService.step4({
+      campaignId: body?.campaignId,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Google Ads orchestration step 5 (enable campaign)',
+    description:
+      'Idempotently enables the Google Ads campaign by setting status=ENABLED. Uses state persisted in google-ads-campaigns by step 1.',
+  })
+  @Post('/step-5')
+  async step5(@Body() body: { campaignId: string }) {
+    return await this.googleAdsCampaignOrchestrationService.step5({
       campaignId: body?.campaignId,
     });
   }

@@ -5,6 +5,7 @@ import { GoogleAdsCampaignOrchestrationController } from './google-ads-campaign-
 import { GoogleAdsCampaignOrchestrationService } from './google-ads-campaign-orchestration.service';
 import { GoogleAdsConnectionTokenService } from '../services/google-ads-connection-token.service';
 import { GoogleAdsResourceApiService } from '../api/resource-api/resource.api';
+import { GoogleAdsCustomerApiService } from '../api/customer-api/customer.api';
 import { GoogleAdsSharedMethodsService } from '../api/shared';
 import { GoogleAdsSearchApiService } from '../api/search-api/search-api';
 
@@ -15,6 +16,7 @@ import { GoogleAdsSearchApiService } from '../api/search-api/search-api';
     ServiceRegistryService,
     GoogleAdsConnectionTokenService,
     GoogleAdsSharedMethodsService,
+    GoogleAdsCustomerApiService,
     GoogleAdsResourceApiService,
     GoogleAdsSearchApiService,
   ],

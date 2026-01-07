@@ -23,6 +23,8 @@ import { GoogleAdsServedAssetFieldType } from '../api/resource-api/enums';
 import { countryCodeMap } from './country-code-map';
 import { GoogleAdsCampaignStatus } from '../api/resource-api/enums';
 import { GoogleAdsSearchApiService } from '../api/search-api/search-api';
+import { GoogleAdsCustomerApiService } from '../api/customer-api/customer.api';
+import { GoogleAdsKeywordMatchType } from '../api/resource-api/enums';
 
 type CalculateTargetRoasResponse = {
   budget: number;
@@ -42,15 +44,6 @@ export class GoogleAdsCampaignOrchestrationService {
   private MIN_CURRENCY_UNIT_MICROS = 10_000;
   private logger = new Logger(GoogleAdsCampaignOrchestrationService.name);
 
-  private roundToMinCurrencyUnitMicros(amountMicros: number) {
-    const unit = this.MIN_CURRENCY_UNIT_MICROS;
-    const raw = Math.floor(Number(amountMicros || 0));
-    if (!isFinite(raw) || raw <= 0) {
-      return unit;
-    }
-    return Math.max(Math.ceil(raw / unit) * unit, unit);
-  }
-
   constructor(
     @InjectModel('campaigns')
     private campaignModel: Model<CampaignDocument>,
@@ -64,7 +57,36 @@ export class GoogleAdsCampaignOrchestrationService {
     private googleAdsConnectionTokenService: GoogleAdsConnectionTokenService,
     private googleAdsResourceApi: GoogleAdsResourceApiService,
     private googleAdsSearchApi: GoogleAdsSearchApiService,
+    private googleAdsCustomerApi: GoogleAdsCustomerApiService,
   ) {}
+
+  private roundToMinCurrencyUnitMicros(amountMicros: number) {
+    const unit = this.MIN_CURRENCY_UNIT_MICROS;
+    const raw = Math.floor(Number(amountMicros || 0));
+    if (!isFinite(raw) || raw <= 0) {
+      return unit;
+    }
+
+    return Math.max(Math.ceil(raw / unit) * unit, unit);
+  }
+
+  private distributeKeywordsAcrossAdGroups(params: {
+    keywordTexts: string[];
+    adGroupCount: number;
+  }) {
+    const { keywordTexts, adGroupCount } = params;
+    const assignments: string[][] = Array.from(
+      { length: adGroupCount },
+      () => [],
+    );
+
+    keywordTexts.forEach((keyword, index) => {
+      const groupIndex = index % adGroupCount;
+      assignments[groupIndex].push(keyword);
+    });
+
+    return assignments;
+  }
 
   private normalizeCustomerId(value: string) {
     const raw = String(value || '').trim();
@@ -203,7 +225,7 @@ export class GoogleAdsCampaignOrchestrationService {
   }
 
   /* Step 1-
-    - Idempotently creates budget, target ROAS bidding strategy, and campaign for a given campaignId. 
+    -  creates budget, target ROAS bidding strategy, and campaign for a given campaignId. 
     Persists state in google-ads-campaigns.
     */
   async step1(params: { campaignId: string }) {
@@ -211,7 +233,9 @@ export class GoogleAdsCampaignOrchestrationService {
       throw new BadRequestException('campaignId is required');
     }
 
-    this.logger.log(`Step1--> start campaignId=${params.campaignId}`);
+    this.logger.log(
+      `Step1(Creating budget, target ROAS bidding strategy, and campaign)--> start campaignId=${params.campaignId}`,
+    );
 
     const campaignObjectId = new Types.ObjectId(params.campaignId);
     const campaign = await this.campaignModel.findById(campaignObjectId);
@@ -596,7 +620,7 @@ export class GoogleAdsCampaignOrchestrationService {
   }
 
   /* Step 2-
-    - Idempotently creates ad group and ads for a given campaignId. 
+    -  creates ad group and ads for a given campaignId. 
     Persists state in google-ads-campaigns.
     */
   async step2(params: { campaignId: string }) {
@@ -604,7 +628,9 @@ export class GoogleAdsCampaignOrchestrationService {
       throw new BadRequestException('campaignId is required');
     }
 
-    this.logger.log(`Step2--> start campaignId=${params.campaignId}`);
+    this.logger.log(
+      `Step2(Creating ad groups and ads)--> start campaignId=${params.campaignId}`,
+    );
 
     const campaignObjectId = new Types.ObjectId(params.campaignId);
     const campaign = await this.campaignModel.findById(campaignObjectId);
@@ -897,15 +923,190 @@ export class GoogleAdsCampaignOrchestrationService {
   }
 
   /* Step 3-
-    - Idempotently adds geo targeting to the Google Ads campaign based on Campaign.location. 
-    Uses state persisted in google-ads-campaigns by step 1.
+    -  generates keyword ideas and adds them to all ad groups.
+    Uses state persisted in google-ads-campaigns by steps 1 & 2.
     */
   async step3(params: { campaignId: string }) {
     if (!params.campaignId) {
       throw new BadRequestException('campaignId is required');
     }
 
-    this.logger.log(`Step3--> start campaignId=${params.campaignId}`);
+    this.logger.log(
+      `Step3(Adding keywords to ad groups)--> start campaignId=${params.campaignId}`,
+    );
+
+    const campaignObjectId = new Types.ObjectId(params.campaignId);
+    const campaign = await this.campaignModel.findById(campaignObjectId);
+    if (!campaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
+    const googleAdsCampaign = await this.googleAdsCampaignModel.findOne({
+      campaign: campaignObjectId,
+    });
+    if (!googleAdsCampaign) {
+      throw new NotFoundException(
+        'Google Ads campaign record not found (run step-1 first)',
+      );
+    }
+
+    if (googleAdsCampaign.keywordsAddedToAdGroups) {
+      this.logger.log(
+        `Step3--> keywords already added; skipping. campaignId=${params.campaignId}`,
+      );
+      return await this.googleAdsCampaignModel.findById(googleAdsCampaign._id);
+    }
+
+    if (!googleAdsCampaign.connectionId) {
+      throw new BadRequestException(
+        'Google Ads campaign record missing connectionId (run step-1 first)',
+      );
+    }
+    if (!googleAdsCampaign.googleAdsCustomerId) {
+      throw new BadRequestException(
+        'Google Ads campaign record missing googleAdsCustomerId (run step-1 first)',
+      );
+    }
+
+    if (!Array.isArray(campaign.products) || !campaign.products.length) {
+      throw new BadRequestException('Campaign has no products');
+    }
+    if (
+      !Array.isArray(googleAdsCampaign.adGroups) ||
+      !googleAdsCampaign.adGroups.length
+    ) {
+      throw new BadRequestException(
+        'Google Ads campaign record missing adGroups (run step-2 first)',
+      );
+    }
+
+    const options = {
+      connectionId: googleAdsCampaign.connectionId.toString(),
+      loginCustomerId: googleAdsCampaign.googleAdsCustomerId,
+    };
+
+    const customerId = this.normalizeCustomerId(
+      googleAdsCampaign.googleAdsCustomerId,
+    );
+
+    const previousStatus = googleAdsCampaign.processingStatus;
+
+    try {
+      await this.googleAdsCampaignModel.updateOne(
+        { _id: googleAdsCampaign._id },
+        {
+          $set: {
+            processingStatus: GoogleAdsProcessingStatus.GENERATING_KEYWORDS,
+          },
+        },
+      );
+
+      const adGroupResourceNames = googleAdsCampaign.adGroups
+        .map((g) => g.resourceName)
+        .filter(Boolean);
+
+      if (!adGroupResourceNames.length) {
+        throw new BadRequestException(
+          'Google Ads campaign record has no adGroup resourceNames',
+        );
+      }
+
+      for (let i = 0; i < campaign.products.length; i++) {
+        const product = campaign.products[i];
+        const url = product?.productLink;
+        if (!url) {
+          throw new BadRequestException(
+            `Product ${String(product?.shopifyId || i)} missing productLink`,
+          );
+        }
+
+        const generated = await this.googleAdsCustomerApi.generateKeywordIdeas(
+          customerId,
+          {
+            includeAdultKeywords: false,
+            pageSize: 30,
+            urlSeed: { url },
+          },
+          { connectionId: options.connectionId },
+        );
+
+        const keywordTexts = (generated?.results || [])
+          .map((r) => r?.text)
+          .filter(Boolean) as string[];
+
+        if (!keywordTexts.length) {
+          throw new InternalServerErrorException(
+            'No keywords found while generating keywords',
+          );
+        }
+
+        const assignments = this.distributeKeywordsAcrossAdGroups({
+          keywordTexts,
+          adGroupCount: adGroupResourceNames.length,
+        });
+
+        // Add a bucket of keywords to each ad group. The bucket index is aligned
+        // by adGroup index.
+        for (
+          let adGroupIndex = 0;
+          adGroupIndex < adGroupResourceNames.length;
+          adGroupIndex++
+        ) {
+          const adGroupResourceName = adGroupResourceNames[adGroupIndex];
+          const assignedKeywords = assignments[adGroupIndex] || [];
+          if (!assignedKeywords.length) continue;
+
+          const keywords = assignedKeywords.flatMap((text) => [
+            { text, matchType: GoogleAdsKeywordMatchType.EXACT },
+            { text, matchType: GoogleAdsKeywordMatchType.BROAD },
+            { text, matchType: GoogleAdsKeywordMatchType.PHRASE },
+          ]);
+
+          await this.googleAdsResourceApi.addKeywordsToAdGroup(
+            {
+              adGroupResourceName,
+              keywords,
+            },
+            options,
+          );
+        }
+      }
+
+      await this.googleAdsCampaignModel.updateOne(
+        { _id: googleAdsCampaign._id },
+        {
+          $set: {
+            keywordsAddedToAdGroups: true,
+            processingStatus: GoogleAdsProcessingStatus.KEYWORDS_ADDED,
+          },
+        },
+      );
+
+      this.logger.log(`Step3--> done campaignId=${params.campaignId}`);
+      return await this.googleAdsCampaignModel.findById(googleAdsCampaign._id);
+    } catch (error) {
+      await this.markFailure({
+        googleAdsCampaignId: googleAdsCampaign._id,
+        previousStatus,
+        error,
+        campaignId: params.campaignId,
+      });
+      throw error;
+    }
+  }
+
+  /* Step 4-
+    -  adds geo targeting to the Google Ads campaign based on Campaign.location. 
+    Uses state persisted in google-ads-campaigns by step 1.
+    */
+  async step4(params: { campaignId: string }) {
+    if (!params.campaignId) {
+      throw new BadRequestException('campaignId is required');
+    }
+
+    this.logger.log(
+      `Step4(Adding geo targeting to campaign)--> start campaignId=${params.campaignId}`,
+    );
 
     const campaignObjectId = new Types.ObjectId(params.campaignId);
     const campaign = await this.campaignModel.findById(campaignObjectId);
@@ -948,7 +1149,7 @@ export class GoogleAdsCampaignOrchestrationService {
     try {
       if (googleAdsCampaign.geotargetingAddedToCampaign) {
         this.logger.log(
-          `Step3--> geo targeting already added; skipping. campaignId=${params.campaignId}`,
+          `Step4--> geo targeting already added; skipping. campaignId=${params.campaignId}`,
         );
         return await this.googleAdsCampaignModel.findById(
           googleAdsCampaign._id,
@@ -974,14 +1175,14 @@ export class GoogleAdsCampaignOrchestrationService {
           const upper = rawCountry.toUpperCase();
           if (upper.length !== 2 && upper.length !== 3) {
             this.logger.warn(
-              `Step3--> skipping location because country code is not ISO-2 or ISO-3: country=${rawCountry}`,
+              `Step4--> skipping location because country code is not ISO-2 or ISO-3: country=${rawCountry}`,
             );
             return acc;
           }
 
           if (upper.length === 3 && !countryCodeMap[upper]) {
             this.logger.warn(
-              `Step3--> skipping location because ISO-3 country is unmapped: country=${rawCountry}`,
+              `Step4--> skipping location because ISO-3 country is unmapped: country=${rawCountry}`,
             );
             return acc;
           }
@@ -1032,7 +1233,7 @@ export class GoogleAdsCampaignOrchestrationService {
         }
 
         this.logger.log(
-          `Step3--> adding geo targeting country=${countryCode} locations=${uniqLocationNames.join(',')}`,
+          `Step4--> adding geo targeting country=${countryCode} locations=${uniqLocationNames.join(',')}`,
         );
 
         await this.googleAdsResourceApi.addGeoTargetingToCampaign(
@@ -1069,16 +1270,16 @@ export class GoogleAdsCampaignOrchestrationService {
     }
   }
 
-  /* Step 4-
-    - Idempotently enables the Google Ads campaign. 
+  /* Step 5-
+    -  enables the Google Ads campaign. 
     Uses state persisted in google-ads-campaigns by step 1.
     */
-  async step4(params: { campaignId: string }) {
+  async step5(params: { campaignId: string }) {
     if (!params.campaignId) {
       throw new BadRequestException('campaignId is required');
     }
 
-    this.logger.log(`Step4--> start campaignId=${params.campaignId}`);
+    this.logger.log(`Step5--> start campaignId=${params.campaignId}`);
 
     const campaignObjectId = new Types.ObjectId(params.campaignId);
     const campaign = await this.campaignModel.findById(campaignObjectId);
