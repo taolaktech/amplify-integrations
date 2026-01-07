@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as countries from 'i18n-iso-countries';
@@ -11,7 +12,8 @@ import { FacebookAdAccount, FacebookPage } from 'src/database/schema';
 import {
   FacebookAd,
   FacebookAdSet,
-  FacebookCampaign
+  FacebookCampaign,
+  FacebookCreativeAsset,
 } from 'src/database/schema/facebook-campaign.schema';
 import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
 import { FacebookBusinessManagerService } from './facebook-business-manager.service';
@@ -19,6 +21,7 @@ import {
   CampaignDataFromLambda,
   FacebookCampaignDataService,
 } from './facebook-campaign-data.service';
+import { FacebookTokenService } from './facebook-token.service';
 
 @Injectable()
 export class FacebookCampaignService {
@@ -37,8 +40,19 @@ export class FacebookCampaignService {
     private facebookMarketingApiService: FacebookBusinessManagerService,
     private facebookCampaignDataService: FacebookCampaignDataService,
     private facebookAuthService: FacebookAuthService,
+    private facebookTokenService: FacebookTokenService,
   ) {
     this.sandboxAdAccountId = process.env.SANDBOX_AD_ACCOUNT_ID as string; //Load sandbox ID
+  }
+
+  private async getAndValidateUserToken(userId: string): Promise<string> {
+    const userToken = await this.facebookTokenService.getUserToken(userId);
+    if (!userToken) {
+      throw new UnauthorizedException(
+        `No valid Facebook token found for user ${userId}. Please re-authenticate.`,
+      );
+    }
+    return userToken;
   }
 
   //  Helper to get the effective Ad Account ID based on environment
@@ -82,6 +96,9 @@ export class FacebookCampaignService {
       this.logger.debug(
         `Step 1: Initializing Facebook campaign for Amplify campaign: ${campaignData.campaignId}`,
       );
+      const userId = facebookCampaignDocument.userId.toString();
+
+      const userToken = await this.getAndValidateUserToken(userId);
 
       // Prevent re-initialization if already done
       if (
@@ -111,6 +128,7 @@ export class FacebookCampaignService {
       // Call the API service to create the campaign on Facebook
       const facebookCampaignResponse =
         await this.facebookMarketingApiService.createCampaign(
+          userToken,
           facebookCampaignDocument.userAdAccountId,
           campaignName,
         );
@@ -187,6 +205,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Ensure campaign has been initialized
       if (!facebookCampaign.facebookCampaignId) {
@@ -251,6 +272,7 @@ export class FacebookCampaignService {
 
       // Create the single Ad Set via API
       const adSetResponse = await this.facebookMarketingApiService.createAdSet(
+        userToken,
         facebookCampaign.userAdAccountId,
         facebookCampaign.facebookCampaignId,
         adSetName,
@@ -756,46 +778,210 @@ export class FacebookCampaignService {
   //   }
   // }
 
+  // async createCreatives(
+  //   campaignId: string,
+  //   platform: string,
+  // ): Promise<{
+  //   creativesCreated: number;
+  //   creativeIds: string[];
+  // }> {
+  //   try {
+  //     this.logger.debug(
+  //       `Step 3: Creating product-level flexible creatives for campaign: ${campaignId}`,
+  //     );
+
+  //     const facebookCampaign = await this.getFacebookCampaign(
+  //       campaignId,
+  //       platform,
+  //     );
+  //     const primaryAdAccount = await this.facebookAdAccountModel
+  //       .findOne({
+  //         userId: facebookCampaign.userId,
+  //         isPrimary: true,
+  //       })
+  //       .lean();
+
+  //     if (!primaryAdAccount?.selectedPrimaryFacebookPageId) {
+  //       throw new BadRequestException(
+  //         'Primary ad account has no selected Facebook Page. Please configure it first.',
+  //       );
+  //     }
+
+  //     const page = await this.facebookPageModel
+  //       .findById(primaryAdAccount.selectedPrimaryFacebookPageId)
+  //       .lean();
+
+  //     const pageId = page?.pageId;
+  //     if (!pageId) {
+  //       throw new BadRequestException(
+  //         'Could not find Page ID for the selected primary page.',
+  //       );
+  //     }
+
+  //     const campaignData =
+  //       facebookCampaign.originalCampaignData as CampaignDataFromLambda;
+
+  //     if (
+  //       facebookCampaign.processingStatus === 'CREATIVES_CREATED' &&
+  //       facebookCampaign.creatives.length > 0
+  //     ) {
+  //       this.logger.warn(
+  //         `Creatives for campaign ${campaignId} have already been created. Skipping.`,
+  //       );
+  //       return {
+  //         creativesCreated: facebookCampaign.creatives.length,
+  //         creativeIds: facebookCampaign.creatives.map((c) => c.creativeId),
+  //       };
+  //     }
+
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'CREATING_CREATIVES',
+  //       platform,
+  //     );
+
+  //     const allCreatedCreatives: any[] = []; // Using any to accommodate productId
+  //     const isFacebook = campaignData.platforms.includes('FACEBOOK');
+  //     const isInstagram = campaignData.platforms.includes('INSTAGRAM');
+
+  //     for (const product of campaignData.products) {
+  //       this.logger.debug(`Processing product: ${product.title}`);
+
+  //       const productImages = new Set<string>();
+  //       const productTexts = new Set<string>();
+  //       const productHeadlines = new Set<string>();
+  //       const productDescriptions = new Set<string>();
+
+  //       // Filter creative sets for the correct channels before processing
+  //       const facebookCreativeSets = product.creatives.filter(
+  //         (c) => c.channel === 'facebook',
+  //       );
+  //       const instagramCreativeSets = product.creatives.filter(
+  //         (c) => c.channel === 'instagram',
+  //       );
+
+  //       if (isFacebook) {
+  //         for (const creativeSet of facebookCreativeSets) {
+  //           const parsedData = this.parseCreativeData(creativeSet.data);
+  //           for (const creative of parsedData) {
+  //             if (creative.url) productImages.add(creative.url);
+  //             if (creative.bodyText) productTexts.add(creative.bodyText);
+  //             if (creative.title) productHeadlines.add(creative.title);
+  //             if (creative.description)
+  //               productDescriptions.add(creative.description);
+  //           }
+  //         }
+  //       }
+
+  //       if (isInstagram) {
+  //         for (const creativeSet of instagramCreativeSets) {
+  //           const parsedData = this.parseCreativeData(creativeSet.data);
+  //           for (const creative of parsedData) {
+  //             if (creative.url) productImages.add(creative.url);
+  //             if (creative.caption) productTexts.add(creative.caption);
+  //           }
+  //         }
+  //       }
+
+  //       if (productHeadlines.size === 0) {
+  //         productHeadlines.add(product.title);
+  //       }
+
+  //       const imageHashes = await this.uploadImagesToFacebook(
+  //         facebookCampaign.userAdAccountId,
+  //         Array.from(productImages),
+  //       );
+
+  //       const assetFeedSpec: any = {
+  //         images: imageHashes.map((hash) => ({ hash })),
+  //         bodies: Array.from(productTexts).map((text) => ({ text })),
+  //         titles: Array.from(productHeadlines).map((text) => ({ text })),
+  //         descriptions: Array.from(productDescriptions).map((text) => ({
+  //           text,
+  //         })),
+  //         link_urls: [{ website_url: product.productLink }],
+  //         call_to_action_types: ['SHOP_NOW'],
+  //         ad_formats: ['SINGLE_IMAGE'],
+  //       };
+
+  //       const creativeName = `Product-Level Creative - ${product.title}`;
+  //       const creativeResponse =
+  //         await this.facebookMarketingApiService.createFlexibleCreative(
+  //           facebookCampaign.userAdAccountId,
+  //           creativeName,
+  //           assetFeedSpec,
+  //           pageId,
+  //           facebookCampaign.instagramActorId,
+  //         );
+
+  //       allCreatedCreatives.push({
+  //         creativeId: creativeResponse.id,
+  //         name: creativeName,
+  //         imageUrl: Array.from(productImages)[0] || '',
+  //         destinationUrl: product.productLink,
+  //         primaryText: Array.from(productTexts)[0],
+  //         headline: Array.from(productHeadlines)[0],
+  //         callToAction: 'SHOP_NOW',
+  //         approvalStatus: 'PENDING',
+  //         createdAt: new Date(),
+  //         productId: product.shopifyId,
+  //       });
+  //     }
+
+  //     this.logger.debug(
+  //       `Successfully created ${allCreatedCreatives.length} product-level creative assets.`,
+  //     );
+
+  //     await this.facebookCampaignModel.updateOne(
+  //       { campaignId, platform },
+  //       {
+  //         $set: {
+  //           creatives: allCreatedCreatives,
+  //           processingStatus: 'CREATIVES_CREATED',
+  //           failedStep: null,
+  //           errorMessage: null,
+  //           lastProcessedAt: new Date(),
+  //         },
+  //       },
+  //     );
+
+  //     return {
+  //       creativesCreated: allCreatedCreatives.length,
+  //       creativeIds: allCreatedCreatives.map((c) => c.creativeId),
+  //     };
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create product-level creatives for campaign: ${campaignId}`,
+  //       error,
+  //     );
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'FAILED',
+  //       platform,
+  //       `Distinct creative creation failed: ${error.message}`,
+  //       'CREATING_CREATIVES',
+  //     );
+  //     throw error;
+  //   }
+  // }
+  //
+
   async createCreatives(
     campaignId: string,
     platform: string,
-  ): Promise<{
-    creativesCreated: number;
-    creativeIds: string[];
-  }> {
+  ): Promise<{ preparedCreatives: number }> {
     try {
       this.logger.debug(
-        `Step 3: Creating product-level flexible creatives for campaign: ${campaignId}`,
+        `Step 3: Preparing product-level creative assets for campaign: ${campaignId}`,
       );
 
       const facebookCampaign = await this.getFacebookCampaign(
         campaignId,
         platform,
       );
-      const primaryAdAccount = await this.facebookAdAccountModel
-        .findOne({
-          userId: facebookCampaign.userId,
-          isPrimary: true,
-        })
-        .lean();
-
-      if (!primaryAdAccount?.selectedPrimaryFacebookPageId) {
-        throw new BadRequestException(
-          'Primary ad account has no selected Facebook Page. Please configure it first.',
-        );
-      }
-
-      const page = await this.facebookPageModel
-        .findById(primaryAdAccount.selectedPrimaryFacebookPageId)
-        .lean();
-
-      const pageId = page?.pageId;
-      if (!pageId) {
-        throw new BadRequestException(
-          'Could not find Page ID for the selected primary page.',
-        );
-      }
-
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
       const campaignData =
         facebookCampaign.originalCampaignData as CampaignDataFromLambda;
 
@@ -804,11 +990,10 @@ export class FacebookCampaignService {
         facebookCampaign.creatives.length > 0
       ) {
         this.logger.warn(
-          `Creatives for campaign ${campaignId} have already been created. Skipping.`,
+          `Creative assets for campaign ${campaignId} have already been prepared. Skipping.`,
         );
         return {
-          creativesCreated: facebookCampaign.creatives.length,
-          creativeIds: facebookCampaign.creatives.map((c) => c.creativeId),
+          preparedCreatives: facebookCampaign.creatives.length,
         };
       }
 
@@ -818,19 +1003,18 @@ export class FacebookCampaignService {
         platform,
       );
 
-      const allCreatedCreatives: any[] = []; // Using any to accommodate productId
+      const preparedCreatives: Omit<FacebookCreativeAsset, 'creativeId'>[] = [];
       const isFacebook = campaignData.platforms.includes('FACEBOOK');
       const isInstagram = campaignData.platforms.includes('INSTAGRAM');
 
       for (const product of campaignData.products) {
-        this.logger.debug(`Processing product: ${product.title}`);
+        this.logger.debug(`Processing assets for product: ${product.title}`);
 
         const productImages = new Set<string>();
         const productTexts = new Set<string>();
         const productHeadlines = new Set<string>();
         const productDescriptions = new Set<string>();
 
-        // Filter creative sets for the correct channels before processing
         const facebookCreativeSets = product.creatives.filter(
           (c) => c.channel === 'facebook',
         );
@@ -866,6 +1050,7 @@ export class FacebookCampaignService {
         }
 
         const imageHashes = await this.uploadImagesToFacebook(
+          userToken,
           facebookCampaign.userAdAccountId,
           Array.from(productImages),
         );
@@ -883,38 +1068,25 @@ export class FacebookCampaignService {
         };
 
         const creativeName = `Product-Level Creative - ${product.title}`;
-        const creativeResponse =
-          await this.facebookMarketingApiService.createFlexibleCreative(
-            facebookCampaign.userAdAccountId,
-            creativeName,
-            assetFeedSpec,
-            pageId,
-            facebookCampaign.instagramActorId,
-          );
 
-        allCreatedCreatives.push({
-          creativeId: creativeResponse.id,
+        preparedCreatives.push({
           name: creativeName,
-          imageUrl: Array.from(productImages)[0] || '',
-          destinationUrl: product.productLink,
-          primaryText: Array.from(productTexts)[0],
-          headline: Array.from(productHeadlines)[0],
-          callToAction: 'SHOP_NOW',
-          approvalStatus: 'PENDING',
-          createdAt: new Date(),
+          assetFeedSpec: assetFeedSpec,
           productId: product.shopifyId,
+          status: 'PENDING',
+          createdAt: new Date(),
         });
       }
 
       this.logger.debug(
-        `Successfully created ${allCreatedCreatives.length} product-level creative assets.`,
+        `Successfully prepared ${preparedCreatives.length} creative assets.`,
       );
 
       await this.facebookCampaignModel.updateOne(
         { campaignId, platform },
         {
           $set: {
-            creatives: allCreatedCreatives,
+            creatives: preparedCreatives,
             processingStatus: 'CREATIVES_CREATED',
             failedStep: null,
             errorMessage: null,
@@ -924,19 +1096,18 @@ export class FacebookCampaignService {
       );
 
       return {
-        creativesCreated: allCreatedCreatives.length,
-        creativeIds: allCreatedCreatives.map((c) => c.creativeId),
+        preparedCreatives: preparedCreatives.length,
       };
     } catch (error) {
       this.logger.error(
-        `Failed to create product-level creatives for campaign: ${campaignId}`,
+        `Failed to prepare creative assets for campaign: ${campaignId}`,
         error,
       );
       await this.updateProcessingStatus(
         campaignId,
         'FAILED',
         platform,
-        `Distinct creative creation failed: ${error.message}`,
+        `Creative preparation failed: ${error.message}`,
         'CREATING_CREATIVES',
       );
       throw error;
@@ -1069,6 +1240,111 @@ export class FacebookCampaignService {
   //   }
   // }
 
+  // async createAds(
+  //   campaignId: string,
+  //   platform: string,
+  // ): Promise<{
+  //   adsCreated: number;
+  //   adIds: string[];
+  // }> {
+  //   try {
+  //     this.logger.debug(
+  //       `Step 4: Creating distinct ads for campaign: ${campaignId}`,
+  //     );
+
+  //     const facebookCampaign = await this.getFacebookCampaign(
+  //       campaignId,
+  //       platform,
+  //     );
+
+  //     // Prevent re-running if already completed
+  //     if (
+  //       facebookCampaign.processingStatus === 'ADS_CREATED' &&
+  //       facebookCampaign.ads.length > 0
+  //     ) {
+  //       this.logger.warn(
+  //         `Ads for campaign ${campaignId} have already been created. Skipping.`,
+  //       );
+  //       return {
+  //         adsCreated: facebookCampaign.ads.length,
+  //         adIds: facebookCampaign.ads.map((ad) => ad.adId),
+  //       };
+  //     }
+
+  //     // Validate that previous steps are complete
+  //     if (
+  //       facebookCampaign.adSets.length === 0 ||
+  //       facebookCampaign.creatives.length === 0
+  //     ) {
+  //       throw new BadRequestException(
+  //         'Cannot create ads: Ad Set or Creatives are missing. Please run previous steps first.',
+  //       );
+  //     }
+
+  //     await this.updateProcessingStatus(campaignId, 'CREATING_ADS', platform);
+
+  //     const createdAds: FacebookAd[] = [];
+  //     const adSetId = facebookCampaign.adSets[0].adSetId;
+
+  //     // Loop through each product-level creative
+  //     for (const creative of facebookCampaign.creatives) {
+  //       const adName = `Ad for ${creative.name}`; // e.g., "Ad for Product-Level Creative - Voyager Jacket"
+
+  //       const adResponse = await this.facebookMarketingApiService.createAd(
+  //         facebookCampaign.userAdAccountId,
+  //         adSetId,
+  //         creative.creativeId as string,
+  //         adName,
+  //       );
+
+  //       createdAds.push({
+  //         adId: adResponse.id,
+  //         adSetId,
+  //         creativeId: creative.creativeId as string,
+  //         name: adName,
+  //         status: adResponse.status || 'PAUSED',
+  //         productId: creative.productId, // Pass this along from the creative
+  //         createdAt: new Date(),
+  //       });
+  //     }
+
+  //     this.logger.debug(
+  //       `Successfully created ${createdAds.length} distinct ads.`,
+  //     );
+
+  //     // Update the tracking document with the new list of Ads
+  //     await this.facebookCampaignModel.updateOne(
+  //       { campaignId, platform },
+  //       {
+  //         $set: {
+  //           ads: createdAds,
+  //           processingStatus: 'ADS_CREATED',
+  //           failedStep: null,
+  //           errorMessage: null,
+  //           lastProcessedAt: new Date(),
+  //         },
+  //       },
+  //     );
+
+  //     return {
+  //       adsCreated: createdAds.length,
+  //       adIds: createdAds.map((ad) => ad.adId),
+  //     };
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Failed to create ads for campaign: ${campaignId}`,
+  //       error,
+  //     );
+  //     await this.updateProcessingStatus(
+  //       campaignId,
+  //       'FAILED',
+  //       platform,
+  //       `Ad creation failed: ${error.message}`,
+  //       'CREATING_ADS',
+  //     );
+  //     throw error;
+  //   }
+  // }
   async createAds(
     campaignId: string,
     platform: string,
@@ -1078,15 +1354,17 @@ export class FacebookCampaignService {
   }> {
     try {
       this.logger.debug(
-        `Step 4: Creating distinct ads for campaign: ${campaignId}`,
+        `Step 4: Creating distinct ads for campaign: ${campaignId} on platform: ${platform}`,
       );
 
       const facebookCampaign = await this.getFacebookCampaign(
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
-      // Prevent re-running if already completed
       if (
         facebookCampaign.processingStatus === 'ADS_CREATED' &&
         facebookCampaign.ads.length > 0
@@ -1100,13 +1378,12 @@ export class FacebookCampaignService {
         };
       }
 
-      // Validate that previous steps are complete
       if (
         facebookCampaign.adSets.length === 0 ||
         facebookCampaign.creatives.length === 0
       ) {
         throw new BadRequestException(
-          'Cannot create ads: Ad Set or Creatives are missing. Please run previous steps first.',
+          'Cannot create ads: Ad Set or prepared Creatives are missing.',
         );
       }
 
@@ -1114,26 +1391,78 @@ export class FacebookCampaignService {
 
       const createdAds: FacebookAd[] = [];
       const adSetId = facebookCampaign.adSets[0].adSetId;
+      const creativeUpdates: any[] = [];
 
-      // Loop through each product-level creative
-      for (const creative of facebookCampaign.creatives) {
-        const adName = `Ad for ${creative.name}`; // e.g., "Ad for Product-Level Creative - Voyager Jacket"
+      for (const preparedCreative of facebookCampaign.creatives) {
+        const adName = `Ad for ${preparedCreative.name}`;
 
-        const adResponse = await this.facebookMarketingApiService.createAd(
-          facebookCampaign.userAdAccountId,
-          adSetId,
-          creative.creativeId,
-          adName,
-        );
+        // Build the full 'creative' object required for the ad creation API call
+        // This correctly builds the full creative spec for the API call
+        const objectStorySpec: any = {
+          page_id: facebookCampaign.originalCampaignData.pageId,
+        };
+
+        //  Only add instagram_user_id if it exists
+        if (facebookCampaign.instagramActorId) {
+          objectStorySpec.instagram_user_id = facebookCampaign.instagramActorId;
+        }
+
+        const creativeSpecForAd = {
+          name: preparedCreative.name,
+          object_story_spec: objectStorySpec,
+          asset_feed_spec: preparedCreative.assetFeedSpec,
+        };
+
+        // We use the new method specifically for creating dynamic ads
+        const adResponse =
+          await this.facebookMarketingApiService.createDynamicAd(
+            userToken,
+            facebookCampaign.userAdAccountId,
+            adSetId,
+            adName,
+            creativeSpecForAd,
+          );
+
+        // The API returns the new ad ID and the implicitly created creative ID
+        // We requested 'creative' field so it should be present.
+        const newAdId = adResponse.id;
+        const newCreativeId = adResponse.creative?.id;
+
+        if (!newCreativeId) {
+          this.logger.warn(
+            `Ad created (ID: ${newAdId}) but creative ID is missing in response.`,
+          );
+          // Fallback: use the original creative ID if available or throw?
+          // For dynamic ads, the creative is created implicitly, so we really need this ID.
+          // However, strictly speaking, we store the *prepared* creative ID in our DB.
+          // But the code below updates the DB with `newCreativeId`.
+          // If implicit creation means a NEW creative ID is generated, we must have it.
+        }
 
         createdAds.push({
-          adId: adResponse.id,
+          adId: newAdId,
           adSetId,
-          creativeId: creative.creativeId,
+          creativeId: newCreativeId,
           name: adName,
           status: adResponse.status || 'PAUSED',
-          productId: creative.productId, // Pass this along from the creative
+          productId: preparedCreative.productId,
           createdAt: new Date(),
+        });
+
+        // Prepare a database operation to update the creative asset with its new ID
+        creativeUpdates.push({
+          updateOne: {
+            filter: {
+              _id: facebookCampaign._id,
+              'creatives.name': preparedCreative.name,
+            },
+            update: {
+              $set: {
+                'creatives.$.creativeId': newCreativeId,
+                'creatives.$.status': 'CREATED',
+              },
+            },
+          },
         });
       }
 
@@ -1141,9 +1470,9 @@ export class FacebookCampaignService {
         `Successfully created ${createdAds.length} distinct ads.`,
       );
 
-      // Update the tracking document with the new list of Ads
+      // Save the newly created ad objects to the database
       await this.facebookCampaignModel.updateOne(
-        { campaignId, platform },
+        { _id: facebookCampaign._id },
         {
           $set: {
             ads: createdAds,
@@ -1154,6 +1483,11 @@ export class FacebookCampaignService {
           },
         },
       );
+
+      // Run a second update to add the new creative IDs to our records
+      if (creativeUpdates.length > 0) {
+        await this.facebookCampaignModel.bulkWrite(creativeUpdates);
+      }
 
       return {
         adsCreated: createdAds.length,
@@ -1193,6 +1527,9 @@ export class FacebookCampaignService {
         campaignId,
         platform,
       );
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Prevent re-launching
       if (
@@ -1231,15 +1568,24 @@ export class FacebookCampaignService {
       );
 
       // 1. Activate the Ad
-      await this.facebookMarketingApiService.updateStatus(adId, 'ACTIVE');
+      await this.facebookMarketingApiService.updateStatus(
+        userToken,
+        adId,
+        'ACTIVE',
+      );
       this.logger.log(`Ad ${adId} status now Active`);
 
       // 2. Activate the Ad Set
-      await this.facebookMarketingApiService.updateStatus(adSetId, 'ACTIVE');
+      await this.facebookMarketingApiService.updateStatus(
+        userToken,
+        adSetId,
+        'ACTIVE',
+      );
       this.logger.log(`Adset ${adSetId} status now Active`);
 
       // 3. Activate the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         fbCampaignId,
         'ACTIVE',
       );
@@ -1454,11 +1800,16 @@ export class FacebookCampaignService {
    * Helper method to upload multiple images and get their hashes.
    */
   private async uploadImagesToFacebook(
+    userAccessToken: string,
     adAccountId: string,
     imageUrls: string[],
   ): Promise<string[]> {
     const uploadPromises = imageUrls.map((url) =>
-      this.facebookMarketingApiService.uploadImageByUrl(adAccountId, url),
+      this.facebookMarketingApiService.uploadImageByUrl(
+        userAccessToken,
+        adAccountId,
+        url,
+      ),
     );
     const results = await Promise.all(uploadPromises);
     return results.map((res) => res.hash);
@@ -1469,10 +1820,7 @@ export class FacebookCampaignService {
   /**
    * Get Facebook campaign tracking document
    */
-  private async getFacebookCampaign(
-    campaignId: string,
-    platform: string,
-  ): Promise<FacebookCampaign> {
+  private async getFacebookCampaign(campaignId: string, platform: string) {
     const facebookCampaign = await this.facebookCampaignModel
       .findOne({ campaignId, platform })
       .exec();
@@ -1737,9 +2085,9 @@ export class FacebookCampaignService {
   // }
 
   /**
- * Pause an active campaign
- * This will pause the campaign, all ad sets, and all ads
- */
+   * Pause an active campaign
+   * This will pause the campaign, all ad sets, and all ads
+   */
   async pauseCampaign(
     userId: string,
     campaignId: string,
@@ -1752,9 +2100,9 @@ export class FacebookCampaignService {
       this.logger.debug(`Pausing campaign: ${campaignId} on ${platform}`);
 
       const facebookCampaign = await this.facebookCampaignModel.findOne({
-          id: campaignId,
-          userId,
-          platform,
+        id: campaignId,
+        userId,
+        platform,
       });
 
       if (!facebookCampaign) {
@@ -1762,6 +2110,10 @@ export class FacebookCampaignService {
           `Campaign not found for user: ${userId} and campaignId: ${campaignId}`,
         );
       }
+
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Validate that campaign is in a pausable state
       if (
@@ -1776,13 +2128,18 @@ export class FacebookCampaignService {
       // Pause in reverse order: Campaign -> Ad Sets -> Ads
       // 1. Pause all Ads first
       for (const ad of facebookCampaign.ads) {
-        await this.facebookMarketingApiService.updateStatus(ad.adId, 'PAUSED');
+        await this.facebookMarketingApiService.updateStatus(
+          userToken,
+          ad.adId,
+          'PAUSED',
+        );
         this.logger.log(`Ad ${ad.adId} paused`);
       }
 
       // 2. Pause all Ad Sets
       for (const adSet of facebookCampaign.adSets) {
         await this.facebookMarketingApiService.updateStatus(
+          userToken,
           adSet.adSetId,
           'PAUSED',
         );
@@ -1791,6 +2148,7 @@ export class FacebookCampaignService {
 
       // 3. Pause the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         facebookCampaign.facebookCampaignId as string,
         'PAUSED',
       );
@@ -1820,9 +2178,9 @@ export class FacebookCampaignService {
     }
   }
 
-/**
- * Resume a paused campaign
- */
+  /**
+   * Resume a paused campaign
+   */
   async resumeCampaign(
     userId: string,
     campaignId: string,
@@ -1835,9 +2193,9 @@ export class FacebookCampaignService {
       this.logger.debug(`Resuming campaign: ${campaignId} on ${platform}`);
 
       const facebookCampaign = await this.facebookCampaignModel.findOne({
-          id: campaignId,
-          userId,
-          platform,
+        id: campaignId,
+        userId,
+        platform,
       });
 
       if (!facebookCampaign) {
@@ -1845,6 +2203,9 @@ export class FacebookCampaignService {
           `Campaign not found for user: ${userId} and campaignId: ${campaignId}`,
         );
       }
+      const userToken = await this.getAndValidateUserToken(
+        facebookCampaign.userId,
+      );
 
       // Validate that campaign is paused
       if (facebookCampaign.facebookStatus !== 'PAUSED') {
@@ -1856,13 +2217,18 @@ export class FacebookCampaignService {
       // Resume in order: Ads -> Ad Sets -> Campaign
       // 1. Resume all Ads
       for (const ad of facebookCampaign.ads) {
-        await this.facebookMarketingApiService.updateStatus(ad.adId, 'ACTIVE');
+        await this.facebookMarketingApiService.updateStatus(
+          userToken,
+          ad.adId,
+          'ACTIVE',
+        );
         this.logger.log(`Ad ${ad.adId} resumed`);
       }
 
       // 2. Resume all Ad Sets
       for (const adSet of facebookCampaign.adSets) {
         await this.facebookMarketingApiService.updateStatus(
+          userToken,
           adSet.adSetId,
           'ACTIVE',
         );
@@ -1871,10 +2237,13 @@ export class FacebookCampaignService {
 
       // 3. Resume the Campaign
       await this.facebookMarketingApiService.updateStatus(
+        userToken,
         facebookCampaign.facebookCampaignId as string,
         'ACTIVE',
       );
-      this.logger.log(`Campaign ${facebookCampaign.facebookCampaignId} resumed`);
+      this.logger.log(
+        `Campaign ${facebookCampaign.facebookCampaignId} resumed`,
+      );
 
       // Update database
       await this.facebookCampaignModel.updateOne(

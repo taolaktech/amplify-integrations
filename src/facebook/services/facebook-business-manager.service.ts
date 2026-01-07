@@ -1,10 +1,8 @@
 import {
   BadRequestException,
-  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
@@ -26,20 +24,20 @@ export interface PermissionRequestResult {
 export class FacebookBusinessManagerService {
   private readonly logger = new Logger(FacebookBusinessManagerService.name);
   private readonly graph: AxiosInstance;
-  private readonly systemUserToken: string;
-  private readonly systemUserId: string;
-  private readonly businessId: string;
+  // private readonly systemUserToken: string;
+  // private readonly systemUserId: string;
+  // private readonly businessId: string;
 
   private readonly sandboxAdAccountId: string;
 
   constructor(private config: ConfigService) {
-    this.systemUserToken = this.config.get<string>(
-      'FACEBOOK_SYSTEM_USER_TOKEN',
-    ) as string;
-    this.systemUserId = this.config.get<string>(
-      'AMPLIFY_SYSTEM_USER_ID',
-    ) as string;
-    this.businessId = this.config.get<string>('AMPLIFY_BUSINESS_ID') as string;
+    // this.systemUserToken = this.config.get<string>(
+    //   'FACEBOOK_SYSTEM_USER_TOKEN',
+    // ) as string;
+    // this.systemUserId = this.config.get<string>(
+    //   'AMPLIFY_SYSTEM_USER_ID',
+    // ) as string;
+    // this.businessId = this.config.get<string>('AMPLIFY_BUSINESS_ID') as string;
 
     this.sandboxAdAccountId = this.config.get<string>(
       'SANDBOX_AD_ACCOUNT_ID',
@@ -47,9 +45,6 @@ export class FacebookBusinessManagerService {
 
     this.graph = axios.create({
       baseURL: 'https://graph.facebook.com/v23.0',
-      params: {
-        access_token: this.systemUserToken,
-      },
     });
   }
 
@@ -79,236 +74,10 @@ export class FacebookBusinessManagerService {
   }
 
   /**
-   * Request system user access to user's ad account
-   */
-  async requestSystemUserAccess(
-    request: SystemUserAssignmentRequest,
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      this.logger.debug(
-        `Requesting system user access to ad account: ${request.adAccountId}`,
-      );
-
-      // Step 1: Create permission request
-      const response = await this.graph.post(
-        `/${request.adAccountId}/assigned_users`,
-        {
-          user: this.systemUserId,
-          tasks: request.permissions, // ['MANAGE', 'ADVERTISE', 'ANALYZE']
-        },
-      );
-
-      this.logger.debug('System user assignment response:', response.data);
-      // Facebook returns: { "success": true } on successful assignment
-      if (response.data.success) {
-        return {
-          success: true,
-          message: 'System user successfully assigned to ad account',
-        };
-      } else {
-        throw new InternalServerErrorException(
-          'Assignment request did not return success',
-        );
-      }
-    } catch (error) {
-      this.logger.error('Failed to request system user access', {
-        error: error.response?.data,
-        adAccountId: request.adAccountId,
-        systemUserId: this.systemUserId,
-      });
-
-      const errorCode = error.response?.data?.error?.code;
-      const errorMessage = error.response?.data?.error?.message;
-
-      if (errorCode === 100) {
-        throw new BadRequestException(
-          `Invalid system user ID or ad account format: ${errorMessage}`,
-        );
-      }
-
-      if (errorCode === 190) {
-        throw new UnauthorizedException(
-          `Invalid system user token: ${errorMessage}`,
-        );
-      }
-
-      if (errorCode === 200) {
-        throw new BadRequestException(
-          'Insufficient permissions to assign users to this ad account',
-        );
-      }
-
-      throw new InternalServerErrorException(
-        `Failed to request system user access: ${errorMessage}`,
-      );
-    }
-  }
-
-  /**
-   * Check the status of system user permissions
-   */
-  async checkSystemUserAssignment(adAccountId: string): Promise<{
-    isAssigned: boolean;
-    grantedTasks: string[];
-    systemUserDetails?: any;
-  }> {
-    try {
-      const response = await this.graph.get(`/${adAccountId}/assigned_users`, {
-        params: {
-          // fields: 'id,name,email,tasks,status',
-          business: this.businessId,
-        },
-      });
-
-      const users = response.data.data || [];
-
-      // Find our system user by ID
-      // Note: System users might appear with different ID formats in responses
-      const systemUser = users.find((user: any) => {
-        // System users might have different ID representation
-        return (
-          user.id === this.systemUserId ||
-          user.id.toString() === this.systemUserId.toString()
-        );
-      });
-      if (systemUser) {
-        this.logger.debug(`System user found in ad account ${adAccountId}:`, {
-          id: systemUser.id,
-          name: systemUser.name,
-          tasks: systemUser.tasks,
-        });
-
-        return {
-          isAssigned: true,
-          grantedTasks: systemUser.tasks || [],
-          systemUserDetails: systemUser,
-        };
-      } else {
-        this.logger.debug(
-          `System user ${this.systemUserId} not found in ad account ${adAccountId}`,
-        );
-        return {
-          isAssigned: false,
-          grantedTasks: [],
-        };
-      }
-    } catch (error) {
-      this.logger.error(
-        'Failed to check system user assignment',
-        error.response?.data,
-      );
-
-      const errorCode = error.response?.data?.error?.code;
-      const errorMessage = error.response?.data?.error?.message;
-
-      if (errorCode === 190) {
-        throw new UnauthorizedException(
-          `Invalid system user token: ${errorMessage}`,
-        );
-      }
-
-      if (errorCode === 200) {
-        throw new BadRequestException(
-          `Insufficient permissions to check ad account users: ${errorMessage}`,
-        );
-      }
-
-      throw new InternalServerErrorException(
-        `Failed to check system user assignment: ${errorMessage}`,
-      );
-    }
-  }
-
-  /**
-   * Get system user capabilities for an ad account
-   */
-  async getSystemUserCapabilities(adAccountId: string): Promise<{
-    canCreateCampaigns: boolean;
-    canManageAds: boolean;
-    canViewInsights: boolean;
-    grantedTasks: string[];
-    missingTasks: string[];
-  }> {
-    try {
-      const assignment = await this.checkSystemUserAssignment(adAccountId);
-
-      if (!assignment.isAssigned) {
-        return {
-          canCreateCampaigns: false,
-          canManageAds: false,
-          canViewInsights: false,
-          grantedTasks: [],
-          missingTasks: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
-        };
-      }
-
-      const grantedTasks = assignment.grantedTasks;
-      const requiredTasks = ['MANAGE', 'ADVERTISE', 'ANALYZE'];
-      const missingTasks = requiredTasks.filter(
-        (task) => !grantedTasks.includes(task),
-      );
-
-      return {
-        canCreateCampaigns:
-          grantedTasks.includes('ADVERTISE') && grantedTasks.includes('MANAGE'),
-        canManageAds: grantedTasks.includes('MANAGE'),
-        canViewInsights: grantedTasks.includes('ANALYZE'),
-        grantedTasks,
-        missingTasks,
-      };
-    } catch (error) {
-      this.logger.error('Failed to get system user capabilities', error);
-      return {
-        canCreateCampaigns: false,
-        canManageAds: false,
-        canViewInsights: false,
-        grantedTasks: [],
-        missingTasks: ['MANAGE', 'ADVERTISE', 'ANALYZE'],
-      };
-    }
-  }
-
-  /**
-   * Remove system user access from ad account
-   */
-  async removeSystemUserAccess(adAccountId: string): Promise<void> {
-    try {
-      const response = await this.graph.delete(
-        `/${adAccountId}/assigned_users`,
-        {
-          data: {
-            user: this.systemUserId,
-          },
-        },
-      );
-
-      this.logger.debug(
-        `System user removed from ad account ${adAccountId}:`,
-        response.data,
-      );
-
-      if (!response.data.success) {
-        throw new InternalServerErrorException(
-          'Remove operation did not return success',
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        'Failed to remove system user access',
-        error.response?.data,
-      );
-
-      const errorMessage = error.response?.data?.error?.message;
-      throw new InternalServerErrorException(
-        `Failed to remove system user access: ${errorMessage}`,
-      );
-    }
-  }
-
-  /**
    * Creates a new Ad Set within a campaign.
    */
   async createAdSet(
+    userAccessToken: string,
     adAccountId: string,
     campaignId: string,
     name: string,
@@ -346,6 +115,7 @@ export class FacebookBusinessManagerService {
         is_dynamic_creative: true,
         start_time: startDate,
         end_time: endDate,
+        access_token: userAccessToken, // Use the provided user token
       });
       return response.data;
     } catch (error) {
@@ -435,6 +205,7 @@ export class FacebookBusinessManagerService {
    * @see https://developers.facebook.com/docs/marketing-api/reference/ad-account/adimages/#Creating
    */
   async uploadImageByUrl(
+    userAccessToken: string,
     adAccountId: string,
     imageDataOrUrl: string,
   ): Promise<{ hash: string; url: string }> {
@@ -469,6 +240,7 @@ export class FacebookBusinessManagerService {
 
       const response = await this.graph.post(`/${adAccountId}/adimages`, {
         bytes: base64Image,
+        access_token: userAccessToken, // Use the provided user token
       });
       this.logger.debug('Successfully uploaded images', {
         response: response.data,
@@ -595,6 +367,56 @@ export class FacebookBusinessManagerService {
     } catch (error) {
       this.logger.error(
         'Facebook API Error: Failed to create flexible creative',
+        error.response?.data,
+      );
+      throw new InternalServerErrorException(
+        `Facebook API Error: ${error.response?.data?.error?.message}`,
+      );
+    }
+  }
+
+  /**
+   * Creates a dynamic ad and its creative in a single API call.
+   */
+  async createDynamicAd(
+    userAccessToken: string,
+    adAccountId: string,
+    adSetId: string,
+    adName: string,
+    creativeSpec: {
+      name: string;
+      object_story_spec: any;
+      asset_feed_spec: any;
+    },
+  ): Promise<any> {
+    try {
+      this.logger.debug(`Creating dynamic ad '${adName}' in Ad Set ${adSetId}`);
+
+      const payload = {
+        name: adName,
+        adset_id: adSetId,
+        creative: creativeSpec,
+        status: 'PAUSED',
+        access_token: userAccessToken, // Use the provided user token
+      };
+
+      const response = await this.graph.post(`/${adAccountId}/ads`, payload, {
+        params: {
+          /**
+           * using read after write @see https://developers.facebook.com/docs/graph-api/overview#read-after-write
+           */
+          fields: 'id,creative',
+        },
+      });
+
+      this.logger.debug(
+        `Dynamic Ad '${adName}' created successfully with ID: ${response.data.id}`,
+      );
+      // The response for this call includes the ID of the ad AND the implicitly created creative
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Facebook API Error: Failed to create dynamic ad '${adName}'`,
         error.response?.data,
       );
       throw new InternalServerErrorException(
@@ -731,6 +553,7 @@ export class FacebookBusinessManagerService {
    * @returns A boolean indicating success.
    */
   async updateStatus(
+    userAccessToken: string,
     componentId: string,
     status: 'ACTIVE' | 'PAUSED',
   ): Promise<boolean> {
@@ -740,6 +563,7 @@ export class FacebookBusinessManagerService {
       );
       const response = await this.graph.post(`/${componentId}`, {
         status,
+        access_token: userAccessToken, // Use the provided user token
       });
 
       if (response.data.success) {
@@ -771,6 +595,7 @@ export class FacebookBusinessManagerService {
    * @returns The response from the Facebook Graph API, containing the new campaign's ID.
    */
   async createCampaign(
+    userAccessToken: string,
     adAccountId: string,
     name: string,
   ): Promise<{ id: string; [key: string]: any }> {
@@ -786,6 +611,7 @@ export class FacebookBusinessManagerService {
         objective: 'OUTCOME_SALES', // As per Miro notes for e-commerce simplicity
         status: 'PAUSED', // Always create campaigns in a paused state. We activate them in the final "launch" step.
         special_ad_categories: [], // Assuming we are not dealing with special categories like credit, housing, etc.
+        access_token: userAccessToken, // Use the provided user token
       });
 
       this.logger.debug(
@@ -842,7 +668,10 @@ export class FacebookBusinessManagerService {
    * @param adIds The list of Ad IDs to fetch insights for.
    * @returns A promise that resolves to an array of insight data from the API.
    */
-  async getAdInsights(adIds: string[]): Promise<any[]> {
+  async getAdInsights(
+    userAccessToken: string,
+    adIds: string[],
+  ): Promise<any[]> {
     try {
       if (adIds.length === 0) {
         return [];
@@ -876,6 +705,7 @@ export class FacebookBusinessManagerService {
 
       const response = await this.graph.post('/', {
         batch: JSON.stringify(batchRequests),
+        access_token: userAccessToken, // Use the provided user token
       });
 
       // Process the batch response
@@ -905,7 +735,10 @@ export class FacebookBusinessManagerService {
    * @param campaignIds The list of Campaign IDs to fetch insights for.
    * @returns A promise that resolves to an array of insight data from the API.
    */
-  async getCampaignInsights(campaignIds: string[]): Promise<any[]> {
+  async getCampaignInsights(
+    userAccessToken: string,
+    campaignIds: string[],
+  ): Promise<any[]> {
     try {
       if (campaignIds.length === 0) {
         return [];
@@ -940,6 +773,7 @@ export class FacebookBusinessManagerService {
 
       const response = await this.graph.post('/', {
         batch: JSON.stringify(batchRequests),
+        access_token: userAccessToken, // Use the provided user token
       });
 
       // Process the batch response
