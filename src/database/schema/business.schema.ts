@@ -65,24 +65,6 @@ class ShopifyIntegration {
 }
 
 @Schema({ _id: false })
-class GoogleAdsConversionAction {
-  @Prop()
-  resourceName: string;
-
-  @Prop()
-  id: string;
-
-  @Prop()
-  tag?: string;
-
-  @Prop()
-  label?: string;
-
-  @Prop({ type: mongoose.Schema.Types.Mixed })
-  tagSnippets: any[];
-}
-
-@Schema({ _id: false })
 class GoogleAdsIntegration {
   @Prop({ type: Types.ObjectId, ref: 'google-ads-accounts' })
   primaryAdAccountConnection: Types.ObjectId;
