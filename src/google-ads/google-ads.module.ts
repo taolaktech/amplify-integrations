@@ -40,5 +40,6 @@ import { GoogleAdsCampaignOrchestrationModule } from './campaign-orchestration/g
     JwtService,
   ],
   controllers: [GoogleAdsAuthController, GoogleAdsCustomersController],
+  exports: [GoogleAdsAuthService],
 })
 export class GoogleAdsModule {}

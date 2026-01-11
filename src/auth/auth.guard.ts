@@ -9,7 +9,7 @@ import { AppConfigService } from 'src/config/config.service';
 import { IS_PUBLIC_KEY, SKIP_API_KEY_AUTH_KEY } from './decorators';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
+export class ApiKeyAuthGuard implements CanActivate {
   constructor(
     private configService: AppConfigService,
     private reflector: Reflector,

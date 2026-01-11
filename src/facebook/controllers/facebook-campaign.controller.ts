@@ -15,7 +15,7 @@ import {
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TokenAuthGuard } from 'src/auth/token-auth.guard';
 import { ExtendedRequest } from 'src/common/interfaces/request.interface';
-import { Public } from '../../auth/decorators';
+import { Public, SkipApiKeyAuth } from '../../auth/decorators';
 import { InitializeCampaignDto } from '../dtos/campaign.dto';
 import { RetryStepDto } from '../dtos/retry-step.dto';
 import { FacebookAuthService } from '../facebook-auth/facebook-auth.service';
@@ -394,7 +394,7 @@ export class FacebookCampaignController {
 
   // =================== END LAMBDA CALLS ===================
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Post(':campaignId/pause')
   @HttpCode(HttpStatus.OK)
@@ -426,7 +426,7 @@ export class FacebookCampaignController {
     };
   }
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Post(':campaignId/resume')
   @HttpCode(HttpStatus.OK)

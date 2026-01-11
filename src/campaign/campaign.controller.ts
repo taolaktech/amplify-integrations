@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
-import { Public } from 'src/auth/decorators';
 import {
   ApiOperation,
   ApiProperty,
@@ -23,6 +22,7 @@ import { TokenAuthGuard } from 'src/auth/token-auth.guard';
 import { ExtendedRequest } from 'src/common/interfaces/request.interface';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { ListCampaignsDto } from './dto/list-campaigns.dto';
+import { SkipApiKeyAuth } from 'src/auth/decorators';
 
 class PaginationMeta {
   @ApiProperty()
@@ -70,7 +70,7 @@ class CampaignResponse {
 export class CampaignController {
   constructor(private readonly campaignService: CampaignService) {}
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Post()
   @ApiOperation({
@@ -112,7 +112,7 @@ export class CampaignController {
     };
   }
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Update an existing campaign' })
@@ -150,7 +150,7 @@ export class CampaignController {
     };
   }
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Get()
   @ApiOperation({ summary: 'List campaigns for the authenticated user' })
@@ -177,8 +177,8 @@ export class CampaignController {
     };
   }
 
-  @Public()
-  @Get(':id')
+  @SkipApiKeyAuth()
+  @UseGuards(TokenAuthGuard)
   @ApiOperation({
     summary: 'Get a single campaign by ID',
     description:

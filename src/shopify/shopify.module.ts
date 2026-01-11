@@ -15,5 +15,6 @@ import { ShopifyAuthService } from './api/auth';
     ShopifyGraphqlAdminApi,
   ],
   controllers: [ShopifyController],
+  exports: [ShopifyService],
 })
 export class ShopifyModule {}

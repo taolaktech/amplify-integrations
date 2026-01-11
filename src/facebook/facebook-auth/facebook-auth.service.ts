@@ -52,6 +52,95 @@ export class FacebookAuthService {
     private facebookBusinessManagerService: FacebookBusinessManagerService,
   ) {}
 
+  async disconnectFacebook(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    const adAccountId = (business as any)?.integrations?.facebook?.adAccountId;
+    const pageId = (business as any)?.integrations?.facebook?.pageId;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.facebook': 1,
+        },
+      },
+    );
+
+    if (adAccountId) {
+      await this.facebookAdAccountModel.updateOne(
+        { userId, accountId: adAccountId },
+        {
+          $set: {
+            isPrimary: false,
+            integrationStatus: 'SETUP_INCOMPLETE',
+          },
+          $unset: {
+            metaPixelId: 1,
+            selectedPrimaryFacebookPageId: 1,
+          },
+        },
+      );
+    }
+
+    if (pageId) {
+      await this.facebookPageModel.updateOne(
+        { userId, pageId },
+        {
+          $set: {
+            isPrimaryPage: false,
+          },
+          $unset: {
+            connectedInstagramAccountId: 1,
+          },
+        },
+      );
+    }
+
+    return { disconnected: true };
+  }
+
+  async disconnectInstagram(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    const instagramAccountId = (business as any)?.integrations?.instagram
+      ?.instagramAccountId;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.instagram': 1,
+        },
+      },
+    );
+
+    if (instagramAccountId) {
+      await this.instagramAccountModel.updateOne(
+        { userId, instagramAccountId },
+        {
+          $set: {
+            isPrimary: false,
+          },
+          $unset: {
+            accessToken: 1,
+            associatedAdAccountId: 1,
+          },
+        },
+      );
+    }
+
+    return { disconnected: true };
+  }
+
   getAuthRedirectURL(
     state: string,
     platforms: string[] = ['facebook'],

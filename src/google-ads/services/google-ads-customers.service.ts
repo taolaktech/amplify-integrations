@@ -14,8 +14,9 @@ import { DateTime } from 'luxon';
 export class GoogleAdsCustomersService {
   private normalizeCustomerId(value: string) {
     const raw = String(value || '').trim();
-    const match = raw.match(/^customers\/(\d+)$/i);
-    return match ? match[1] : raw;
+    const withoutPrefix = raw.replace(/^\/?customers\//i, '');
+    const match = withoutPrefix.match(/^(\d+)$/);
+    return match ? match[1] : withoutPrefix;
   }
 
   constructor(
@@ -58,10 +59,13 @@ export class GoogleAdsCustomersService {
       const accessibleCustomerResourceNames =
         accessibleCustomers.resourceNames || [];
 
+      const normalizedAccessibleCustomerIds =
+        accessibleCustomerResourceNames.map((c) => this.normalizeCustomerId(c));
+
       const primaryAdAccountState =
         connection.primaryCustomerAccount &&
-        !accessibleCustomerResourceNames.includes(
-          connection.primaryCustomerAccount,
+        !normalizedAccessibleCustomerIds.includes(
+          this.normalizeCustomerId(connection.primaryCustomerAccount),
         )
           ? 'DISCONNECTED'
           : 'CONNECTED';
@@ -130,7 +134,11 @@ export class GoogleAdsCustomersService {
       throw new NotFoundException('Google Ads connection not found');
     }
 
-    const primaryAdAccountState = connection.accessibleCustomers?.includes(
+    const normalizedAccessibleCustomerIds =
+      connection.accessibleCustomers?.map((c) => this.normalizeCustomerId(c)) ||
+      [];
+
+    const primaryAdAccountState = normalizedAccessibleCustomerIds.includes(
       primaryCustomerAccount,
     )
       ? 'CONNECTED'

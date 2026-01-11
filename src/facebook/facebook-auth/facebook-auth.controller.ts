@@ -17,7 +17,7 @@ import { Response } from 'express';
 import { FacebookCallbackQueryDto } from './dtos/facebook-auth-query.dto';
 // import { AuthGuard } from 'src/auth/auth.guard';
 import { ExtendedRequest } from 'src/common/interfaces/request.interface';
-import { Public } from 'src/auth/decorators';
+import { SkipApiKeyAuth } from 'src/auth/decorators';
 import { FacebookTokenMonitorService } from '../services/facebook-token-monitor.service';
 import { SelectPrimaryAdAccountDto } from './dtos/select-primary-ad-account.dto';
 import { TokenAuthGuard } from 'src/auth/token-auth.guard';
@@ -46,7 +46,7 @@ import { SelectPrimaryInstagramAccountDto } from './dtos/select-primary-instagra
 
 @ApiTags('Facebook Authentication')
 @ApiBearerAuth()
-@Public()
+@SkipApiKeyAuth()
 @Controller('facebook-auth')
 export class FacebookAuthController {
   constructor(
@@ -54,7 +54,6 @@ export class FacebookAuthController {
     private readonly facebookTokenMonitorService: FacebookTokenMonitorService,
   ) {}
 
-  @Public()
   @UseGuards(TokenAuthGuard)
   @Get()
   @ApiOperation({
@@ -102,7 +101,7 @@ export class FacebookAuthController {
   }
 
   // no longer public as Facebook will call a frontend url which will then call this
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Get('callback')
   @ApiOperation({
@@ -646,7 +645,7 @@ export class FacebookAuthController {
     return parts.join(', ').replace(/,(?=[^,]*$)/, ' and');
   }
 
-  @Public()
+  @SkipApiKeyAuth()
   @UseGuards(TokenAuthGuard)
   @Get('ad-accounts/:adAccountId/pages')
   @ApiOperation({

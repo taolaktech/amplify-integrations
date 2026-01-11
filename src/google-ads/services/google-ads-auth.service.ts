@@ -30,6 +30,48 @@ export class GoogleAdsAuthService {
     private businessModel: Model<Business>,
   ) {}
 
+  async disconnectGoogleAds(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    const connectionId = (business as any)?.integrations?.googleAds
+      ?.primaryAdAccountConnection;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.googleAds': 1,
+        },
+      },
+    );
+
+    if (connectionId) {
+      await this.googleAdsAccountModel.updateOne(
+        { _id: connectionId, userId: userObjectId },
+        {
+          $set: {
+            primaryAdAccountState: 'DISCONNECTED',
+          },
+          $unset: {
+            accessToken: 1,
+            accessTokenExpiresAt: 1,
+            refreshToken: 1,
+            refreshTokenExpiresAt: 1,
+            primaryCustomerAccount: 1,
+            accessibleCustomers: 1,
+            lastAccessibleCustomersFetchAt: 1,
+          },
+        },
+      );
+    }
+
+    return { disconnected: true };
+  }
+
   async getGoogleAuthUrl(userId: string): Promise<string> {
     const state = this.generateStateToken({ userId });
     return this.googleAdsAuthApiService.getGoogleAuthUrl(state);
