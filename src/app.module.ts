@@ -7,13 +7,14 @@ import { DatabaseModule } from './database/database.module';
 import { ShopifyModule } from './shopify/shopify.module';
 import { ConfigModule } from '@nestjs/config';
 import { FacebookModule } from './facebook/facebook.module';
-import { APP_GUARD } from '@nestjs/core';
 import { GoogleAdsModule } from './google-ads/google-ads.module';
-import { AuthGuard } from './auth/auth.guard';
 import { ShopifyWebhookModule } from './webhook/shopify-webhook.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     AppConfigModule,
     DatabaseModule,
     HealthcheckModule,
@@ -24,14 +25,9 @@ import { ShopifyWebhookModule } from './webhook/shopify-webhook.module';
       isGlobal: true,
     }),
     FacebookModule,
+    IntegrationsModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard,
-    },
-  ],
+  providers: [AppService],
 })
 export class AppModule {}

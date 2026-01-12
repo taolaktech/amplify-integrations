@@ -47,7 +47,7 @@ export class FacebookAdAccount {
   @Prop({ type: mongoose.Types.ObjectId, ref: 'users' })
   userId: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   accountId: string; // "
 
   @Prop()
@@ -116,3 +116,5 @@ export class FacebookAdAccount {
 
 export const FacebookAdAccountSchema =
   SchemaFactory.createForClass(FacebookAdAccount);
+
+FacebookAdAccountSchema.index({ userId: 1, accountId: 1 }, { unique: true });

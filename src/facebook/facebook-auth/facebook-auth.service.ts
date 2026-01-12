@@ -52,6 +52,95 @@ export class FacebookAuthService {
     private facebookBusinessManagerService: FacebookBusinessManagerService,
   ) {}
 
+  async disconnectFacebook(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    const adAccountId = (business as any)?.integrations?.facebook?.adAccountId;
+    const pageId = (business as any)?.integrations?.facebook?.pageId;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.facebook': 1,
+        },
+      },
+    );
+
+    if (adAccountId) {
+      await this.facebookAdAccountModel.updateOne(
+        { userId, accountId: adAccountId },
+        {
+          $set: {
+            isPrimary: false,
+            integrationStatus: 'SETUP_INCOMPLETE',
+          },
+          $unset: {
+            metaPixelId: 1,
+            selectedPrimaryFacebookPageId: 1,
+          },
+        },
+      );
+    }
+
+    if (pageId) {
+      await this.facebookPageModel.updateOne(
+        { userId, pageId },
+        {
+          $set: {
+            isPrimaryPage: false,
+          },
+          $unset: {
+            connectedInstagramAccountId: 1,
+          },
+        },
+      );
+    }
+
+    return { disconnected: true };
+  }
+
+  async disconnectInstagram(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    const instagramAccountId = (business as any)?.integrations?.instagram
+      ?.instagramAccountId;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.instagram': 1,
+        },
+      },
+    );
+
+    if (instagramAccountId) {
+      await this.instagramAccountModel.updateOne(
+        { userId, instagramAccountId },
+        {
+          $set: {
+            isPrimary: false,
+          },
+          $unset: {
+            accessToken: 1,
+            associatedAdAccountId: 1,
+          },
+        },
+      );
+    }
+
+    return { disconnected: true };
+  }
+
   getAuthRedirectURL(
     state: string,
     platforms: string[] = ['facebook'],
@@ -378,32 +467,25 @@ export class FacebookAuthService {
     for (const account of adAccounts) {
       const adAccountPages = await this.fetchAdAccountPages(account.id, token);
       const existingAccount = await this.facebookAdAccountModel.findOne({
+        userId,
         accountId: account.id,
       });
 
       if (existingAccount) {
-        // If account exists, check if it belongs to the current user.
-        if (existingAccount.userId.toString() !== userId) {
-          // It belongs to another user. Throw a conflict error.
-          throw new ConflictException(
-            `Ad Account "${account.name}" (${account.id}) is already connected to another user on the platform.`,
-          );
-        } else {
-          await this.facebookAdAccountModel.updateOne(
-            { accountId: account.id },
-            {
-              $set: {
-                name: account.name,
-                currency: account.currency,
-                accountStatus: account.account_status,
-                businessName: account.business_name,
-                capabilities: account.capabilities,
-                pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
-                updatedAt: new Date(),
-              },
+        await this.facebookAdAccountModel.updateOne(
+          { userId, accountId: account.id },
+          {
+            $set: {
+              name: account.name,
+              currency: account.currency,
+              accountStatus: account.account_status,
+              businessName: account.business_name,
+              capabilities: account.capabilities,
+              pages: adAccountPages, //.map((page) => page.id), // store associated page Ids
+              updatedAt: new Date(),
             },
-          );
-        }
+          },
+        );
       } else {
         await this.facebookAdAccountModel.create({
           userId,
@@ -1168,6 +1250,16 @@ export class FacebookAuthService {
           'Selected Facebook Page not found or does not belong to the user.',
         );
       }
+
+      // 3. Store the selected page reference on the ad account so campaign creation can resolve it
+      await this.facebookAdAccountModel.updateOne(
+        { userId, accountId: adAccountId },
+        {
+          $set: {
+            selectedPrimaryFacebookPageId: selectedPage._id.toString(),
+          },
+        },
+      );
 
       // 3. If Instagram account is provided, set it as primary
       if (instagramAccountId) {

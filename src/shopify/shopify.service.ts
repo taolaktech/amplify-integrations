@@ -237,8 +237,16 @@ export class ShopifyService {
   }
 
   async getShop(dto: GetShopDto) {
-    const res = await this.shopifyGraphqlAdminApi.getShop(dto);
-    return res.body.data;
+    try {
+      const response = await this.shopifyGraphqlAdminApi.getShop(dto);
+
+      return response.body.data;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Something Went Wrong');
+    }
   }
 
   async getShopBrandingDetails(dto: GetShopBrandingDto) {
@@ -300,23 +308,22 @@ export class ShopifyService {
       const valid = await this.shopifyGraphqlAdminApi.isValidateWebhook(
         raw,
         req,
-        res
+        res,
       );
 
       if (!valid) {
         console.error('❌ Invalid Shopify Webhook');
-        throw new BadRequestException("Invalid webhook");
+        throw new BadRequestException('Invalid webhook');
       }
 
       this.logger.debug('✅ Verified Shopify Webhook');
 
-      const topic = 
-      req.headers['x-shopify-topic'] ||
-      req.headers['X-Shopify-Topic'];
+      const topic =
+        req.headers['x-shopify-topic'] || req.headers['X-Shopify-Topic'];
 
       const domain =
-      req.headers['x-shopify-shop-domain'] ||
-      req.headers['X-Shopify-Shop-Domain'];
+        req.headers['x-shopify-shop-domain'] ||
+        req.headers['X-Shopify-Shop-Domain'];
 
       switch (topic) {
         case 'app/uninstalled':
@@ -343,5 +350,42 @@ export class ShopifyService {
       }
       throw new InternalServerErrorException('Something Went Wrong');
     }
+  }
+
+  async disconnectShopify(userId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel.findOne({ userId: userObjectId });
+    const shopifyAccountId = (business as any)?.integrations?.shopify
+      ?.shopifyAccount;
+
+    await this.businessModel.updateOne(
+      { userId: userObjectId },
+      {
+        $unset: {
+          'integrations.shopify': 1,
+        },
+      },
+    );
+
+    if (shopifyAccountId) {
+      await this.shopifyAccountModel.updateOne(
+        { _id: shopifyAccountId, belongsTo: userObjectId },
+        {
+          $set: {
+            accountStatus: ShopifyAccountStatus.DISCONNECTED,
+            disconnectedAt: new Date(),
+          },
+        },
+      );
+    }
+
+    const user = await this.usersModel.findById(userObjectId);
+    if (user) {
+      user.onboarding = { ...user.onboarding, shopifyAccountConnected: false };
+      await user.save();
+    }
+
+    return { disconnected: true };
   }
 }
