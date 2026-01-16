@@ -138,7 +138,8 @@ export class GoogleAdsResourceApiService {
       grant_type: params.grantType,
       refresh_token: params.refreshToken,
       code: params.code,
-      redirect_uri: `${this.config.get('API_URL')}/api/google-ads/auth/redirect`,
+      redirect_uri:
+        this.googleAdsSharedMethodsService.GOOGLE_ADS_OAUTH_REDIRECT_URL,
     };
     try {
       const response = await axios.post<GoogleTokensResult>(

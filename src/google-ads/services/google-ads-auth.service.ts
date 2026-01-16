@@ -174,7 +174,6 @@ export class GoogleAdsAuthService {
       );
 
       return {
-        tokensData,
         googleProfile,
         accessibleCustomers,
       };

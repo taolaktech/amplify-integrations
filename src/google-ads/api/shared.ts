@@ -1,14 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import * as querystring from 'querystring';
 import { AppConfigService } from 'src/config/config.service';
 import { GoogleTokensResult } from './resource-api/types';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class GoogleAdsSharedMethodsService {
+  private logger = new Logger(GoogleAdsSharedMethodsService.name);
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_ADS_DEVELOPER_TOKEN: string;
+  GOOGLE_ADS_OAUTH_REDIRECT_URL: string;
   GOOGLE_ADS_API_URL = 'https://googleads.googleapis.com';
   GOOGLE_ADS_VERSION = 'v20';
 
@@ -18,6 +21,7 @@ export class GoogleAdsSharedMethodsService {
     this.GOOGLE_ADS_DEVELOPER_TOKEN = this.config.get(
       'GOOGLE_ADS_DEVELOPER_TOKEN',
     );
+    this.GOOGLE_ADS_OAUTH_REDIRECT_URL = `${this.config.get('API_URL')}/api/google-ads/auth/redirect`;
   }
 
   private normalizeLoginCustomerId(value: string) {
@@ -63,7 +67,7 @@ export class GoogleAdsSharedMethodsService {
       grant_type: params.grantType,
       refresh_token: params.refreshToken,
       code: params.code,
-      redirect_uri: `${this.config.get('API_URL')}/api/google-ads/auth/redirect`,
+      redirect_uri: this.GOOGLE_ADS_OAUTH_REDIRECT_URL,
     };
     try {
       const response = await axios.post<GoogleTokensResult>(
@@ -77,7 +81,11 @@ export class GoogleAdsSharedMethodsService {
       );
       return response.data;
     } catch (err: any) {
-      console.error('error getting tokens');
+      if (err?.response?.data) {
+        this.logger.error(err?.response?.data);
+      } else {
+        this.logger.error(err);
+      }
       throw err;
     }
   }
