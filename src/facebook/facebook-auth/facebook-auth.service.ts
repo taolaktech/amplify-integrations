@@ -1744,38 +1744,28 @@ export class FacebookAuthService {
   ): Promise<void> {
     try {
       for (const account of instagramAccounts) {
-        const existing = await this.instagramAccountModel.findOne({
-          instagramAccountId: account.id,
-        });
-
-        // During OAuth, we don't set associatedAdAccountId yet
-        // We'll set it later when the user selects a primary ad account
-
-        if (existing) {
-          await this.instagramAccountModel.updateOne(
-            { instagramAccountId: account.id },
-            {
-              $set: {
-                username: account.username,
-                accountType: account.account_type,
-                followersCount: account.followers_count,
-                pageId: account.pageId,
-                // Don't set associatedAdAccountId during OAuth
-                updatedAt: new Date(),
-              },
+        // During OAuth, we don't set associatedAdAccountId yet.
+        // We'll set it later when the user selects a primary ad account.
+        // Use an upsert keyed by (userId, instagramAccountId) to be idempotent.
+        await this.instagramAccountModel.updateOne(
+          { userId, instagramAccountId: account.id },
+          {
+            $set: {
+              username: account.username,
+              accountType: account.account_type,
+              followersCount: account.followers_count,
+              pageId: account.pageId,
+              // Don't set associatedAdAccountId during OAuth
+              updatedAt: new Date(),
             },
-          );
-        } else {
-          await this.instagramAccountModel.create({
-            userId,
-            instagramAccountId: account.id,
-            username: account.username,
-            accountType: account.account_type,
-            followersCount: account.followers_count,
-            pageId: account.pageId,
-            // Don't set associatedAdAccountId during OAuth
-          });
-        }
+            $setOnInsert: {
+              userId,
+              instagramAccountId: account.id,
+              isPrimary: false,
+            },
+          },
+          { upsert: true },
+        );
       }
     } catch (error) {
       this.logger.error('Failed to persist Instagram accounts', error);
