@@ -9,7 +9,7 @@ export class InstagramAccount {
   @Prop({ required: true, index: true })
   userId: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   instagramAccountId: string;
 
   @Prop({ required: true })
@@ -37,3 +37,8 @@ export class InstagramAccount {
 
 export const InstagramAccountSchema =
   SchemaFactory.createForClass(InstagramAccount);
+
+InstagramAccountSchema.index(
+  { userId: 1, instagramAccountId: 1 },
+  { unique: true },
+);
