@@ -13,10 +13,9 @@ import { FacebookCampaign } from 'src/database/schema/facebook-campaign.schema';
 // DTO for campaign data coming from Amplify-Manager via Lambda
 export interface CampaignDataFromLambda {
   name: string;
-  id: string;
   campaignId: string; // MongoDB ObjectId as string
   pageId: string;
-  metaPixelId: string;
+  metaPixelId?: string;
   userId: string; // User who created the campaign
   businessId: string; // Business this campaign belongs to
   type: string; // Campaign type
@@ -30,8 +29,8 @@ export interface CampaignDataFromLambda {
   location: Array<{
     // Targeting locations
     country: string;
-    city: string;
-    state: string;
+    // city: string;
+    // state: string;
   }>;
   products: Array<{
     // Products to advertise
@@ -241,7 +240,7 @@ export class FacebookCampaignDataService {
 
       // Determine the final Ad Account ID to use
       let finalAdAccountId = userAdAccountId;
-      let finalMetaPixelId: string;
+      let finalMetaPixelId: string | undefined;
 
       // If Instagram is included but no Ad Account is provided, find it from Instagram
       if (
@@ -296,13 +295,7 @@ export class FacebookCampaignDataService {
         );
       }
 
-      if (!primaryAdAccount.metaPixelId) {
-        throw new BadRequestException(
-          `User ${campaignData.userId} has no configured Meta Pixel ID for ad account ${finalAdAccountId}.`,
-        );
-      }
-
-      finalMetaPixelId = primaryAdAccount.metaPixelId;
+      finalMetaPixelId = primaryAdAccount.metaPixelId; // metapixel id may be undefined
 
       const { facebookBudget, dailyBudget } =
         this.processCampaignDataForFacebook(campaignData);

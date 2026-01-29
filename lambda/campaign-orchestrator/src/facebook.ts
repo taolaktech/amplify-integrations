@@ -25,6 +25,8 @@ interface CampaignData {
   createdBy: string;
   status: string;
   businessId: string;
+  shopifyAccountId?: string;
+  name: string;
   type: string;
   brandColor: string;
   accentColor: string;
@@ -47,7 +49,7 @@ interface CampaignData {
     occasion?: string;
     features: string[];
     category: string;
-    imageLink: string;
+    imageLinks: string[];
     productLink: string;
     creatives: Array<{
       id: string;
@@ -56,18 +58,23 @@ interface CampaignData {
       data: string[];
     }>;
   }>;
+  updatedAt: string;
+  createdAt: string;
 }
 
 // --- Type Definitions ---
 interface CampaignDataRequest {
+  id: string;
   campaignId: string;
   pageId: string;
-  metaPixelId: string;
+  metaPixelId?: string;
+  shopifyAccountId?: string;
   userId: string;
   businessId: string;
   type: string;
   brandColor: string;
   accentColor: string;
+  name: string;
   tone: string;
   startDate: string;
   endDate: string;
@@ -87,7 +94,7 @@ interface CampaignDataRequest {
     occasion?: string;
     features: string[];
     category: string;
-    imageLink: string;
+    imageLinks: string[];
     productLink: string;
     creatives: Array<{
       id: string;
@@ -107,7 +114,7 @@ interface CampaignDataResponse {
 interface AdAccountData {
   accountId: string;
   pageId: string;
-  metaPixelId: string;
+  metaPixelId?: string;
   name: string;
   currency: string;
   integrationStatus: string;
@@ -128,6 +135,54 @@ interface StepResponse {
   nextStep?: string | null;
   message: string;
   data?: any;
+}
+
+function sanitizeCampaignDataForInitialize(
+  campaignData: CampaignData,
+  adAccountData: AdAccountData,
+): CampaignDataRequest {
+  const metaPixelId =
+    adAccountData.metaPixelId || process.env.FACEBOOK_META_PIXEL_ID;
+
+  return {
+    campaignId: campaignData._id,
+    id: campaignData._id,
+    userId: campaignData.createdBy,
+    businessId: campaignData.businessId,
+    ...(campaignData.shopifyAccountId
+      ? { shopifyAccountId: campaignData.shopifyAccountId }
+      : {}),
+    pageId: adAccountData.pageId,
+    ...(metaPixelId ? { metaPixelId } : {}),
+    type: campaignData.type,
+    brandColor: campaignData.brandColor,
+    accentColor: campaignData.accentColor,
+    tone: campaignData.tone,
+    startDate: campaignData.startDate,
+    endDate: campaignData.endDate,
+    totalBudget: campaignData.totalBudget,
+    platforms: ['FACEBOOK'],
+    location: campaignData.location,
+    name: campaignData.name,
+    products: campaignData.products.map((p) => ({
+      shopifyId: p.shopifyId,
+      title: p.title,
+      price: p.price,
+      description: p.description,
+      audience: p.audience,
+      occasion: p.occasion,
+      features: p.features,
+      category: p.category,
+      imageLinks: p.imageLinks,
+      productLink: p.productLink,
+      creatives: p.creatives.map((c) => ({
+        id: c.id,
+        channel: c.channel,
+        budget: c.budget,
+        data: c.data,
+      })),
+    })),
+  };
 }
 
 //  API Helper Functions
@@ -236,31 +291,11 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
         throw new Error('User has no ad account');
       }
 
-      const {
-        _id,
-        createdBy,
-        status,
-        createdAt,
-        updatedAt,
-        __v,
-        platforms,
-        ...rest
-      } = campaignData;
-
-      // strip out other values from platforms leaving only facebook
-      // let platformWithFacebookOnly = [];
-
       const initializePayload = {
-        campaignData: {
-          ...rest,
-          platforms: ['FACEBOOK'],
-          // set a random name on property type on each run
-          type: `Market Launch`,
-          campaignId: _id,
-          userId: createdBy,
-          pageId: adAccountData.pageId,
-          metaPixelId: adAccountData.metaPixelId,
-        },
+        campaignData: sanitizeCampaignDataForInitialize(
+          campaignData,
+          adAccountData,
+        ),
         userAdAccountId: adAccountData.accountId,
       };
 
