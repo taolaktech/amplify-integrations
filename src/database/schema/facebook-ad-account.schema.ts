@@ -99,7 +99,7 @@ export class FacebookAdAccount {
   @Prop({
     type: String,
   })
-  metaPixelId: string;
+  metaPixelId?: string;
 
   /**
    * Link to the selected Facebook Page to be used for advertising.

@@ -25,6 +25,8 @@ interface CampaignData {
   createdBy: string;
   status: string;
   businessId: string;
+  shopifyAccountId?: string;
+  name: string;
   type: string;
   brandColor: string;
   accentColor: string;
@@ -47,7 +49,7 @@ interface CampaignData {
     occasion?: string;
     features: string[];
     category: string;
-    imageLink: string;
+    imageLinks: string[];
     productLink: string;
     creatives: Array<{
       id: string;
@@ -56,13 +58,16 @@ interface CampaignData {
       data: string[];
     }>;
   }>;
+  updatedAt: string;
+  createdAt: string;
 }
 
 // --- Type Definitions ---
 interface CampaignDataRequest {
+  id: string;
   campaignId: string;
   pageId: string;
-  metaPixelId: string;
+  metaPixelId?: string;
   userId: string;
   businessId: string;
   type: string;
@@ -87,7 +92,7 @@ interface CampaignDataRequest {
     occasion?: string;
     features: string[];
     category: string;
-    imageLink: string;
+    imageLinks: string[];
     productLink: string;
     creatives: Array<{
       id: string;
@@ -303,6 +308,7 @@ export const main: SQSHandler = async (event: SQSEvent): Promise<void> => {
           ...rest,
           platforms: ['INSTAGRAM'], // Force Instagram-only
           type: `Instagram Market Launch`,
+          id: _id,
           campaignId: _id,
           userId: createdBy,
           pageId: instagramAccount.pageId, // Facebook Page associated with Instagram account
