@@ -2046,7 +2046,7 @@ export class FacebookAuthService {
   async getPrimaryAdAccountForCampaigns(userId: string): Promise<{
     accountId: string;
     pageId: string;
-    metaPixelId: string;
+    metaPixelId?: string;
     name?: string;
     currency?: string;
     integrationStatus: string;
@@ -2084,11 +2084,11 @@ export class FacebookAuthService {
         );
       }
 
-      if (!primaryAdAccount.metaPixelId) {
-        throw new BadRequestException(
-          `User ${userId} has no configured Meta Pixel ID for ad account ${primaryAdAccount.accountId}.`,
-        );
-      }
+      // if (!primaryAdAccount.metaPixelId) {
+      //   throw new BadRequestException(
+      //     `User ${userId} has no configured Meta Pixel ID for ad account ${primaryAdAccount.accountId}.`,
+      //   );
+      // }
 
       if (!primaryPage) {
         throw new NotFoundException(

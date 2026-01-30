@@ -24,22 +24,6 @@ export class CampaignLocationDto {
   @IsString()
   @IsNotEmpty()
   country: string;
-
-  @ApiProperty({
-    description: 'City name',
-    example: 'New York',
-  })
-  @IsString()
-  @IsNotEmpty()
-  city: string;
-
-  @ApiProperty({
-    description: 'State/Province code',
-    example: 'NY',
-  })
-  @IsString()
-  @IsNotEmpty()
-  state: string;
 }
 
 export class CreativeDto {
@@ -207,9 +191,9 @@ export class CampaignDataFromLambdaClass {
     description: 'Meta Pixel ID for tracking',
     example: '1234567890',
   })
-  @IsString()
+  @IsOptional()
   @IsNotEmpty()
-  metaPixelId: string;
+  metaPixelId?: string;
 
   @ApiProperty({
     description: 'User ID who created the campaign',

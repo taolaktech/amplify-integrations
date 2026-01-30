@@ -238,11 +238,6 @@ export class FacebookCampaignService {
 
       //  Get the user's Meta Pixel ID from the stored FacebookCampaign document
       const userMetaPixelId = facebookCampaign.metaPixelId; // We need to store this in facebookCampaign too!
-      if (!userMetaPixelId) {
-        throw new BadRequestException(
-          'User has no Meta Pixel ID configured for this ad account. It is required for sales campaigns.',
-        );
-      }
 
       // Update our internal status
       await this.updateProcessingStatus(
