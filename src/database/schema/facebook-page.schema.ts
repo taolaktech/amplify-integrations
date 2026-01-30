@@ -8,7 +8,7 @@ export class FacebookPage {
   @Prop({ required: true, index: true })
   userId: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   pageId: string;
 
   @Prop({ required: true })
@@ -29,3 +29,5 @@ export class FacebookPage {
 }
 
 export const FacebookPageSchema = SchemaFactory.createForClass(FacebookPage);
+
+FacebookPageSchema.index({ userId: 1, pageId: 1 }, { unique: true });
