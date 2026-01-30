@@ -247,13 +247,15 @@ export class FacebookAuthService {
   async saveUserPages(userId: string, pages: any[]): Promise<void> {
     try {
       for (const page of pages) {
+        const pageId = String(page.id);
         const existing = await this.facebookPageModel.findOne({
-          pageId: page.id,
+          userId,
+          pageId,
         });
 
         if (existing) {
           await this.facebookPageModel.updateOne(
-            { pageId: page.id },
+            { userId, pageId },
             {
               $set: {
                 pageName: page.name,
@@ -264,13 +266,23 @@ export class FacebookAuthService {
             },
           );
         } else {
-          await this.facebookPageModel.create({
-            userId,
-            pageId: page.id,
-            pageName: page.name,
-            pageCategory: page.category || null,
-            accessToken: page.access_token,
-          });
+          await this.facebookPageModel.updateOne(
+            { userId, pageId },
+            {
+              $set: {
+                userId,
+                pageId,
+                pageName: page.name,
+                pageCategory: page.category || null,
+                accessToken: page.access_token,
+                updatedAt: new Date(),
+              },
+              $setOnInsert: {
+                isPrimaryPage: false,
+              },
+            },
+            { upsert: true },
+          );
         }
       }
     } catch (error) {

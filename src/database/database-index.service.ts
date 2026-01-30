@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import {
   FacebookAdAccount,
   FacebookCampaign,
+  FacebookPage,
   InstagramAccount,
 } from './schema';
 
@@ -15,6 +16,8 @@ export class DatabaseIndexService implements OnApplicationBootstrap {
     private readonly facebookCampaignModel: Model<FacebookCampaign>,
     @InjectModel('facebook-ad-accounts')
     private readonly facebookAdAccountModel: Model<FacebookAdAccount>,
+    @InjectModel('facebook-pages')
+    private readonly facebookPageModel: Model<FacebookPage>,
     @InjectModel('instagram-accounts')
     private readonly instagramAccountModel: Model<InstagramAccount>,
   ) {}
@@ -30,7 +33,66 @@ export class DatabaseIndexService implements OnApplicationBootstrap {
   private async ensureCorrectIndexes() {
     await this.ensureFacebookCampaignIndexes();
     await this.ensureFacebookAdAccountIndexes();
+    await this.ensureFacebookPageIndexes();
     await this.ensureInstagramAccountIndexes();
+  }
+
+  private async ensureFacebookPageIndexes() {
+    const collection = this.facebookPageModel.collection;
+
+    const indexes = await collection.indexes();
+    console.log(
+      'Current facebook-pages indexes:',
+      JSON.stringify(indexes, null, 2),
+    );
+
+    // Drop any old *unique* index that only keys on pageId.
+    // This causes E11000 and cross-user collisions when multiple users have the same Page ID.
+    const oldUniquePageIdIndexes = indexes.filter(
+      (index) =>
+        index.unique === true &&
+        index.key &&
+        Object.keys(index.key).length === 1 &&
+        index.key.pageId === 1,
+    );
+
+    const compositeIndexExists = indexes.some(
+      (index) =>
+        index.unique === true &&
+        index.key &&
+        index.key.userId === 1 &&
+        index.key.pageId === 1,
+    );
+
+    for (const oldIndex of oldUniquePageIdIndexes) {
+      try {
+        console.log(`Dropping old facebook-pages index: ${oldIndex.name}`);
+        await collection.dropIndex(oldIndex.name as unknown as any);
+      } catch (error) {
+        console.error(
+          `Failed to drop facebook-pages index ${oldIndex.name}:`,
+          error,
+        );
+      }
+    }
+
+    if (!compositeIndexExists) {
+      try {
+        console.log('Creating facebook-pages composite index...');
+        await collection.createIndex(
+          { userId: 1, pageId: 1 },
+          { unique: true, name: 'userId_1_pageId_1' },
+        );
+        console.log('Created facebook-pages composite index');
+      } catch (error) {
+        console.error(
+          'Failed to create facebook-pages composite index:',
+          error,
+        );
+      }
+    } else {
+      console.log('Facebook-pages composite index already exists');
+    }
   }
 
   private async ensureFacebookCampaignIndexes() {
