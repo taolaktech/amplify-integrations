@@ -35,8 +35,12 @@ export class ApiKeyAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     const apiKey = this.configService.get('API_KEY');
+    const internalRequestToken = this.configService.get(
+      'INTERNAL_REQUEST_TOKEN',
+    );
+    const providedKey = request.headers['x-api-key'];
 
-    if (apiKey !== request.headers['x-api-key']) {
+    if (providedKey !== apiKey && providedKey !== internalRequestToken) {
       throw new ForbiddenException('FORBIDDEN');
     }
 

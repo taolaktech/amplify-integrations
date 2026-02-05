@@ -11,12 +11,15 @@ import { GoogleAdsModule } from './google-ads/google-ads.module';
 import { ShopifyWebhookModule } from './webhook/shopify-webhook.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AuthModule } from './auth/auth.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { VideoGenerationModule } from './video-generation/video-generation.module';
 
 @Module({
   imports: [
     AuthModule,
     AppConfigModule,
     DatabaseModule,
+    ScheduleModule.forRoot(),
     HealthcheckModule,
     ShopifyModule,
     ShopifyWebhookModule,
@@ -26,6 +29,7 @@ import { AuthModule } from './auth/auth.module';
     }),
     FacebookModule,
     IntegrationsModule,
+    VideoGenerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

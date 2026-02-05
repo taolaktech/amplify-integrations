@@ -16,9 +16,10 @@ import {
   GoogleAdsAccountSchema,
   GoogleAdsCampaignSchema,
   GoogleAdsConversionActionSchema,
+  VideoGenerationJobSchema,
+  CreativeSchema,
 } from './schema';
 import { DatabaseIndexService } from './database-index.service';
-// import { BusinessSchema, ShopifyAccountSchema, UserSchema } from './schema';
 
 @Global()
 @Module({
@@ -45,6 +46,8 @@ import { DatabaseIndexService } from './database-index.service';
       { name: 'instagram-accounts', schema: InstagramAccountSchema },
       { name: 'google-ads-accounts', schema: GoogleAdsAccountSchema },
       { name: 'google-ads-campaigns', schema: GoogleAdsCampaignSchema },
+      { name: 'creatives', schema: CreativeSchema },
+      { name: 'video-generation-jobs', schema: VideoGenerationJobSchema },
       {
         name: 'google-ads-conversion-actions',
         schema: GoogleAdsConversionActionSchema,
