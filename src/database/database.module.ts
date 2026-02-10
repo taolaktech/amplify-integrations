@@ -16,8 +16,8 @@ import {
   GoogleAdsAccountSchema,
   GoogleAdsCampaignSchema,
   GoogleAdsConversionActionSchema,
-  VideoGenerationJobSchema,
-  CreativeSchema,
+  MediaGenerationJobSchema,
+  AssetSchema,
 } from './schema';
 import { DatabaseIndexService } from './database-index.service';
 
@@ -46,8 +46,8 @@ import { DatabaseIndexService } from './database-index.service';
       { name: 'instagram-accounts', schema: InstagramAccountSchema },
       { name: 'google-ads-accounts', schema: GoogleAdsAccountSchema },
       { name: 'google-ads-campaigns', schema: GoogleAdsCampaignSchema },
-      { name: 'creatives', schema: CreativeSchema },
-      { name: 'video-generation-jobs', schema: VideoGenerationJobSchema },
+      { name: 'media-generation-jobs', schema: MediaGenerationJobSchema },
+      { name: 'assets', schema: AssetSchema },
       {
         name: 'google-ads-conversion-actions',
         schema: GoogleAdsConversionActionSchema,

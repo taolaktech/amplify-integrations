@@ -17,8 +17,7 @@ export class OpenAiVideoProvider {
     prompt: string;
     model: string;
     seconds?: string;
-    size?: string;
-    quality?: string;
+    size?: '720x1280' | '1280x720' | '1024x1792' | '1792x1024';
   }) {
     return this.client.createVideoJob(params);
   }

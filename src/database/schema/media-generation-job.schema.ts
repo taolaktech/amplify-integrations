@@ -1,18 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
-export type VideoGenerationJobDoc = HydratedDocument<VideoGenerationJob>;
+export type MediaGenerationJobDoc = HydratedDocument<MediaGenerationJob>;
 
 @Schema({ timestamps: true })
-export class VideoGenerationJob {
-  @Prop({ required: true, index: true })
-  creativeSetId: string;
+export class MediaGenerationJob {
+  @Prop({ type: Types.ObjectId, required: true, index: true })
+  assetId: Types.ObjectId;
 
-  @Prop({ required: true, index: true })
-  campaignId: string;
+  @Prop({ index: true, required: true, enum: ['image', 'video'] })
+  type: 'image' | 'video';
 
-  @Prop({ required: true, index: true, enum: ['openai'] })
-  provider: 'openai';
+  @Prop({ required: true, index: true, enum: ['openai', 'nanobanana'] })
+  provider: 'openai' | 'nanobanana';
 
   @Prop({ required: true, unique: true, index: true })
   providerJobId: string;
@@ -21,7 +21,7 @@ export class VideoGenerationJob {
   prompt: string;
 
   @Prop({ default: 'sora-2' })
-  model: string;
+  model: 'sora-2' | 'nanobanana';
 
   @Prop({
     enum: ['queued', 'running', 'completed', 'failed'],
@@ -45,10 +45,10 @@ export class VideoGenerationJob {
   completedAt?: Date;
 
   @Prop()
-  videoUrl?: string;
+  mediaUrl?: string;
 
   @Prop()
-  videoKey?: string;
+  mediaKey?: string;
 
   @Prop()
   notifiedAt?: Date;
@@ -57,5 +57,5 @@ export class VideoGenerationJob {
   error?: { code?: string; message?: string };
 }
 
-export const VideoGenerationJobSchema =
-  SchemaFactory.createForClass(VideoGenerationJob);
+export const MediaGenerationJobSchema =
+  SchemaFactory.createForClass(MediaGenerationJob);

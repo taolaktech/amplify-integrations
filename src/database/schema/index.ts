@@ -9,6 +9,6 @@ export * from './facebook-campaign.schema';
 export * from './instagram-account.schema';
 export * from './google-ads-account.schema';
 export * from './google-ads-campaign.schema';
-export * from './creative.schema';
-export * from './video-generation-job.schema';
+export * from './asset.schema';
+export * from './media-generation-job.schema';
 export * from './google-ads-conversion-action.schema';

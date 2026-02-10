@@ -32,8 +32,8 @@ export class OpenAiVideoClient {
     prompt: string;
     model?: string;
     seconds?: string;
-    size?: string;
-    quality?: string;
+    size?: '720x1280' | '1280x720' | '1024x1792' | '1792x1024';
+    // quality?: string;
   }): Promise<OpenAiVideoJob> {
     const res = await this.http.post<OpenAiVideoJob>('/videos', body, {
       headers: {
@@ -52,7 +52,9 @@ export class OpenAiVideoClient {
     videoId: string;
     asset?: string;
   }): Promise<ArrayBuffer> {
-    const query = params.asset ? `?asset=${encodeURIComponent(params.asset)}` : '';
+    const query = params.asset
+      ? `?asset=${encodeURIComponent(params.asset)}`
+      : '';
     const res = await this.http.get<ArrayBuffer>(
       `/videos/${params.videoId}/content${query}`,
       { responseType: 'arraybuffer' },

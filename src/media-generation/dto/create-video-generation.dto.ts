@@ -50,11 +50,12 @@ export class CreateVideoGenerationDto {
   @ApiProperty({
     required: false,
     example: '1280x720',
+    enum: ['720x1280', '1280x720', '1024x1792', '1792x1024'],
     description: 'Resolution formatted as widthxheight',
   })
   @IsOptional()
   @IsString()
-  size?: string;
+  size?: '720x1280' | '1280x720' | '1024x1792' | '1792x1024';
 
   @ApiProperty({
     required: false,

@@ -9,10 +9,11 @@ import { ConfigModule } from '@nestjs/config';
 import { FacebookModule } from './facebook/facebook.module';
 import { GoogleAdsModule } from './google-ads/google-ads.module';
 import { ShopifyWebhookModule } from './webhook/shopify-webhook.module';
+import { NanobananaWebhookModule } from './webhook/nanobanana-webhook.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AuthModule } from './auth/auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { VideoGenerationModule } from './video-generation/video-generation.module';
+import { MediaGenerationModule } from './media-generation/media-generation.module';
 
 @Module({
   imports: [
@@ -23,13 +24,14 @@ import { VideoGenerationModule } from './video-generation/video-generation.modul
     HealthcheckModule,
     ShopifyModule,
     ShopifyWebhookModule,
+    NanobananaWebhookModule,
     GoogleAdsModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),
     FacebookModule,
     IntegrationsModule,
-    VideoGenerationModule,
+    MediaGenerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
