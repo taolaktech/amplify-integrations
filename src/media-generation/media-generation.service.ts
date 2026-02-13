@@ -385,7 +385,6 @@ export class MediaGenerationService {
 
   @Interval(15000)
   async pollActiveJobs() {
-    this.logger.log('Polling active media generation jobs');
     const activeJobs = await this.jobModel
       .find({
         $or: [
