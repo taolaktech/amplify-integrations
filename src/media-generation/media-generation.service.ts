@@ -397,13 +397,10 @@ export class MediaGenerationService {
       .limit(25)
       .lean<MediaGenerationJob[]>();
 
-    this.logger.log(`Found ${activeJobs.length} active media generation jobs`);
-
     if (activeJobs.length === 0) {
-      this.logger.log('No active media generation jobs found');
       return;
     }
-
+    // this.logger.log(`Found ${activeJobs.length} active media generation jobs`);
     await Promise.all(
       activeJobs.map(async (j) => {
         try {
