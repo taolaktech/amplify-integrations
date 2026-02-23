@@ -4,7 +4,7 @@ import { Document, Types } from 'mongoose';
 export type AssetDoc = Asset & Document;
 
 export type AssetType = 'image' | 'video';
-export type AssetSource = 'ai-generated' | 'uploaded';
+export type AssetSource = 'generated' | 'uploaded';
 
 @Schema({ timestamps: true })
 export class Asset {
@@ -30,7 +30,7 @@ export class Asset {
   source: AssetSource;
 
   @Prop()
-  url?: string;
+  mediaUrl?: string;
 
   @Prop()
   storageKey?: string;

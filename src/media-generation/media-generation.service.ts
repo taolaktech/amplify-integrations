@@ -47,6 +47,7 @@ export class MediaGenerationService {
       source: 'ai-generated',
       promptUsed: dto.prompt,
       generationJobId: job.id,
+      mediaPresetId: dto.videoPresetId,
     });
 
     await this.jobModel.findOneAndUpdate(
@@ -97,6 +98,7 @@ export class MediaGenerationService {
       source: 'ai-generated',
       promptUsed: dto.prompt,
       generationJobId: taskId,
+      mediaPresetId: dto.imagePresetId,
     });
 
     await this.jobModel.findOneAndUpdate(

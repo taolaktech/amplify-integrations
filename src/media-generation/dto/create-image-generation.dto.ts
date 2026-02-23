@@ -23,6 +23,11 @@ export class CreateImageGenerationDto {
   @IsNotEmpty()
   prompt: string;
 
+  @ApiProperty({ required: false, description: 'Media preset id' })
+  @IsOptional()
+  @IsMongoId()
+  imagePresetId?: string;
+
   @ApiProperty({ required: false, enum: ['nanobanana'], default: 'nanobanana' })
   @IsOptional()
   @IsIn(['nanobanana'])
