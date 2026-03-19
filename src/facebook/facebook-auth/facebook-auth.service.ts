@@ -718,7 +718,9 @@ export class FacebookAuthService {
       });
 
       if (!adAccount) {
-        throw new Error('Ad account not found or does not belong to user');
+        throw new BadRequestException(
+          'Ad account not found or does not belong to user',
+        );
       }
 
       // Remove primary flag from all user's ad accounts
@@ -1229,9 +1231,10 @@ export class FacebookAuthService {
       // Check if the page belongs to this ad account
       const pageBelongsToAdAccount = adAccount.pages?.includes(pageId);
       if (!pageBelongsToAdAccount) {
-        throw new BadRequestException(
-          `The selected Facebook Page does not belong to the selected Ad Account. Please select a page that is associated with ad account ${adAccountId}.`,
-        );
+        throw new BadRequestException({
+          message: `The selected Facebook Page does not belong to the selected Ad Account. Please select a page that is associated with ad account ${adAccountId}.`,
+          code: 'PAGE_AD_ACCOUNT_MISMATCH',
+        });
       }
 
       // 2. Set as primary

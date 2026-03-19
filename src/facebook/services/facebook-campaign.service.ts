@@ -1511,118 +1511,115 @@ export class FacebookCampaignService {
   async launchCampaign(
     campaignId: string,
     platform: string,
-  ): Promise<{
-    facebookStatus: string;
-    reviewStatus: string; // This is an effective status from Facebook's perspective
-  }> {
+  ): Promise<void> {
     try {
       this.logger.debug(`Step 5: Launching Amplify campaign: ${campaignId}`);
+      // DO nothing
+      // const facebookCampaign = await this.getFacebookCampaign(
+      //   campaignId,
+      //   platform,
+      // );
+      // const userToken = await this.getAndValidateUserToken(
+      //   facebookCampaign.userId,
+      // );
 
-      const facebookCampaign = await this.getFacebookCampaign(
-        campaignId,
-        platform,
-      );
-      const userToken = await this.getAndValidateUserToken(
-        facebookCampaign.userId,
-      );
+      // // Prevent re-launching
+      // if (
+      //   facebookCampaign.processingStatus === 'LAUNCHED' ||
+      //   facebookCampaign.facebookStatus === 'ACTIVE'
+      // ) {
+      //   this.logger.warn(
+      //     `Campaign ${campaignId} has already been launched. Skipping.`,
+      //   );
+      //   return {
+      //     facebookStatus: facebookCampaign.facebookStatus,
+      //     reviewStatus: 'UNDER_REVIEW', // Assume it's in review if already launched
+      //   };
+      // }
 
-      // Prevent re-launching
-      if (
-        facebookCampaign.processingStatus === 'LAUNCHED' ||
-        facebookCampaign.facebookStatus === 'ACTIVE'
-      ) {
-        this.logger.warn(
-          `Campaign ${campaignId} has already been launched. Skipping.`,
-        );
-        return {
-          facebookStatus: facebookCampaign.facebookStatus,
-          reviewStatus: 'UNDER_REVIEW', // Assume it's in review if already launched
-        };
-      }
+      // // Validate that all components exist before trying to launch
+      // if (
+      //   facebookCampaign.ads.length === 0 ||
+      //   !facebookCampaign.facebookCampaignId ||
+      //   facebookCampaign.adSets.length === 0
+      // ) {
+      //   throw new BadRequestException(
+      //     'Cannot launch campaign: Missing Campaign, Ad Set, or Ad. Please run previous steps first.',
+      //   );
+      // }
 
-      // Validate that all components exist before trying to launch
-      if (
-        facebookCampaign.ads.length === 0 ||
-        !facebookCampaign.facebookCampaignId ||
-        facebookCampaign.adSets.length === 0
-      ) {
-        throw new BadRequestException(
-          'Cannot launch campaign: Missing Campaign, Ad Set, or Ad. Please run previous steps first.',
-        );
-      }
+      // await this.updateProcessingStatus(campaignId, 'LAUNCHING', platform);
 
-      await this.updateProcessingStatus(campaignId, 'LAUNCHING', platform);
+      // // It's crucial to activate components in the correct order: Ad -> Ad Set -> Campaign
+      // const adId = facebookCampaign.ads[0].adId;
+      // const adSetId = facebookCampaign.adSets[0].adSetId;
+      // const fbCampaignId = facebookCampaign.facebookCampaignId;
 
-      // It's crucial to activate components in the correct order: Ad -> Ad Set -> Campaign
-      const adId = facebookCampaign.ads[0].adId;
-      const adSetId = facebookCampaign.adSets[0].adSetId;
-      const fbCampaignId = facebookCampaign.facebookCampaignId;
+      // this.logger.debug(
+      //   `Activating components for campaign ${fbCampaignId}: Ad (${adId}), AdSet (${adSetId}), Campaign (${fbCampaignId})`,
+      // );
 
-      this.logger.debug(
-        `Activating components for campaign ${fbCampaignId}: Ad (${adId}), AdSet (${adSetId}), Campaign (${fbCampaignId})`,
-      );
+      // // 1. Activate the Ad
+      // await this.facebookMarketingApiService.updateStatus(
+      //   userToken,
+      //   adId,
+      //   'ACTIVE',
+      // );
+      // this.logger.log(`Ad ${adId} status now Active`);
 
-      // 1. Activate the Ad
-      await this.facebookMarketingApiService.updateStatus(
-        userToken,
-        adId,
-        'ACTIVE',
-      );
-      this.logger.log(`Ad ${adId} status now Active`);
+      // // 2. Activate the Ad Set
+      // await this.facebookMarketingApiService.updateStatus(
+      //   userToken,
+      //   adSetId,
+      //   'ACTIVE',
+      // );
+      // this.logger.log(`Adset ${adSetId} status now Active`);
 
-      // 2. Activate the Ad Set
-      await this.facebookMarketingApiService.updateStatus(
-        userToken,
-        adSetId,
-        'ACTIVE',
-      );
-      this.logger.log(`Adset ${adSetId} status now Active`);
+      // // 3. Activate the Campaign
+      // // await this.facebookMarketingApiService.updateStatus(
+      // //   userToken,
+      // //   fbCampaignId,
+      // //   'ACTIVE',
+      // // );
+      // this.logger.log(`Campaign ${fbCampaignId} status now Active`);
 
-      // 3. Activate the Campaign
-      await this.facebookMarketingApiService.updateStatus(
-        userToken,
-        fbCampaignId,
-        'ACTIVE',
-      );
-      this.logger.log(`Campaign ${fbCampaignId} status now Active`);
+      // this.logger.debug(
+      //   `All components for campaign ${fbCampaignId} have been set to ACTIVE.`,
+      // );
 
-      this.logger.debug(
-        `All components for campaign ${fbCampaignId} have been set to ACTIVE.`,
-      );
+      // // Update the final status in our database
+      // await this.facebookCampaignModel.updateOne(
+      //   { campaignId, platform },
+      //   {
+      //     $set: {
+      //       'ads.$[].status': 'ACTIVE',
+      //       'adSets.$[].status': 'ACTIVE',
+      //       facebookStatus: 'ACTIVE', // Note: Facebook's "effective_status" will be IN_REVIEW initially
+      //       processingStatus: 'LAUNCHED',
+      //       failedStep: null,
+      //       errorMessage: null,
+      //       lastProcessedAt: new Date(),
+      //     },
+      //   },
+      // );
 
-      // Update the final status in our database
-      await this.facebookCampaignModel.updateOne(
-        { campaignId, platform },
-        {
-          $set: {
-            'ads.$[].status': 'ACTIVE',
-            'adSets.$[].status': 'ACTIVE',
-            facebookStatus: 'ACTIVE', // Note: Facebook's "effective_status" will be IN_REVIEW initially
-            processingStatus: 'LAUNCHED',
-            failedStep: null,
-            errorMessage: null,
-            lastProcessedAt: new Date(),
-          },
-        },
-      );
+      // this.logger.debug(
+      //   `Successfully updated database status to LAUNCHED for campaign: ${campaignId}`,
+      // );
 
-      this.logger.debug(
-        `Successfully updated database status to LAUNCHED for campaign: ${campaignId}`,
-      );
-
-      return {
-        facebookStatus: 'ACTIVE', // Our intent is active
-        reviewStatus: 'IN_REVIEW', // Facebook's initial state after activation
-      };
+      // return {
+      //   facebookStatus: 'ACTIVE', // Our intent is active
+      //   reviewStatus: 'IN_REVIEW', // Facebook's initial state after activation
+      // };
     } catch (error) {
-      this.logger.error(`Failed to launch campaign: ${campaignId}`, error);
-      await this.updateProcessingStatus(
-        campaignId,
-        'FAILED',
-        platform,
-        `Campaign launch failed: ${error.message}`,
-        'LAUNCHING',
-      );
+      // this.logger.error(`Failed to launch campaign: ${campaignId}`, error);
+      // await this.updateProcessingStatus(
+      //   campaignId,
+      //   'FAILED',
+      //   platform,
+      //   `Campaign launch failed: ${error.message}`,
+      //   'LAUNCHING',
+      // );
       throw error;
     }
   }

@@ -302,22 +302,18 @@ export class FacebookCampaignController {
     this.logger.debug(`Received request to launch campaign: ${campaignId}`);
 
     // This service method now handles activating all components.
-    const result = await this.facebookCampaignService.launchCampaign(
-      campaignId,
-      platform,
-    );
+    await this.facebookCampaignService.launchCampaign(campaignId, platform);
 
     return {
       success: true,
       currentStep: 'LAUNCHED',
       nextStep: null, // This is the final step in the creation process
-      message:
-        'Campaign launched successfully and submitted for Facebook review.',
-      data: {
-        facebookStatus: result.facebookStatus,
-        reviewStatus: result.reviewStatus,
-        estimatedReviewTime: 'Up to 24 hours, but often much faster.',
-      },
+      message: 'DO Nothing',
+      // data: {
+      //   facebookStatus: result.facebookStatus,
+      //   reviewStatus: result.reviewStatus,
+      //   estimatedReviewTime: 'Up to 24 hours, but often much faster.',
+      // },
     };
   }
 

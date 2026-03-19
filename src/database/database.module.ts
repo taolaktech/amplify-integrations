@@ -19,7 +19,6 @@ import {
   MediaGenerationJobSchema,
   AssetSchema,
 } from './schema';
-import { DatabaseIndexService } from './database-index.service';
 
 @Global()
 @Module({
@@ -54,7 +53,7 @@ import { DatabaseIndexService } from './database-index.service';
       },
     ]),
   ],
-  providers: [DatabaseIndexService],
+  providers: [],
   exports: [MongooseModule],
 })
 export class DatabaseModule {}
