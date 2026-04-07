@@ -354,21 +354,6 @@ export class GoogleAdsCampaignOrchestrationService {
         options,
       });
 
-      const googleBudgetTotal =
-        Number(campaign.totalBudget || 0) /
-        Math.max(
-          Array.isArray(campaign.platforms)
-            ? Array.from(new Set(campaign.platforms)).length
-            : 1,
-          1,
-        );
-
-      this.logger.log(
-        `Step1--> budget inputs totalBudget=${String(
-          campaign.totalBudget,
-        )} platforms=${Array.isArray(campaign.platforms) ? Array.from(new Set(campaign.platforms)).join(',') : 'N/A'} googleBudgetTotal=${googleBudgetTotal}`,
-      );
-
       const startDate = campaign.startDate
         ? new Date(campaign.startDate)
         : new Date();
@@ -385,10 +370,30 @@ export class GoogleAdsCampaignOrchestrationService {
 
       const diffInMs = endDate.getTime() - startDate.getTime();
       const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24)) + 1;
-      const dailyBudget = googleBudgetTotal / Math.max(days, 1);
+
+      // Use googleDailyBudget directly if available, otherwise fall back to equal distribution
+      const googleDailyBudgetValue = Number(campaign.googleDailyBudget || 0);
+      let dailyBudget: number;
+      let googleBudgetTotal: number;
+      if (googleDailyBudgetValue > 0) {
+        dailyBudget = googleDailyBudgetValue;
+        googleBudgetTotal = dailyBudget * Math.max(days, 1);
+      } else {
+        googleBudgetTotal =
+          Number(campaign.totalBudget || 0) /
+          Math.max(
+            Array.isArray(campaign.platforms)
+              ? Array.from(new Set(campaign.platforms)).length
+              : 1,
+            1,
+          );
+        dailyBudget = googleBudgetTotal / Math.max(days, 1);
+      }
 
       this.logger.log(
-        `Step1--> BUDGET days=${days} dailyBudget=${dailyBudget}`,
+        `Step1--> budget inputs totalBudget=${String(
+          campaign.totalBudget,
+        )} googleDailyBudget=${googleDailyBudgetValue} platforms=${Array.isArray(campaign.platforms) ? Array.from(new Set(campaign.platforms)).join(',') : 'N/A'} days=${days} dailyBudget=${dailyBudget}`,
       );
 
       this.logger.log(

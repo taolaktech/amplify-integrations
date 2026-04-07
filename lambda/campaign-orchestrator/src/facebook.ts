@@ -34,6 +34,8 @@ interface CampaignData {
   startDate: string;
   endDate: string;
   totalBudget: number;
+  googleDailyBudget?: number;
+  facebookDailyBudget?: number;
   platforms: string[];
   location: Array<{
     country: string;
@@ -79,6 +81,8 @@ interface CampaignDataRequest {
   startDate: string;
   endDate: string;
   totalBudget: number;
+  googleDailyBudget?: number;
+  facebookDailyBudget?: number;
   platforms: string[];
   location: Array<{
     country: string;
@@ -161,6 +165,8 @@ function sanitizeCampaignDataForInitialize(
     startDate: campaignData.startDate,
     endDate: campaignData.endDate,
     totalBudget: campaignData.totalBudget,
+    googleDailyBudget: campaignData.googleDailyBudget,
+    facebookDailyBudget: campaignData.facebookDailyBudget,
     platforms: ['FACEBOOK'],
     location: campaignData.location,
     name: campaignData.name,

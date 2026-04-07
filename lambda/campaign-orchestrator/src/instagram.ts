@@ -34,6 +34,8 @@ interface CampaignData {
   startDate: string;
   endDate: string;
   totalBudget: number;
+  googleDailyBudget?: number;
+  facebookDailyBudget?: number;
   platforms: string[];
   location: Array<{
     country: string;
@@ -77,6 +79,8 @@ interface CampaignDataRequest {
   startDate: string;
   endDate: string;
   totalBudget: number;
+  googleDailyBudget?: number;
+  facebookDailyBudget?: number;
   platforms: string[];
   location: Array<{
     country: string;

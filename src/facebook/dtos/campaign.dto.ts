@@ -267,6 +267,24 @@ export class CampaignDataFromLambdaClass {
   totalBudget: number;
 
   @ApiProperty({
+    description: 'Daily budget allocated to Google Ads',
+    example: 50,
+  })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  googleDailyBudget?: number;
+
+  @ApiProperty({
+    description: 'Daily budget allocated to Facebook/Meta Ads',
+    example: 50,
+  })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  facebookDailyBudget?: number;
+
+  @ApiProperty({
     description: 'Advertising platforms',
     example: ['FACEBOOK', 'INSTAGRAM', 'GOOGLE'],
     enum: ['FACEBOOK', 'INSTAGRAM', 'GOOGLE'],

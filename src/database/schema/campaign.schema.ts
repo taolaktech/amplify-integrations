@@ -241,6 +241,20 @@ export class Campaign {
   totalBudget: number;
 
   @ApiProperty({
+    example: 50,
+    description: 'Daily budget allocated to Google Ads.',
+  })
+  @Prop({ default: 0 })
+  googleDailyBudget: number;
+
+  @ApiProperty({
+    example: 50,
+    description: 'Daily budget allocated to Facebook/Meta Ads.',
+  })
+  @Prop({ default: 0 })
+  facebookDailyBudget: number;
+
+  @ApiProperty({
     type: [Product],
     description: 'List of products in the campaign.',
   })

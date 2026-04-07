@@ -25,6 +25,8 @@ export interface CampaignDataFromLambda {
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   totalBudget: number; // Total budget across all platforms
+  googleDailyBudget?: number; // Daily budget allocated to Google Ads
+  facebookDailyBudget?: number; // Daily budget allocated to Facebook/Meta Ads
   platforms: string[]; // ['FACEBOOK', 'INSTAGRAM', 'GOOGLE']
   location: Array<{
     // Targeting locations
@@ -162,23 +164,29 @@ export class FacebookCampaignDataService {
         );
       }
 
-      // Calculate Facebook's budget allocation
+      // Use facebookDailyBudget directly if available, otherwise fall back to equal distribution
       const platformCount = campaignData.platforms.length;
-      const facebookBudget = campaignData.totalBudget / platformCount; // Equal distribution
-
-      // Calculate campaign duration and daily budget
       const startDate = new Date(campaignData.startDate);
       const endDate = new Date(campaignData.endDate);
       const campaignDurationDays = Math.ceil(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
       );
-      const dailyBudget = Math.max(
-        1,
-        Math.floor(facebookBudget / campaignDurationDays),
-      ); // At least $1/day
+
+      const dailyBudget =
+        campaignData.facebookDailyBudget != null &&
+        campaignData.facebookDailyBudget > 0
+          ? campaignData.facebookDailyBudget
+          : Math.max(
+              1,
+              Math.floor(
+                campaignData.totalBudget / platformCount / campaignDurationDays,
+              ),
+            );
+      const facebookBudget = dailyBudget * campaignDurationDays;
 
       this.logger.debug(`Facebook budget calculation:`, {
         totalBudget: campaignData.totalBudget,
+        facebookDailyBudget: campaignData.facebookDailyBudget,
         platformCount,
         facebookBudget,
         campaignDurationDays,
