@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
   shopifyApi,
   ApiVersion,
@@ -34,7 +35,7 @@ import {
 export class ShopifyGraphqlAdminApi {
   private readonly logger = new Logger(ShopifyGraphqlAdminApi.name);
   private shopify: Shopify;
-  
+
   constructor(
     @InjectModel('shopify-accounts')
     private shopifyAccountModel: Model<ShopifyAccountDoc>,
@@ -382,12 +383,58 @@ export class ShopifyGraphqlAdminApi {
 
   //webhooks validator
   async isValidateWebhook(raw: any, req: any, res: any) {
-    const validation = await this.shopify.webhooks.validate({
-      rawBody: raw,
-      rawRequest: req,
-      rawResponse: res,
-    });
-    
-    return validation?.valid;
+    try {
+      // Try Shopify's built-in validation first
+      const validation = await this.shopify.webhooks.validate({
+        rawBody: raw,
+        rawRequest: req,
+        rawResponse: res,
+      });
+
+      if (validation?.valid) {
+        return true;
+      }
+    } catch (error) {
+      this.logger.warn(
+        'Shopify built-in validation failed, trying manual HMAC verification',
+      );
+    }
+
+    // Fallback to manual HMAC verification
+    return this.manualHmacValidation(raw, req);
+  }
+
+  private manualHmacValidation(rawBody: any, req: any): boolean {
+    try {
+      const shopifyHmac = req.headers['x-shopify-hmac-sha256'];
+      if (!shopifyHmac) {
+        this.logger.error('Missing x-shopify-hmac-sha256 header');
+        return false;
+      }
+
+      const appClientSecret = this.config.get('SHOPIFY_CLIENT_SECRET');
+      if (!appClientSecret) {
+        this.logger.error('Missing SHOPIFY_CLIENT_SECRET configuration');
+        return false;
+      }
+
+      const calculatedHmacDigest = createHmac('sha256', appClientSecret)
+        .update(rawBody)
+        .digest('base64');
+
+      const hmacValid = timingSafeEqual(
+        Buffer.from(calculatedHmacDigest, 'base64'),
+        Buffer.from(shopifyHmac, 'base64'),
+      );
+
+      if (!hmacValid) {
+        this.logger.error('HMAC validation failed');
+      }
+
+      return hmacValid;
+    } catch (error) {
+      this.logger.error('Error during manual HMAC validation:', error);
+      return false;
+    }
   }
 }
