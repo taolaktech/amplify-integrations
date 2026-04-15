@@ -29,9 +29,9 @@ export class AuthService {
         .forService('amplify-manager')
         .post<AuthResponse>('api/internal/auth/verify-token', { token });
 
-      // this.logger.debug(
-      //   `Received response from auth service: ${JSON.stringify(response)}`,
-      // );
+      this.logger.debug(
+        `Received response from auth service: ${JSON.stringify(response)}`,
+      );
 
       if (!response.success) {
         throw new UnauthorizedException('Invalid token');
@@ -39,6 +39,7 @@ export class AuthService {
 
       return response;
     } catch (error) {
+      console.log(error);
       this.logger.error(
         `Token verification failed: ${error.message}`,
         error.stack,
